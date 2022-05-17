@@ -1,0 +1,12 @@
+.idea
+cmake-build-debug
+datasets
+build/*
+saving/*
+*.jpg
+*.png
+*.engine
+.vscode/*
+model/*
+*.so
+
