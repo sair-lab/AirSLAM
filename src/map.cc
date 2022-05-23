@@ -22,22 +22,43 @@ Map::Map(CameraPtr camera): _camera(camera){
 }
 
 void Map::InsertKeyframe(FramePtr frame){
-  // add frame to map
+  // update mappoints
   int frame_id = frame->GetFrameId();
-  _keyframes[frame_id] = frame;
-  _keyframe_ids.push_back(frame_id);
-
-  // add new mappoints
+  std::vector<MappointPtr> new_mappoints;
   std::vector<int>& track_ids = frame->GetAllTrackIds();
   std::vector<cv::KeyPoint>& keypoints = frame->GetAllKeypoints();
   std::vector<double>& depth = frame->GetAllDepth();
   std::vector<MappointPtr>& mappoints = frame->GetAllMappoints();
+  Eigen::Matrix4d& Twf = frame->GetPose();
+  Eigen::Matrix3d Rwf = Twf.block<3, 3>(0, 0);
+  Eigen::Vector3d twf = Twf.block<3, 1>(0, 3);
   for(size_t i = 0; i < frame->FeatureNum(); i++){
     MappointPtr mpt = mappoints[i];
     if(mpt == nullptr){
-      
+      MappointPtr new_mappoint = std::shared_ptr<Mappoint>(new Mappoint(track_ids[i]));
+      Eigen::Vector3d pf;
+      if(frame->BackProjectPoint(i, pf)){
+        Eigen::Vector3d pw = Rwf * pf + twf;
+        new_mappoint->SetPosition(pw);
+      }
+      frame->InsertMappoint(i, new_mappoint);
+      new_mappoints.push_back(new_mappoint);
+    }
+    mpt->AddObverser(frame_id, i);
+    if(mpt->GetType() == Mappoint::Type::UnTriangulated && mpt->ObverserNum() > 2){
+      TriangulateMappoint(mpt);
     }
   }
+
+  // add frame and new mappoints to map
+  _keyframes[frame_id] = frame;
+  _keyframe_ids.push_back(frame_id);
+  for(MappointPtr mpt:new_mappoints){
+    InsertMappoint(mpt);
+  }
+
+  // optimization
+  SlidingWindowOptimization();
 }
 
 void Map::InsertMappoint(MappointPtr mappoint){
@@ -109,18 +130,79 @@ bool Map::TriangulateMappoint(MappointPtr mappoint){
   return true;
 }
 
-void Map::TriangulateAllMappoints(){
-  int num_good = 0;
-  for(auto& kv : _mappoints){
-    MappointPtr mappoint = kv.second;
-    if(TriangulateMappoint(mappoint)){
-      num_good += 1;
-    }else{
-      mappoint->SetBad();
+void Map::SlidingWindowOptimization(){
+  const size_t WindowSize = 10;
+
+  MapOfPoses poses;
+  MapOfPoints3d points;
+  std::vector<CameraPtr> camera_list;
+  VectorOfPointConstraints point_constraints;
+  std::vector<int> fixed_poses;
+  std::vector<int> fixed_points;
+
+  // camera
+  camera_list.emplace_back(_camera);
+
+  // select frames to optimize
+  std::vector<FramePtr> frames;
+  size_t frame_num = std::min(WindowSize, _keyframe_ids.size());
+  for(size_t i = _keyframe_ids.size() - frame_num; i < _keyframe_ids.size(); i++){
+    frames.push_back(_keyframes[_keyframe_ids[i]]);
+  }
+
+  // point constrainnts
+  for(size_t i = 0; i < frames.size(); i++){
+    FramePtr frame = frames[i];
+    bool fix_this_frame = ((i==0) || frame->PoseFixed());
+    int frame_id = frame->GetFrameId();
+    Eigen::Matrix4d& frame_pose = frame->GetPose();
+    Pose3d pose;
+    pose.q = frame_pose.block<3, 3>(0, 0);
+    pose.p = frame_pose.block<3, 1>(0, 3);
+    poses.insert(std::pair<int, Pose3d>(frame_id, pose));  
+    if(fix_this_frame) fixed_poses.push_back(frame_id);
+    
+    std::vector<MappointPtr>& mappoints = frame->GetAllMappoints();
+    for(size_t j = 0; j < mappoints.size(); j++){
+      // points
+      MappointPtr mpt = mappoints[j];
+      if(!mpt->IsValid()) continue;
+      int mpt_id = mpt->GetId();
+      Position3d point;
+      point.p = mpt->GetPosition();
+      points.insert(std::pair<int, Position3d>(mpt_id, point));
+      if(fix_this_frame) fixed_points.push_back(mpt_id);
+
+      // constraints
+      PointConstraint point_constraint;
+      point_constraint.id_pose = frame_id;
+      point_constraint.id_point = mpt_id;
+      point_constraint.id_camera = 0;
+      point_constraint.pixel_sigma = 0.8;
+      point_constraints.push_back(point_constraint);
     }
   }
-  std::cout << "num mappoints = " << _mappoints.size() 
-            << "  num_good = " << num_good << std::endl;
+
+  std::vector<int> inliers;
+  int num_inliers = Optimize(poses, points, camera_list, point_constraints, fixed_poses, fixed_points, inliers);
+  
+  // copy back to map
+  for(auto& kv : poses){
+    int frame_id = kv.first;
+    Pose3d pose = kv.second;
+    if(_keyframes.count(frame_id) == 0) continue;
+    Eigen::Matrix4d pose_eigen;
+    pose_eigen.block<3, 3>(0, 0) = pose.q.matrix();
+    pose_eigen.block<3, 1>(0, 3) = pose.p;
+    _keyframes[frame_id]->SetPose(pose_eigen);
+  }
+
+  for(auto& kv : points){
+    int mpt_id = kv.first;
+    Position3d position = kv.second;
+    if(_mappoints.count(mpt_id) == 0) continue;
+    _mappoints[mpt_id]->SetPosition(position.p);
+  }
 }
 
 void Map::GlobalBundleAdjust(){

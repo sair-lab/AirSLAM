@@ -25,7 +25,6 @@ public:
   int TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMatch>& matches);
   int FramePoseOptimization(FramePtr frame, std::vector<MappointPtr>& mappoints, std::vector<int>& inliers);
   // void InsertKeyframe(FramePtr frame);
-  void TriangulateAllMappoints();
   void GlobalBundleAdjust();
   void SaveMap(const std::string& map_root);
 

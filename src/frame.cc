@@ -74,6 +74,8 @@ void Frame::AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_lef
 
   std::vector<int> track_ids(features_left_size, -1);
   SetTrackIds(track_ids);
+  std::vector<MappointPtr> mappoints(features_left_size, nullptr);
+  _mappoints = mappoints;
 }
 
 Eigen::Matrix<double, 259, Eigen::Dynamic>& Frame::GetAllFeatures(){
@@ -131,7 +133,7 @@ int Frame::GetTrackId(size_t idx){
   return _track_ids[idx];
 }
 
-MappointPtr GetMappoint(size_t idx){
+MappointPtr Frame::GetMappoint(size_t idx){
   assert(idx < _mappoints.size());
   return _mappoints[idx];
 }

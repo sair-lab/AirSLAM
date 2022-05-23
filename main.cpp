@@ -28,10 +28,10 @@ int main(int argc, char **argv) {
     std::cout << "SuperGlue Total Cost Time: " << cost_time << " ms." << std::endl;
   }
 
-  std::string save_root = configs.saving_dir;
-  std::string map_save_dir = ConcatenateFolderAndFileName(save_root, "map");
-  MakeDir(map_save_dir);
-  map_builder.SaveMap(map_save_dir);
+  // std::string save_root = configs.saving_dir;
+  // std::string map_save_dir = ConcatenateFolderAndFileName(save_root, "map");
+  // MakeDir(map_save_dir);
+  // map_builder.SaveMap(map_save_dir);
 
   return 0;
 }

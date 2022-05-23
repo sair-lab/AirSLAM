@@ -48,6 +48,16 @@ void Mappoint::RemoveObverser(const int& frame_id){
     _obversers[frame_id] = -1;
 }
 
+int Mappoint::ObverserNum(){
+  int obverser_num = 0;
+  for(auto& kv : _obversers){
+    if(kv.second > 0){
+      obverser_num++;
+    }
+  }
+  return obverser_num;
+}
+
 void Mappoint::SetPosition(Eigen::Vector3d& p){
   _position = p;
   if(_type == Type::UnTriangulated){

@@ -59,6 +59,7 @@ public:
 
   void AddObverser(const int& frame_id, const int& keypoint_index);
   void RemoveObverser(const int& frame_id);
+  int ObverserNum();
   void SetPosition(Eigen::Vector3d& p);
   Eigen::Vector3d& GetPosition();
   std::map<int, int>& GetAllObversers();

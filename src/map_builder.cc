@@ -219,7 +219,7 @@ int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMa
       int idx0 = match.trainIdx;
       if(inliers[idx1] > 0 || frame0_mappoints[idx0]->GetType() == Mappoint::Type::UnTriangulated){
         frame1->SetTrackId(idx1, frame0->GetTrackId(idx0));
-        frame1->InsertMappoint(frame0_mappoints[idx0]);
+        frame1->InsertMappoint(idx1, frame0_mappoints[idx0]);
       }
     }
   }
@@ -239,6 +239,8 @@ int MapBuilder::FramePoseOptimization(
 
   // MapOfPoses
   Pose3d pose;
+  pose.p = _last_pose.p;
+  pose.q = _last_pose.q;
   int frame_id = frame->GetFrameId();    
   poses.insert(std::pair<int, Pose3d>(frame_id, pose));  
 
@@ -255,7 +257,7 @@ int MapBuilder::FramePoseOptimization(
 
     // visual constraint
     PointConstraint point_constraint;
-    point_constraint.id_pose = 0;
+    point_constraint.id_pose = frame_id;
     point_constraint.id_point = mpt_id;
     point_constraint.id_camera = 0;
     point_constraint.pixel_sigma = 0.8;
@@ -319,11 +321,6 @@ int MapBuilder::FramePoseOptimization(
 //   }
 
 // }
-
-void MapBuilder::TriangulateAllMappoints(){
-  _map->TriangulateAllMappoints();
-}
-
 
 
 void MapBuilder::GlobalBundleAdjust(){
