@@ -4,8 +4,12 @@
 #include <iostream>
 #include <string>
 #include <ceres/ceres.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/eigen.hpp>
 
 #include "camera.h"
+#include "frame.h"
+#include "mappoint.h"
 #include "optimization_3d/types.h"
 #include "optimization_3d/visual_error_term.h"
 
@@ -110,4 +114,48 @@ int Optimize(MapOfPoses& poses, MapOfPoints3d& points,
   std::cout << "points.size() = " << points.size() << std::endl; 
   std::cout << "point_constraints.size() = " << point_constraints.size() << std::endl; 
   return points.size();
+}
+
+int SolvePnPWithCV(FramePtr frame, std::vector<MappointPtr>& mappoints, std::vector<int>& inliers){
+  std::vector<cv::Point3f> object_points;
+  std::vector<cv::Point2f> image_points;
+  std::vector<int> point_indexes;
+  cv::Mat camera_matrix, dist_coeffs;
+  CameraPtr camera = frame->GetCamera();
+  camera->GetCamerMatrix(camera_matrix);
+  camera->GetDistCoeffs(dist_coeffs);
+  cv::Mat rotation_vector;
+  cv::Mat translation_vector;
+  cv::Mat cv_inliers;
+
+  for(size_t i = 0; i < mappoints.size(); i++){
+    MappointPtr mpt = mappoints[i];
+    if(mpt == nullptr || !mpt->IsValid()) continue;
+    Eigen::Vector3d keypoint; 
+    if(!frame->GetKeypointPosition(i, keypoint)) continue;
+    const Eigen::Vector3d& point_position = mpt->GetPosition();
+    object_points.emplace_back(point_position(0), point_position(1), point_position(2));
+    image_points.emplace_back(keypoint(0), keypoint(1));
+    point_indexes.emplace_back(i);
+  }
+
+  cv::solvePnPRansac(object_points, image_points, camera_matrix, dist_coeffs, 
+      rotation_vector, translation_vector, false, 100, 20.0, 0.99, cv_inliers);
+
+  Eigen::Vector3d rotation_eigen_vector, translation_eigen_vector;
+  Eigen::VectorXi inliers_eigen;
+  cv::cv2eigen(rotation_vector, rotation_eigen_vector);
+  cv::cv2eigen(translation_vector, translation_eigen_vector);
+  cv::cv2eigen(cv_inliers, inliers_eigen);
+  double angle = rotation_eigen_vector.norm();
+  Eigen::Vector3d axis = rotation_eigen_vector.normalized();
+  Eigen::AngleAxisd angle_axis(angle, axis);
+
+  inliers = std::vector<int>(mappoints.size(), -1);
+  for(int i = 0; i < cv_inliers.rows; i++){
+    int inlier_idx = cv_inliers.at<int>(i, 0);
+    int point_idx = point_indexes[inlier_idx];
+    inliers[point_idx] = mappoints[i]->GetId();
+  }
+  return cv_inliers.rows;
 }

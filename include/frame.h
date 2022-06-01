@@ -50,6 +50,8 @@ public:
   void InsertMappoint(size_t idx, MappointPtr mappoint);
 
   bool BackProjectPoint(size_t idx, Eigen::Vector3d& p3D);
+  
+  CameraPtr GetCamera();
 
 private:
   int _frame_id;

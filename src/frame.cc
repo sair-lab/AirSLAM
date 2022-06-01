@@ -162,3 +162,7 @@ bool Frame::BackProjectPoint(size_t idx, Eigen::Vector3d& p3D){
   if(!_camera->BackProjectStereo(p2D, p3D)) return false;
   return true;
 }
+
+CameraPtr Frame::GetCamera(){
+  return _camera;
+}

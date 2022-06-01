@@ -18,4 +18,6 @@ int Optimize(MapOfPoses& poses, MapOfPoints3d& points, std::vector<CameraPtr> ca
     VectorOfPointConstraints& visual_constraints, std::vector<int>& fixed_poses, 
     std::vector<int>& fixed_points, std::vector<int>& inliers);
 
+int SolvePnPWithCV();
+
 #endif  // OPTIMIZATION_3D_H_
