@@ -1,6 +1,7 @@
 #ifndef Visual_ERROR_TERM_H_
 #define Visual_ERROR_TERM_H_
 
+#include <iostream>
 #include <Eigen/Core>
 #include <ceres/autodiff_cost_function.h>
 #include "optimization_3d/types.h"
@@ -33,7 +34,7 @@ public:
 
     Eigen::Map<Eigen::Matrix<T, 2, 1>> residuals(residuals_ptr, 2, 1);
     residuals = (reproject_position - _measurement) * static_cast<T>(_pixel_sigma_inverse);
-
+    // std::cout << "residuals mono = " << (reproject_position - _measurement).transpose() << std::endl;
     return true;
   }
 
@@ -78,7 +79,7 @@ public:
 
     Eigen::Map<Eigen::Matrix<T, 3, 1>> residuals(residuals_ptr, 3, 1);
     residuals = (reproject_position - _measurement) * static_cast<T>(_pixel_sigma_inverse);
-
+    // std::cout << "residuals stereo = " << (reproject_position - _measurement).transpose() << std::endl;
     return true;
   }
 

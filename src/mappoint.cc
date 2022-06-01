@@ -5,6 +5,7 @@ Mappoint::Mappoint(): _type(Type::UnTriangulated){
 
 Mappoint::Mappoint(int& mappoint_id): 
     _id(mappoint_id), _type(Type::UnTriangulated){
+  if(mappoint_id < 0) exit(0);
 }
 
 Mappoint::Mappoint(int& mappoint_id, Eigen::Vector3d& p):

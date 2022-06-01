@@ -56,7 +56,6 @@ void Frame::AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_lef
     double score = _features(0, i);
     double x = _features(1, i);
     double y = _features(2, i);
-
     _keypoints.emplace_back(x, y, 8, -1, score);
   }
 
@@ -101,6 +100,15 @@ cv::KeyPoint& Frame::GetKeypoint(size_t idx){
   assert(idx < _keypoints.size());
   return _keypoints[idx];
 }
+
+double Frame::GetRightPosition(size_t idx){
+  assert(idx < _u_right.size());
+  return _u_right[idx];
+}
+
+std::vector<double>& Frame::GetAllRightPosition(){
+  return _u_right;
+} 
 
 double Frame::GetDepth(size_t idx){
   assert(idx < _depth.size());

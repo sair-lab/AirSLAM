@@ -4,6 +4,7 @@
 #include <iostream> 
 #include <Eigen/Core> 
 #include <Eigen/Geometry> 
+#include <opencv2/core/eigen.hpp>
 
 #include "super_point.h"
 #include "super_glue.h"
@@ -13,7 +14,10 @@
 #include "frame.h"
 #include "point_matching.h"
 #include "map.h"
+#include "timer.h"
 #include "debug.h"
+
+INITIALIZE_TIMER;
 
 MapBuilder::MapBuilder(Configs& configs): _init(false), _track_id(0), _configs(configs){
   _camera = std::shared_ptr<Camera>(new Camera(configs.camera_config_path));
@@ -22,13 +26,15 @@ MapBuilder::MapBuilder(Configs& configs): _init(false), _track_id(0), _configs(c
     std::cout << "Error in SuperPoint building" << std::endl;
     exit(0);
   }
+
   _point_matching = std::shared_ptr<PointMatching>(new PointMatching(configs.superglue_config));
   _map = std::shared_ptr<Map>(new Map(_camera));
 }
 
 void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_right){
-  // undistort image
+  // undistort image 
   cv::Mat image_left_rect, image_right_rect;
+
   _camera->UndistortImage(image_left, image_right, image_left_rect, image_right_rect);
 
   // extract features
@@ -51,16 +57,13 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   frame->AddFeatures(features_left, features_right, stereo_matches);
 
   // init
-  std::vector<int> track_ids(features_left.cols(), -1);
   if(!_init){
+    if(stereo_matches.size() < 100) return;
     _init = Init(frame);
     if(_init){
       _last_frame = frame;
       _last_image = image_left_rect;
-
-      _last_keyframe = frame;
       _last_keyimage = image_left_rect;
-
       Eigen::Matrix4d frame_pose = frame->GetPose();
       _last_pose.p = frame_pose.block<3, 1>(0, 3);
       _last_pose.q = frame_pose.block<3, 3>(0, 0);
@@ -79,11 +82,11 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
       matches.clear();
       num_match = TrackFrame(_last_frame, frame, matches);
       if(num_match < _configs.keyframe_config.min_num_match){
-        _map->InsertKeyframe(_last_frame);
-        _num_since_last_keyframe = 1;
-        _last_keyframe = _last_frame;
+        InsertKeyframe(_last_frame);
         _last_keyimage = _last_image;
-        std::cout << "Insert a keyframe" << std::endl;
+        Eigen::Matrix4d frame_pose = _last_frame->GetPose();
+        _last_pose.p = frame_pose.block<3, 1>(0, 3);
+        _last_pose.q = frame_pose.block<3, 3>(0, 0);
         return;
       }
     }else{
@@ -91,12 +94,37 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     }
   }
 
+  ////// for debug //////
+  std::string save_root = _configs.saving_dir;
+  std::string debug_save_dir = ConcatenateFolderAndFileName(save_root, "debug");
+  MakeDir(debug_save_dir);  
+  cv::Mat image = image_left.clone();
+  std::vector<cv::KeyPoint>& kpts = frame->GetAllKeypoints();
+  if(track_keyframe){
+    int last_frame_id = _last_keyframe->GetFrameId();
+    std::string save_image_name = "matching_" + std::to_string(last_frame_id) + "_" + std::to_string(frame_id) + ".jpg";
+    std::string save_image_path = ConcatenateFolderAndFileName(debug_save_dir, save_image_name);
+    std::vector<cv::KeyPoint>& last_kpts = _last_keyframe->GetAllKeypoints();
+    SaveMatchingResult(_last_keyimage, last_kpts, image, kpts, matches, save_image_path);
+  }else{
+    int last_frame_id = _last_frame->GetFrameId();
+    std::string save_image_name = "matching_" + std::to_string(last_frame_id) + "_" + std::to_string(frame_id) + ".jpg";
+    std::string save_image_path = ConcatenateFolderAndFileName(debug_save_dir, save_image_name);
+    std::vector<cv::KeyPoint>& last_kpts = _last_frame->GetAllKeypoints();
+    std::vector<cv::KeyPoint>& kpts = frame->GetAllKeypoints();
+    SaveMatchingResult(_last_image, last_kpts, image, kpts, matches, save_image_path);
+  }
+  ///////////////////////
+
+
   // update last frame
   _last_frame = frame;
   _last_image = image_left_rect;
   Eigen::Matrix4d frame_pose = frame->GetPose();
   _last_pose.p = frame_pose.block<3, 1>(0, 3);
   _last_pose.q = frame_pose.block<3, 3>(0, 0);
+
+  std::cout << "frame_pose = " << frame_pose.block<3, 1>(0, 3).transpose() << std::endl;
 
   if(track_keyframe){
     // select keyframe
@@ -115,26 +143,24 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     bool large_delta_angle = (delta_angle > _configs.keyframe_config.max_angle);
     bool large_distance = (delta_distance > _configs.keyframe_config.max_distance);
 
+    std::cout << "last_t = " << last_t.transpose() << std::endl; 
+    std::cout << "current_t = " << current_t.transpose() << std::endl; 
+
+
+    std::cout << "num_match = " << num_match << std::endl; 
+    std::cout << "large_delta_angle = " << large_delta_angle << std::endl; 
+    std::cout << "large_distance = " << large_distance << std::endl; 
+
+
+    std::cout << "not_enough_match = " << not_enough_match 
+              << "  large_delta_angle = " << large_delta_angle
+              << "  large_distance = " << large_distance << std::endl;
     if(!(not_enough_match || large_delta_angle || large_distance)) return;
   }
 
-
-  // ////// for debug //////
-  // std::string save_root = _configs.saving_dir;
-  // std::string debug_save_dir = ConcatenateFolderAndFileName(save_root, "debug");
-  // MakeDir(debug_save_dir);  
-  // std::string save_image_name = "matching_" + std::to_string((frame_id-1)) + "_" + std::to_string(frame_id) + ".jpg";
-  // std::string save_image_path = ConcatenateFolderAndFileName(debug_save_dir, save_image_name);
-  // std::vector<cv::KeyPoint>& last_kpts = _last_frame->GetAllKeypoints();
-  // std::vector<cv::KeyPoint>& kpts = frame->GetAllKeypoints();
-  // SaveMatchingResult(_last_image, last_kpts, new_image, kpts, matches, save_image_path);
-  // ///////////////////////
-
-  _map->InsertKeyframe(frame);
-  _num_since_last_keyframe = 1;
-  _last_keyframe = frame;
+  InsertKeyframe(frame);
   _last_keyimage = image_left_rect;
-  std::cout << "Insert a keyframe" << std::endl;
+  std::cout << "last_keyframe id = " << frame->GetFrameId() << std::endl;
   return;
 }
 
@@ -151,8 +177,8 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     int idx_left = match.queryIdx;
     int idx_right = match.trainIdx;
 
-    double dx = features_left(1, idx_left) - features_right(1, idx_right);
-    double dy = features_left(2, idx_left) - features_right(2, idx_right);
+    double dx = std::abs(features_left(1, idx_left) - features_right(1, idx_right));
+    double dy = std::abs(features_left(2, idx_left) - features_right(2, idx_right));
 
     if(dx > min_x_dif && dx < max_x_dif && dy <= MaxYDiff){
       matches.emplace_back(match);
@@ -186,8 +212,8 @@ bool MapBuilder::Init(FramePtr frame){
   Eigen::Matrix4d init_pose = Eigen::Matrix4d::Identity();
   frame->SetPose(init_pose);
   frame->SetPoseFixed(true);
-  _map->InsertKeyframe(frame);
-  _num_since_last_keyframe = 1;
+  frame->SetTrackIds(track_ids);
+  InsertKeyframe(frame);
   for(MappointPtr mappoint : new_mappoints){
     _map->InsertMappoint(mappoint);
   }
@@ -197,37 +223,77 @@ bool MapBuilder::Init(FramePtr frame){
 int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMatch>& matches){
   Eigen::Matrix<double, 259, Eigen::Dynamic>& features0 = frame0->GetAllFeatures();
   Eigen::Matrix<double, 259, Eigen::Dynamic>& features1 = frame1->GetAllFeatures();
-  int num_match = _point_matching->MatchingPoints(features1, features0, matches);
+  int num_match = _point_matching->MatchingPoints(features0, features1, matches);
   if(num_match < _configs.keyframe_config.min_num_match){
     return num_match;
   }
   std::vector<MappointPtr> matched_mappoints(features1.cols(), nullptr);
   std::vector<MappointPtr>& frame0_mappoints = frame0->GetAllMappoints();
   for(auto& match : matches){
-    int idx1 = match.queryIdx;
-    int idx0 = match.trainIdx;
+    int idx0 = match.queryIdx;
+    int idx1 = match.trainIdx;
     matched_mappoints[idx1] = frame0_mappoints[idx0];
   }
-  
-  std::vector<int> inliers(-1, frame1->FeatureNum());
+  std::vector<int> inliers(frame1->FeatureNum(), -1);
   int num_inliers = FramePoseOptimization(frame1, matched_mappoints, inliers);
 
   // update track id
   if(num_inliers > _configs.keyframe_config.min_num_match){
     for(auto& match : matches){
-      int idx1 = match.queryIdx;
-      int idx0 = match.trainIdx;
-      if(inliers[idx1] > 0 || frame0_mappoints[idx0]->GetType() == Mappoint::Type::UnTriangulated){
+      int idx0 = match.queryIdx;
+      int idx1 = match.trainIdx;
+      if(inliers[idx1] > 0 || !frame0_mappoints[idx0] || frame0_mappoints[idx0]->GetType() == Mappoint::Type::UnTriangulated){
         frame1->SetTrackId(idx1, frame0->GetTrackId(idx0));
         frame1->InsertMappoint(idx1, frame0_mappoints[idx0]);
       }
     }
   }
+
   return num_inliers;
 }
 
 int MapBuilder::FramePoseOptimization(
     FramePtr frame, std::vector<MappointPtr>& mappoints, std::vector<int>& inliers){
+  // First, solve PnP using opencv to calculate initial pose and reject outliers
+  std::vector<cv::Point3f> object_points;
+  std::vector<cv::Point2f> image_points;
+  std::vector<int> point_indexes;
+  cv::Mat camera_matrix, dist_coeffs;
+  _camera->GetCamerMatrix(camera_matrix);
+  _camera->GetDistCoeffs(dist_coeffs);
+  cv::Mat rotation_vector;
+  cv::Mat translation_vector;
+  cv::Mat cv_inliers;
+
+  for(size_t i = 0; i < mappoints.size(); i++){
+    MappointPtr mpt = mappoints[i];
+    if(mpt == nullptr || !mpt->IsValid()) continue;
+    Eigen::Vector3d keypoint; 
+    if(!frame->GetKeypointPosition(i, keypoint)) continue;
+    const Eigen::Vector3d& point_position = mpt->GetPosition();
+    object_points.emplace_back(point_position(0), point_position(1), point_position(2));
+    image_points.emplace_back(keypoint(0), keypoint(1));
+    point_indexes.emplace_back(i);
+  }
+
+  cv::solvePnPRansac(object_points, image_points, camera_matrix, dist_coeffs, 
+      rotation_vector, translation_vector, false, 100, 8.0, 0.99, cv_inliers);
+
+  Eigen::Vector3d rotation_eigen_vector, translation_eigen_vector;
+  Eigen::VectorXi inliers_eigen;
+  cv::cv2eigen(rotation_vector, rotation_eigen_vector);
+  cv::cv2eigen(translation_vector, translation_eigen_vector);
+  cv::cv2eigen(cv_inliers, inliers_eigen);
+  double angle = rotation_eigen_vector.norm();
+  Eigen::Vector3d axis = rotation_eigen_vector.normalized();
+  Eigen::AngleAxisd angle_axis(angle, axis);
+
+  std::cout << "inliers_eigen = " << inliers_eigen.transpose() << std::endl;
+  std::cout << "inliers_eigen.size = " << cv_inliers.rows << std::endl;
+  // std::cout << "rotation_vector = " << rotation_vector << std::endl;
+  // std::cout << "rotation_eigen_vector = " << rotation_eigen_vector << std::endl;
+
+  // Second, optimize using ceres to stereo constraints
   MapOfPoses poses;
   MapOfPoints3d points;
   std::vector<CameraPtr> camera_list;
@@ -237,21 +303,23 @@ int MapBuilder::FramePoseOptimization(
  
   camera_list.emplace_back(_camera);
 
-  // MapOfPoses
+  // map of poses
   Pose3d pose;
-  pose.p = _last_pose.p;
-  pose.q = _last_pose.q;
+  pose.p = translation_eigen_vector;
+  pose.q = angle_axis;
   int frame_id = frame->GetFrameId();    
   poses.insert(std::pair<int, Pose3d>(frame_id, pose));  
-
   // visual constraint construction
-  for(size_t i = 0; i < mappoints.size(); i++){
+  for(int i = 0; i < cv_inliers.rows; i++){
+    int inlier_idx = cv_inliers.at<int>(i, 0);
+    int point_idx = point_indexes[inlier_idx];
+
     // points
-    MappointPtr mpt = mappoints[i];
-    if(!mpt->IsValid()) continue;
-    int mpt_id = mpt->GetId();
+    Eigen::Vector3d keypoint; 
+    if(!frame->GetKeypointPosition(point_idx, keypoint)) continue;
+    int mpt_id = mappoints[point_idx]->GetId();
     Position3d point;
-    point.p = mpt->GetPosition();
+    point.p << object_points[inlier_idx].x, object_points[inlier_idx].y, object_points[inlier_idx].z;
     points.insert(std::pair<int, Position3d>(mpt_id, point));
     fixed_points.push_back(i);
 
@@ -260,18 +328,50 @@ int MapBuilder::FramePoseOptimization(
     point_constraint.id_pose = frame_id;
     point_constraint.id_point = mpt_id;
     point_constraint.id_camera = 0;
+    point_constraint.keypoint = keypoint;
     point_constraint.pixel_sigma = 0.8;
     point_constraints.push_back(point_constraint);
     inliers[i] = mpt_id;
   }
 
+  // // visual constraint construction
+  // Eigen::Matrix<double, 259, Eigen::Dynamic>& features = frame->GetAllFeatures();
+  // std::vector<double>& u_right = frame->GetAllRightPosition();
+  // for(size_t i = 0; i < mappoints.size(); i++){
+  //   // points
+  //   MappointPtr mpt = mappoints[i];
+  //   if(mpt == nullptr || !mpt->IsValid()) continue;
+  //   Eigen::Vector3d keypoint; 
+  //   if(!frame->GetKeypointPosition(i, keypoint)) continue;
+
+  //   int mpt_id = mpt->GetId();
+  //   Position3d point;
+  //   point.p = mpt->GetPosition();
+  //   points.insert(std::pair<int, Position3d>(mpt_id, point));
+  //   fixed_points.push_back(i);
+
+  //   // visual constraint
+  //   PointConstraint point_constraint;
+  //   point_constraint.id_pose = frame_id;
+  //   point_constraint.id_point = mpt_id;
+  //   point_constraint.id_camera = 0;
+  //   point_constraint.keypoint = keypoint;
+  //   point_constraint.pixel_sigma = 0.8;
+  //   point_constraints.push_back(point_constraint);
+  //   inliers[i] = mpt_id;
+  // }
+  START_TIMER;
   int num_inliers = Optimize(poses, points, camera_list, point_constraints, fixed_poses, fixed_points, inliers);
+  STOP_TIMER("Optimize");
+
+  std::cout << "poses.begin()->second.p = " << poses.begin()->second.p.transpose() << std::endl;
+  std::cout << "translation_vector = " << translation_eigen_vector.transpose() << std::endl;
 
   if(num_inliers > _configs.keyframe_config.min_num_match){
     // set frame pose
     Eigen::Matrix4d frame_pose = Eigen::Matrix4d::Identity();
-    frame_pose.block<3, 3>(0, 0) = pose.q.matrix();
-    frame_pose.block<3, 1>(0, 3) = pose.p;
+    frame_pose.block<3, 3>(0, 0) = poses.begin()->second.q.matrix();
+    frame_pose.block<3, 1>(0, 3) = poses.begin()->second.p;
     frame->SetPose(frame_pose);
 
     // update tracked mappoints
@@ -281,47 +381,31 @@ int MapBuilder::FramePoseOptimization(
         frame->InsertMappoint(i, _map->GetMappointPtr(mpt_id));
       }
     }
+
   }
 
   return num_inliers;
 }
 
-// void MapBuilder::InsertKeyframeToMap(FramePtr frame){
-//   // construct new mappoint
-//   std::vector<MappointPtr> new_mappoints
-//   std::vector<int>& track_ids = frame->GetAllTrackIds();
-//   std::unordered_map<int, int> track_ids_map;
-//   for(int i = 0; i < track_ids.size(); i++){
-//     track_ids_map.insert(std::pair<int, int>(track_ids[i], i));
-//   }
-//   std::vector<int>& last_track_ids = _last_keyframe->GetAllTrackIds();
-//   for(int j = 0; j < last_track_ids.size(); j++){
-//     if(last_track_ids[j] < 0) continue;
 
-//     MappointPtr mappoint = _map->GetMappointPtr(last_track_ids[j]);
-//     if(track_ids_map.count(last_track_ids[j]) > 0){
-//       if(mappoint){
-//         mappoint->AddObverser(frame->GetFrameId(), track_ids_map[j]);
-//       }else{
-//         MappointPtr new_mappoint = std::shared_ptr<Mappoint>(new Mappoint(last_track_ids[j]));
-//         new_mappoint->AddObverser(frame->GetFrameId(), track_ids_map[j]);
-//         new_mappoint->AddObverser(_last_keyframe->GetFrameId(), j);
-//         frame->InsertMappoint(new_mappoint);
-//         _last_keyframe->InsertMappoint(new_mappoint);
-//         _map->InsertMappoint(new_mappoint);
-//         _map->
-//       }
-//     }
+void MapBuilder::InsertKeyframe(FramePtr frame){
+  // create new track id
+  std::vector<int>& track_ids = frame->GetAllTrackIds();
+  for(int i = 0; i < track_ids.size(); i++){
+    if(track_ids[i] < 0){
+      frame->SetTrackId(i, _track_id++);
+    }
+  }
 
-//     if(mappoint){
-      
-//     }else{
+  // insert keyframe to map
+  _map->InsertKeyframe(frame);
 
-//     }
-//   }
+  // update last keyframe
+  _last_keyframe = frame;
+  _num_since_last_keyframe = 1;
 
-// }
-
+  std::cout << "Insert a keyframe" << std::endl;
+}
 
 void MapBuilder::GlobalBundleAdjust(){
   _map->GlobalBundleAdjust();

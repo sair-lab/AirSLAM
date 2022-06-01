@@ -31,6 +31,7 @@ add_library(${PROJECT_NAME}_lib SHARED
   src/mappoint.cc
   src/map.cc
   src/map_builder.cc
+  src/timer.cc
 )
 
 target_link_libraries(${PROJECT_NAME}_lib

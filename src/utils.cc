@@ -13,6 +13,7 @@ void ConvertVectorToRt(Eigen::Matrix<double, 7, 1>& m, Eigen::Matrix3d& R, Eigen
 void GetFileNames(std::string path, std::vector<std::string>& filenames){
   DIR *pDir;
   struct dirent* ptr;
+  std::cout << "path = " << path << std::endl;
   if(!(pDir = opendir(path.c_str()))){
     std::cout << "Folder doesn't Exist!" << std::endl;
     return;

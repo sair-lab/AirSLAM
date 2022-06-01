@@ -22,8 +22,13 @@ Map::Map(CameraPtr camera): _camera(camera){
 }
 
 void Map::InsertKeyframe(FramePtr frame){
-  // update mappoints
+  // insert keyframe to map
   int frame_id = frame->GetFrameId();
+  _keyframes[frame_id] = frame;
+  _keyframe_ids.push_back(frame_id);
+  if(_keyframes.size() < 2) return;
+
+  // update mappoints
   std::vector<MappointPtr> new_mappoints;
   std::vector<int>& track_ids = frame->GetAllTrackIds();
   std::vector<cv::KeyPoint>& keypoints = frame->GetAllKeypoints();
@@ -35,14 +40,15 @@ void Map::InsertKeyframe(FramePtr frame){
   for(size_t i = 0; i < frame->FeatureNum(); i++){
     MappointPtr mpt = mappoints[i];
     if(mpt == nullptr){
-      MappointPtr new_mappoint = std::shared_ptr<Mappoint>(new Mappoint(track_ids[i]));
+      if(track_ids[i] < 0) continue;
+      mpt = std::shared_ptr<Mappoint>(new Mappoint(track_ids[i]));
       Eigen::Vector3d pf;
       if(frame->BackProjectPoint(i, pf)){
         Eigen::Vector3d pw = Rwf * pf + twf;
-        new_mappoint->SetPosition(pw);
+        mpt->SetPosition(pw);
       }
-      frame->InsertMappoint(i, new_mappoint);
-      new_mappoints.push_back(new_mappoint);
+      frame->InsertMappoint(i, mpt);
+      new_mappoints.push_back(mpt);
     }
     mpt->AddObverser(frame_id, i);
     if(mpt->GetType() == Mappoint::Type::UnTriangulated && mpt->ObverserNum() > 2){
@@ -50,15 +56,15 @@ void Map::InsertKeyframe(FramePtr frame){
     }
   }
 
-  // add frame and new mappoints to map
-  _keyframes[frame_id] = frame;
-  _keyframe_ids.push_back(frame_id);
+  // add new mappoints to map
   for(MappointPtr mpt:new_mappoints){
     InsertMappoint(mpt);
   }
 
   // optimization
-  SlidingWindowOptimization();
+  if(_keyframes.size() > 2){
+    SlidingWindowOptimization();
+  }
 }
 
 void Map::InsertMappoint(MappointPtr mappoint){
@@ -150,6 +156,9 @@ void Map::SlidingWindowOptimization(){
     frames.push_back(_keyframes[_keyframe_ids[i]]);
   }
 
+  std::cout << "--------------SlidingWindowOptimization Begin------------------------" << std::endl;
+  std::cout << "before optimization : " << std::endl;
+
   // point constrainnts
   for(size_t i = 0; i < frames.size(); i++){
     FramePtr frame = frames[i];
@@ -162,16 +171,18 @@ void Map::SlidingWindowOptimization(){
     poses.insert(std::pair<int, Pose3d>(frame_id, pose));  
     if(fix_this_frame) fixed_poses.push_back(frame_id);
     
+    std::cout << "frame_id = " << frame_id << " fix_this_frame = " << fix_this_frame << " p = " << pose.p.transpose() << std::endl;
+
     std::vector<MappointPtr>& mappoints = frame->GetAllMappoints();
     for(size_t j = 0; j < mappoints.size(); j++){
       // points
       MappointPtr mpt = mappoints[j];
-      if(!mpt->IsValid()) continue;
+      if(!mpt || !mpt->IsValid()) continue;
       int mpt_id = mpt->GetId();
       Position3d point;
       point.p = mpt->GetPosition();
       points.insert(std::pair<int, Position3d>(mpt_id, point));
-      if(fix_this_frame) fixed_points.push_back(mpt_id);
+      // if(fix_this_frame) fixed_points.push_back(mpt_id);
 
       // constraints
       PointConstraint point_constraint;
@@ -185,7 +196,10 @@ void Map::SlidingWindowOptimization(){
 
   std::vector<int> inliers;
   int num_inliers = Optimize(poses, points, camera_list, point_constraints, fixed_poses, fixed_points, inliers);
-  
+
+  std::cout << "after optimization : " << std::endl;
+
+
   // copy back to map
   for(auto& kv : poses){
     int frame_id = kv.first;
@@ -195,6 +209,8 @@ void Map::SlidingWindowOptimization(){
     pose_eigen.block<3, 3>(0, 0) = pose.q.matrix();
     pose_eigen.block<3, 1>(0, 3) = pose.p;
     _keyframes[frame_id]->SetPose(pose_eigen);
+
+    std::cout << "frame_id = " << frame_id << " p = " << pose.p.transpose() << std::endl;
   }
 
   for(auto& kv : points){
@@ -203,6 +219,8 @@ void Map::SlidingWindowOptimization(){
     if(_mappoints.count(mpt_id) == 0) continue;
     _mappoints[mpt_id]->SetPosition(position.p);
   }
+  std::cout << "--------------SlidingWindowOptimization Finish------------------------" << std::endl;
+
 }
 
 void Map::GlobalBundleAdjust(){

@@ -33,6 +33,9 @@ public:
   std::vector<cv::KeyPoint>& GetAllKeypoints();
   cv::KeyPoint& GetKeypoint(size_t idx);
 
+  double GetRightPosition(size_t idx);
+  std::vector<double>& GetAllRightPosition(); 
+
   double GetDepth(size_t idx);
   std::vector<double>& GetAllDepth();
   void SetDepth(size_t idx, double depth);

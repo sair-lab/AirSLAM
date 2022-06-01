@@ -21,7 +21,7 @@ def main():
     parser.add_argument('--weight_file', default="weights/superpoint_v1.pth",
                         help="pytorch weight file (.pth)")
     parser.add_argument('--height', type=int, default=480, help="height in pixels of input image")
-    parser.add_argument('--width', type=int, default=848, help="width in pixels of input image")
+    parser.add_argument('--width', type=int, default=752, help="width in pixels of input image")
     parser.add_argument('--output_dir', default="output", help="output directory")
     parser.add_argument('--batch_size', default=1, type=int, help="batch size of input")
     args = parser.parse_args()

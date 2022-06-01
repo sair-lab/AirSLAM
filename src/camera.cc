@@ -12,9 +12,12 @@ Camera::Camera(const std::string& camera_file){
       std::cerr << "ERROR: Wrong path to settings" << std::endl;
       exit(-1);
   }
-  
+
   _image_height = camera_configs["image_height"];
   _image_width = camera_configs["image_width"];
+  _bf = camera_configs["bf"];
+  _depth_lower_thr = camera_configs["depth_lower_thr"];
+  _depth_upper_thr = camera_configs["depth_upper_thr"];
 
   cv::Mat K_l, K_r, P_l, P_r, R_l, R_r, D_l, D_r;
   camera_configs["LEFT.K"] >> K_l;
@@ -35,10 +38,10 @@ Camera::Camera(const std::string& camera_file){
     exit(0);
   }
 
-  _fx = P_l.at<float>(0, 0);
-  _fy = P_l.at<float>(1, 1);
-  _cx = P_l.at<float>(0, 2);
-  _cy = P_l.at<float>(1, 2);
+  _fx = P_l.at<double>(0, 0);
+  _fy = P_l.at<double>(1, 1);
+  _cx = P_l.at<double>(0, 2);
+  _cy = P_l.at<double>(1, 2);
   _fx_inv = 1.0 / _fx;
   _fy_inv = 1.0 / _fy;
 
@@ -91,6 +94,14 @@ double Camera::DepthLowerThr(){
 
 double Camera::DepthUpperThr(){
   return _depth_upper_thr;
+}
+
+void Camera::GetCamerMatrix(cv::Mat& camera_matrix){
+  camera_matrix = (cv::Mat_<double>(3, 3) << _fx, 0.0, _cx, 0.0, _fy, _cy, 0.0, 0.0, 1.0);
+}
+
+void Camera::GetDistCoeffs(cv::Mat& dist_coeffs){
+  dist_coeffs = (cv::Mat_<double>(5, 1) << 0.0, 0.0, 0.0, 0.0, 0.0);
 }
 
 bool Camera::BackProjectMono(const Eigen::Vector2d& keypoint, Eigen::Vector3d& output){

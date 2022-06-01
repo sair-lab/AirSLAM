@@ -1,0 +1,41 @@
+dataroot: "/media/xukuan/something/ubuntu_data/euroc/mav0"
+camera_config_path: "/home/xukuan/project/AirSLAM_dev/AirSLAM/configs/euroc.yaml"
+model_dir: "/home/xukuan/project/AirSLAM_dev/AirSLAM/model/480x752"
+saving_dir: "/home/xukuan/project/AirSLAM_dev/AirSLAM/debug"
+
+superpoint:
+  max_keypoints: 700
+  keypoint_threshold: 0.005
+  remove_borders: 4 
+  input_tensor_names: 
+    - "input"
+  output_tensor_names:
+    - "scores"
+    - "descriptors"
+  onnx_file: "superpoint_480x752_int32.onnx"
+  engine_file: "superpoint_480x752_int32.engine"
+  dla_core: -1
+
+superglue:
+  image_width: 752
+  image_height: 480
+  input_tensor_names:
+    - "keypoints_0"
+    - "scores_0"
+    - "descriptors_0"
+    - "keypoints_1"
+    - "scores_1"
+    - "descriptors_1"
+    - "shape"
+  output_tensor_names:
+    - "scores"
+  onnx_file: "superglue_indoor_480x752_int32.onnx"
+  engine_file: "superglue_indoor_480x752_int32.engine"
+  dla_core: -1
+
+keyframe:
+  min_num_match: 30
+  max_num_match: 250
+  max_distance: 0.5
+  max_angle: 0.52
+

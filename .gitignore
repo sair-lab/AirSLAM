@@ -8,5 +8,7 @@ saving/*
 *.engine
 .vscode/*
 model/*
+weights/*
+debug/*
 *.so
-
+*/__pycache__/*

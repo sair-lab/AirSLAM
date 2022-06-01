@@ -1,9 +1,53 @@
-image_size: [848, 480]
-intrinsics:
-  type: pinhole
-  data: [420.1159362792969, 423.2421569824219, 420.1159362792969, 241.36537170410156] # fx, cx, fy, cy
-distortion:
-  type: "" 
-  data: [0.0, 0.0, 0.0, 0.0, 0.0] 
-extrinsics:
-  data: [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+%YAML:1.0
+
+image_height: 480
+image_width: 848
+
+# stereo baseline times fx
+bf: 21.005796813964846
+
+depth_lower_thr: 0.1
+depth_upper_thr: 10.0
+
+# stereo rectification
+LEFT.D: !!opencv-matrix
+   rows: 1
+   cols: 5
+   dt: d
+   data: [0.0, 0.0, 0.0, 0.0, 0.0]
+LEFT.K: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [420.1159362792969, 0.0, 423.2421569824219, 0.0, 420.1159362792969, 241.36537170410156, 0.0, 0.0, 1.0]
+LEFT.R:  !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+LEFT.P:  !!opencv-matrix
+   rows: 3
+   cols: 4
+   dt: d
+   data: [420.1159362792969, 0.0, 423.2421569824219, 0.0, 0.0, 420.1159362792969, 241.36537170410156, 0.0, 0.0, 0.0, 1.0, 0.0]
+
+RIGHT.D: !!opencv-matrix
+   rows: 1
+   cols: 5
+   dt: d
+   data: [0.0, 0.0, 0.0, 0.0, 0.0]
+RIGHT.K: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [420.1159362792969, 0.0, 423.2421569824219, 0.0, 420.1159362792969, 241.36537170410156, 0.0, 0.0, 1.0]
+RIGHT.R:  !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+RIGHT.P:  !!opencv-matrix
+   rows: 3
+   cols: 4
+   dt: d
+   data: [420.1159362792969, 0.0, 423.2421569824219, 0.0, 0.0, 420.1159362792969, 241.36537170410156, 0.0, 0.0, 0.0, 1.0, 0.0]

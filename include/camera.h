@@ -26,6 +26,8 @@ public:
   double DepthLowerThr();
   double DepthUpperThr();
   Eigen::Matrix4d& GetExtrinsics();
+  void GetCamerMatrix(cv::Mat& camera_matrix);
+  void GetDistCoeffs(cv::Mat& dist_coeffs);
 
   bool BackProjectMono(const Eigen::Vector2d& keypoint, Eigen::Vector3d& output);
   bool BackProjectStereo(const Eigen::Vector3d& keypoint, Eigen::Vector3d& output);
