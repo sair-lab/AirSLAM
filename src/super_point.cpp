@@ -38,6 +38,20 @@ bool SuperPoint::build() {
     if (!parser) {
         return false;
     }
+    
+    auto profile = builder->createOptimizationProfile();
+    if (!profile) {
+      return false;
+    }
+    profile->setDimensions(super_point_config_.input_tensor_names[0].c_str(),
+                         OptProfileSelector::kMIN, Dims4(1, 1, 100, 100));
+    profile->setDimensions(super_point_config_.input_tensor_names[0].c_str(),
+                         OptProfileSelector::kOPT, Dims4(1, 1, 1000, 1000));
+    profile->setDimensions(super_point_config_.input_tensor_names[0].c_str(),
+                         OptProfileSelector::kMAX, Dims4(1, 1, 2000, 2000));
+
+    config->addOptimizationProfile(profile);
+    
     auto constructed = construct_network(builder, network, config, parser);
     if (!constructed) {
         return false;
@@ -80,7 +94,7 @@ bool SuperPoint::construct_network(TensorRTUniquePtr<nvinfer1::IBuilder> &builde
     if (!parsed) {
         return false;
     }
-    config->setMaxWorkspaceSize(500_MiB);
+    config->setMaxWorkspaceSize(512_MiB);
     config->setFlag(BuilderFlag::kFP16);
     enableDLA(builder.get(), config.get(), super_point_config_.dla_core);
     return true;

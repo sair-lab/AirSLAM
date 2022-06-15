@@ -2,7 +2,7 @@
 
 #include <opencv2/opencv.hpp>
 
-PointMatching::PointMatching(SuperGlueConfig& superglue_cofig) :superglue(superglue_cofig){
+PointMatching::PointMatching(SuperGlueConfig& superglue_config) :superglue(superglue_config){
   if (!superglue.build()){
     std::cout << "Erron in superglue building" << std::endl;
   }
@@ -11,7 +11,8 @@ PointMatching::PointMatching(SuperGlueConfig& superglue_cofig) :superglue(superg
 int PointMatching::MatchingPoints(Eigen::Matrix<double, 259, Eigen::Dynamic>& features0, 
     Eigen::Matrix<double, 259, Eigen::Dynamic>& features1, std::vector<cv::DMatch>& matches){
   matches.clear();
-
+  NormalizeKeypoints(features0, superglue_config.image_width, superglue_config.image_height);
+  NormalizeKeypoints(features1, superglue_config.image_width, superglue_config.image_height);
   Eigen::VectorXi indices0, indices1;
   Eigen::VectorXd mscores0, mscores1;
   superglue.infer(features0, features1, indices0, indices1, mscores0, mscores1);
@@ -42,4 +43,14 @@ int PointMatching::MatchingPoints(Eigen::Matrix<double, 259, Eigen::Dynamic>& fe
   matches.resize(j);
 
   return j;
+}
+
+void PointMatching::NormalizeKeypoints(Eigen::Matrix<double, 259, Eigen::Dynamic> &features,
+                         int width, int height) {
+  for (int col = 0; col < features.cols(); ++col) {
+    features(1, col) =
+        (features(1, col) - width / 2) / (std::max(width, height) * 0.7);
+    features(2, col) =
+        (features(2, col) - height / 2) / (std::max(width, height) * 0.7);
+  }
 }

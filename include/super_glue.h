@@ -2,8 +2,8 @@
 // Created by haoyuefan on 2021/9/22.
 //
 
-#ifndef ACCELERATE_SUPER_GLUE_H
-#define ACCELERATE_SUPER_GLUE_H
+#ifndef SUPER_GLUE_H_
+#define SUPER_GLUE_H_
 
 #include <string>
 #include <memory>
@@ -36,7 +36,6 @@ public:
 
 private:
     SuperGlueConfig superglue_config_;
-    std::vector<int> image_shape_;
     std::vector<int> indices0_;
     std::vector<int> indices1_;
     std::vector<double> mscores0_;
@@ -72,4 +71,4 @@ private:
 
 typedef std::shared_ptr<SuperGlue> SuperGluePtr;
 
-#endif //ACCELERATE_SUPER_GLUE_H
+#endif //SUPER_GLUE_H_
