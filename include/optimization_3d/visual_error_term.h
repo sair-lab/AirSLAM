@@ -79,6 +79,8 @@ public:
 
     Eigen::Map<Eigen::Matrix<T, 3, 1>> residuals(residuals_ptr, 3, 1);
     residuals = (reproject_position - _measurement) * static_cast<T>(_pixel_sigma_inverse);
+    // std::cout << "reproject_position stereo = " << reproject_position.transpose() << std::endl;
+    // std::cout << "_measurement stereo = " << _measurement.transpose() << std::endl;
     // std::cout << "residuals stereo = " << (reproject_position - _measurement).transpose() << std::endl;
     return true;
   }

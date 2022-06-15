@@ -10,10 +10,11 @@
 #include "mappoint.h"
 #include "frame.h"
 #include "optimization_3d/optimization_3d.h"
+#include "ros_publisher.h"
 
 class Map{
 public:
-  Map(CameraPtr camera);
+  Map(CameraPtr camera, RosPublisherPtr ros_publisher);
   void InsertKeyframe(FramePtr frame);
   void InsertMappoint(MappointPtr mappoint);
 
@@ -30,6 +31,7 @@ private:
   std::map<int, MappointPtr> _mappoints;
   std::map<int, FramePtr> _keyframes;
   std::vector<int> _keyframe_ids;
+  RosPublisherPtr _ros_publisher;
 };
 
 typedef std::shared_ptr<Map> MapPtr;

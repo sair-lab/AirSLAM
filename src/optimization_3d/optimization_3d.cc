@@ -12,6 +12,9 @@
 #include "mappoint.h"
 #include "optimization_3d/types.h"
 #include "optimization_3d/visual_error_term.h"
+#include "timer.h"
+
+INITIALIZE_TIMER;
 
 int AddVisualErrorTerm(
     MapOfPoses& poses, MapOfPoints3d& points, std::vector<CameraPtr>& camera_list, 
@@ -93,13 +96,14 @@ bool SolveOptimizationProblem(ceres::Problem* problem) {
   CHECK(problem != NULL);
 
   ceres::Solver::Options options;
-  options.max_num_iterations = 10;
+  options.max_num_iterations = 3;
+  options.max_solver_time_in_seconds = 0.05;
   options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
 
   ceres::Solver::Summary summary;
   ceres::Solve(options, problem, &summary);
 
-  // std::cout << summary.FullReport() << '\n';
+  std::cout << summary.FullReport() << '\n';
   return summary.IsSolutionUsable();
 }
 
@@ -107,16 +111,19 @@ int Optimize(MapOfPoses& poses, MapOfPoints3d& points,
     std::vector<CameraPtr> camera_list, VectorOfPointConstraints& point_constraints, 
     std::vector<int>& fixed_poses, std::vector<int>& fixed_points, std::vector<int>& inliers){
   ceres::Problem problem;
+  START_TIMER;
   BuildOptimizationProblem(poses, points, camera_list, 
       point_constraints, fixed_poses, fixed_points, &problem);
+  STOP_TIMER("BuildOptimizationProblem Time");
+  START_TIMER;
 
   SolveOptimizationProblem(&problem);
-  std::cout << "points.size() = " << points.size() << std::endl; 
-  std::cout << "point_constraints.size() = " << point_constraints.size() << std::endl; 
+  STOP_TIMER("SolveOptimizationProblem Time");
   return points.size();
 }
 
-int SolvePnPWithCV(FramePtr frame, std::vector<MappointPtr>& mappoints, std::vector<int>& inliers){
+int SolvePnPWithCV(FramePtr frame, std::vector<MappointPtr>& mappoints, 
+    Eigen::Matrix4d& pose, std::vector<int>& inliers){
   std::vector<cv::Point3f> object_points;
   std::vector<cv::Point2f> image_points;
   std::vector<int> point_indexes;
@@ -142,20 +149,21 @@ int SolvePnPWithCV(FramePtr frame, std::vector<MappointPtr>& mappoints, std::vec
   cv::solvePnPRansac(object_points, image_points, camera_matrix, dist_coeffs, 
       rotation_vector, translation_vector, false, 100, 20.0, 0.99, cv_inliers);
 
-  Eigen::Vector3d rotation_eigen_vector, translation_eigen_vector;
-  Eigen::VectorXi inliers_eigen;
-  cv::cv2eigen(rotation_vector, rotation_eigen_vector);
-  cv::cv2eigen(translation_vector, translation_eigen_vector);
-  cv::cv2eigen(cv_inliers, inliers_eigen);
-  double angle = rotation_eigen_vector.norm();
-  Eigen::Vector3d axis = rotation_eigen_vector.normalized();
-  Eigen::AngleAxisd angle_axis(angle, axis);
+  cv::Mat cv_Rcw;
+  cv::Rodrigues(rotation_vector, cv_Rcw);
+  Eigen::Matrix3d eigen_Rcw;
+  Eigen::Vector3d eigen_tcw;
+  cv::cv2eigen(cv_Rcw, eigen_Rcw);
+  cv::cv2eigen(translation_vector, eigen_tcw);
+  Eigen::Matrix3d eigen_Rwc = eigen_Rcw.transpose();
+  pose.block<3, 3>(0, 0) = eigen_Rwc;
+  pose.block<3, 1>(0, 3) = eigen_Rwc * (-eigen_tcw);
 
   inliers = std::vector<int>(mappoints.size(), -1);
   for(int i = 0; i < cv_inliers.rows; i++){
     int inlier_idx = cv_inliers.at<int>(i, 0);
     int point_idx = point_indexes[inlier_idx];
-    inliers[point_idx] = mappoints[i]->GetId();
+    inliers[point_idx] = mappoints[point_idx]->GetId();
   }
   return cv_inliers.rows;
 }

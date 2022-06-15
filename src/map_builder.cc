@@ -17,18 +17,17 @@
 #include "timer.h"
 #include "debug.h"
 
-INITIALIZE_TIMER;
 
 MapBuilder::MapBuilder(Configs& configs): _init(false), _track_id(0), _configs(configs){
+  _ros_publisher = std::shared_ptr<RosPublisher>(new RosPublisher(configs.ros_publisher_config));
   _camera = std::shared_ptr<Camera>(new Camera(configs.camera_config_path));
   _superpoint = std::shared_ptr<SuperPoint>(new SuperPoint(configs.superpoint_config));
   if (!_superpoint->build()){
     std::cout << "Error in SuperPoint building" << std::endl;
     exit(0);
   }
-
   _point_matching = std::shared_ptr<PointMatching>(new PointMatching(configs.superglue_config));
-  _map = std::shared_ptr<Map>(new Map(_camera));
+  _map = std::shared_ptr<Map>(new Map(_camera, _ros_publisher));
 }
 
 void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_right){
@@ -62,6 +61,14 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   FramePtr frame = std::shared_ptr<Frame>(new Frame(frame_id, false, _camera));
   frame->AddFeatures(features_left, features_right, stereo_matches);
 
+  // message
+  std::vector<cv::KeyPoint>& keypoints = frame->GetAllKeypoints();
+  FeatureMessgaePtr feature_message = std::shared_ptr<FeatureMessgae>(new FeatureMessgae);
+  feature_message->image = image_left;
+  feature_message->keypoints = keypoints;
+  FramePoseMessagePtr frame_pose_message = std::shared_ptr<FramePoseMessage>(new FramePoseMessage);
+
+
   // init
   if(!_init){
     if(stereo_matches.size() < 100) return;
@@ -73,7 +80,14 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
       Eigen::Matrix4d frame_pose = frame->GetPose();
       _last_pose.p = frame_pose.block<3, 1>(0, 3);
       _last_pose.q = frame_pose.block<3, 3>(0, 0);
+      feature_message->inliers = std::vector<bool>(keypoints.size(), true);
+      frame_pose_message->pose = frame->GetPose();
+    }else{
+      feature_message->inliers = std::vector<bool>(keypoints.size(), false);
+      frame_pose_message->pose = Eigen::Matrix4d::Identity();
     }
+    _ros_publisher->PublishFeature(feature_message);
+    _ros_publisher->PublishFramePose(frame_pose_message);
     return;
   }
 
@@ -99,6 +113,20 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
       return;
     }
   }
+
+  // publish message
+  {
+    std::vector<bool> inliers_feature_message(keypoints.size(), false);
+    for(cv::DMatch& match : matches){
+      inliers_feature_message[match.trainIdx] = true;
+    }
+    feature_message->inliers = inliers_feature_message;
+    _ros_publisher->PublishFeature(feature_message);
+
+    frame_pose_message->pose = frame->GetPose();
+    _ros_publisher->PublishFramePose(frame_pose_message);
+  }
+  
 
   ////// for debug //////
   if(track_keyframe){
@@ -226,7 +254,7 @@ int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMa
     matched_mappoints[idx1] = frame0_mappoints[idx0];
   }
   std::vector<int> inliers(frame1->FeatureNum(), -1);
-  int num_inliers = FramePoseOptimizationWithRejectOutliers(frame1, matched_mappoints, inliers);
+  int num_inliers = FramePoseOptimization(frame1, matched_mappoints, inliers);
 
   // update track id
   int RM = 0;
@@ -252,42 +280,15 @@ int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMa
   return num_inliers;
 }
 
-int MapBuilder::FramePoseOptimizationWithRejectOutliers(
+int MapBuilder::FramePoseOptimization(
     FramePtr frame, std::vector<MappointPtr>& mappoints, std::vector<int>& inliers){
-  // First, solve PnP using opencv to calculate initial pose and reject outliers
-  std::vector<cv::Point3f> object_points;
-  std::vector<cv::Point2f> image_points;
-  std::vector<int> point_indexes;
-  cv::Mat camera_matrix, dist_coeffs;
-  _camera->GetCamerMatrix(camera_matrix);
-  _camera->GetDistCoeffs(dist_coeffs);
-  cv::Mat rotation_vector;
-  cv::Mat translation_vector;
-  cv::Mat cv_inliers;
+  // Solve PnP using opencv to get initial pose
+  Eigen::Matrix4d cv_pose;
+  std::vector<int> cv_inliers;
+  int num_cv_inliers = SolvePnPWithCV(frame, mappoints, cv_pose, cv_inliers);
 
-  for(size_t i = 0; i < mappoints.size(); i++){
-    MappointPtr mpt = mappoints[i];
-    if(mpt == nullptr || !mpt->IsValid()) continue;
-    Eigen::Vector3d keypoint; 
-    if(!frame->GetKeypointPosition(i, keypoint)) continue;
-    const Eigen::Vector3d& point_position = mpt->GetPosition();
-    object_points.emplace_back(point_position(0), point_position(1), point_position(2));
-    image_points.emplace_back(keypoint(0), keypoint(1));
-    point_indexes.emplace_back(i);
-  }
+  std::cout << "cv_pose = " << cv_pose.block<3, 1>(0, 3).transpose() << std::endl;
 
-  cv::solvePnPRansac(object_points, image_points, camera_matrix, dist_coeffs, 
-      rotation_vector, translation_vector, false, 100, 8.0, 0.99, cv_inliers);
-
-  Eigen::Vector3d rotation_eigen_vector, translation_eigen_vector;
-  Eigen::VectorXi inliers_eigen;
-  cv::cv2eigen(rotation_vector, rotation_eigen_vector);
-  cv::cv2eigen(translation_vector, translation_eigen_vector);
-  cv::cv2eigen(cv_inliers, inliers_eigen);
-  std::cout << "PnP num inlier = " << cv_inliers.rows << std::endl;
-  double angle = rotation_eigen_vector.norm();
-  Eigen::Vector3d axis = rotation_eigen_vector.normalized();
-  Eigen::AngleAxisd angle_axis(angle, axis);
 
   // Second, optimize using ceres to stereo constraints
   MapOfPoses poses;
@@ -301,75 +302,15 @@ int MapBuilder::FramePoseOptimizationWithRejectOutliers(
 
   // map of poses
   Pose3d pose;
-  pose.p = translation_eigen_vector;
-  pose.q = angle_axis;
-  int frame_id = frame->GetFrameId();    
-  poses.insert(std::pair<int, Pose3d>(frame_id, pose));  
-  // visual constraint construction
-  for(int i = 0; i < cv_inliers.rows; i++){
-    int inlier_idx = cv_inliers.at<int>(i, 0);
-    int point_idx = point_indexes[inlier_idx];
-
-    // points
-    Eigen::Vector3d keypoint; 
-    if(!frame->GetKeypointPosition(point_idx, keypoint)) continue;
-    int mpt_id = mappoints[point_idx]->GetId();
-    Position3d point;
-    point.p << object_points[inlier_idx].x, object_points[inlier_idx].y, object_points[inlier_idx].z;
-    points.insert(std::pair<int, Position3d>(mpt_id, point));
-    fixed_points.push_back(i);
-
-    // visual constraint
-    PointConstraint point_constraint;
-    point_constraint.id_pose = frame_id;
-    point_constraint.id_point = mpt_id;
-    point_constraint.id_camera = 0;
-    point_constraint.keypoint = keypoint;
-    point_constraint.pixel_sigma = 0.8;
-    point_constraints.push_back(point_constraint);
-    inliers[i] = mpt_id;
+  if(num_cv_inliers > _configs.keyframe_config.min_num_match){
+    pose.p = cv_pose.block<3, 1>(0, 3);
+    pose.q = cv_pose.block<3, 3>(0, 0);
+  }else{
+    pose.p = _last_pose.p;
+    pose.q = _last_pose.q;
   }
+  std::cout << "initial pose = " << pose.p.transpose() << std::endl;
 
-  START_TIMER;
-  int num_inliers = Optimize(poses, points, camera_list, point_constraints, fixed_poses, fixed_points, inliers);
-  STOP_TIMER("Optimize");
-
-  if(num_inliers > _configs.keyframe_config.min_num_match){
-    // set frame pose
-    Eigen::Matrix4d frame_pose = Eigen::Matrix4d::Identity();
-    frame_pose.block<3, 3>(0, 0) = poses.begin()->second.q.matrix();
-    frame_pose.block<3, 1>(0, 3) = poses.begin()->second.p;
-    frame->SetPose(frame_pose);
-
-    // update tracked mappoints
-    for(size_t i = 0; i < inliers.size(); i++){
-      int mpt_id = inliers[i];
-      if(mpt_id > 0){
-        frame->InsertMappoint(i, _map->GetMappointPtr(mpt_id));
-      }
-    }
-
-  }
-
-  return num_inliers;
-}
-
-int MapBuilder::FramePoseOptimization(
-    FramePtr frame, std::vector<MappointPtr>& mappoints, std::vector<int>& inliers){
-// Second, optimize using ceres to stereo constraints
-  MapOfPoses poses;
-  MapOfPoints3d points;
-  std::vector<CameraPtr> camera_list;
-  VectorOfPointConstraints point_constraints;
-  std::vector<int> fixed_poses;
-  std::vector<int> fixed_points;
- 
-  camera_list.emplace_back(_camera);
-
-  // map of poses
-  Pose3d pose;
-  pose.p = _last_pose.p;
-  pose.q = _last_pose.q;
   int frame_id = frame->GetFrameId();    
   poses.insert(std::pair<int, Pose3d>(frame_id, pose));  
 
@@ -399,9 +340,9 @@ int MapBuilder::FramePoseOptimization(
     point_constraints.push_back(point_constraint);
     inliers[i] = mpt_id;
   }
-  START_TIMER;
+  // START_TIMER;
   int num_inliers = Optimize(poses, points, camera_list, point_constraints, fixed_poses, fixed_points, inliers);
-  STOP_TIMER("Optimize");
+  // STOP_TIMER("Optimize");
 
   std::cout << "poses.begin()->second.p = " << poses.begin()->second.p.transpose() << std::endl;
 

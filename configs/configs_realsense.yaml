@@ -1,7 +1,7 @@
 dataroot: "/media/xukuan/something/ubuntu_data/AirSLAM/realsense_test_data"
-camera_config_path: "/home/xukuan/project/AirSLAM_dev/AirSLAM/configs/realsense_848_480.yaml"
-model_dir: "/home/xukuan/project/AirSLAM_dev/AirSLAM/model/480x848"
-saving_dir: "/home/xukuan/project/AirSLAM_dev/AirSLAM/debug"
+camera_config_path: "/home/xukuan/project/AirSLAM_dev/catkin_airslam/src/AirSLAM/configs/realsense_848_480.yaml"
+model_dir: "/home/xukuan/project/AirSLAM_dev/catkin_airslam/src/AirSLAM/model/480x848"
+saving_dir: "/home/xukuan/project/AirSLAM_dev/catkin_airslam/src/AirSLAM/debug"
 
 superpoint:
   max_keypoints: 700
@@ -35,7 +35,18 @@ superglue:
 
 keyframe:
   min_num_match: 30
-  max_num_match: 250
+  max_num_match: 180
   max_distance: 0.5
   max_angle: 0.52
+
+ros_publisher:
+  feature: 1
+  feature_topic: "/AirSLAM/feature"
+  frame_pose: 1
+  frame_pose_topic: "/AirSLAM/frame_pose"
+  keyframe: 1
+  keyframe_topic: "/AirSLAM/keyframe"
+  path_topic: "/AirSLAM/odometry"
+  map: 1
+  map_topic: "/AirSLAM/map"
 

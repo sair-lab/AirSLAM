@@ -5,6 +5,8 @@
 #include <ceres/ceres.h>
 
 #include "camera.h"
+#include "frame.h"
+#include "mappoint.h"
 #include "optimization_3d/types.h"
 
 int AddVisualErrorTerm(MapOfPoses& poses, MapOfPoints3d& points, std::vector<CameraPtr>& camera_list, 
@@ -18,6 +20,6 @@ int Optimize(MapOfPoses& poses, MapOfPoints3d& points, std::vector<CameraPtr> ca
     VectorOfPointConstraints& visual_constraints, std::vector<int>& fixed_poses, 
     std::vector<int>& fixed_points, std::vector<int>& inliers);
 
-int SolvePnPWithCV();
+int SolvePnPWithCV(FramePtr frame, std::vector<MappointPtr>& mappoints, Eigen::Matrix4d& pose, std::vector<int>& inliers);
 
 #endif  // OPTIMIZATION_3D_H_

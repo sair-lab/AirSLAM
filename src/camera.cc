@@ -31,6 +31,7 @@ Camera::Camera(const std::string& camera_file){
 
   camera_configs["LEFT.D"] >> D_l;
   camera_configs["RIGHT.D"] >> D_r;
+  std::cout << "Camera 3" << std::endl;
 
   if(K_l.empty() || K_r.empty() || P_l.empty() || P_r.empty() || R_l.empty() || 
      R_r.empty() || D_l.empty() || D_r.empty() || _image_height == 0 || _image_width == 0){
@@ -47,6 +48,7 @@ Camera::Camera(const std::string& camera_file){
 
   cv::initUndistortRectifyMap(K_l, D_l, R_l, P_l.rowRange(0,3).colRange(0,3), 
       cv::Size(_image_width, _image_height), CV_32F, _mapl1, _mapl2);
+
   cv::initUndistortRectifyMap(K_r, D_r, R_r, P_r.rowRange(0,3).colRange(0,3),
       cv::Size(_image_width, _image_height), CV_32F, _mapr1, _mapr2);
 }

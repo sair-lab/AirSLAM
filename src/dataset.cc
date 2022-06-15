@@ -16,6 +16,7 @@ Dataset::Dataset(const std::string& dataroot){
   std::vector<std::string> image_names;
   std::cout << "left_image_dir = " << left_image_dir << std::endl;
   GetFileNames(left_image_dir, image_names);
+  std::sort (image_names.begin(), image_names.end()); 
   for(std::string& image_name : image_names){
     _left_images.emplace_back(ConcatenateFolderAndFileName(left_image_dir, image_name));
     _right_images.emplace_back(ConcatenateFolderAndFileName(right_image_dir, image_name));

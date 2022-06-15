@@ -5,20 +5,15 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
 
-// #include <tf/tf.h> 
-// #include <nav_msgs/Odometry.h>
-// #include <nav_msgs/Path.h>
-// #include <visualization_msgs/Marker.h>
-// #include <visualization_msgs/MarkerArray.h>
-// #include <sensor_msgs/PointCloud2.h>
-// #include <sensor_msgs/PointCloud.h>
-
 #include "map.h"
 #include "utils.h"
 #include "frame.h"
 #include "optimization_3d/types.h"
+#include "timer.h"
 
-Map::Map(CameraPtr camera): _camera(camera){
+// INITIALIZE_TIMER;
+
+Map::Map(CameraPtr camera, RosPublisherPtr ros_publisher): _camera(camera), _ros_publisher(ros_publisher){
 }
 
 void Map::InsertKeyframe(FramePtr frame){
@@ -28,6 +23,7 @@ void Map::InsertKeyframe(FramePtr frame){
   _keyframe_ids.push_back(frame_id);
   if(_keyframes.size() < 2) return;
 
+  // START_TIMER;
   // update mappoints
   std::vector<MappointPtr> new_mappoints;
   std::vector<int>& track_ids = frame->GetAllTrackIds();
@@ -60,6 +56,7 @@ void Map::InsertKeyframe(FramePtr frame){
   for(MappointPtr mpt:new_mappoints){
     InsertMappoint(mpt);
   }
+  // STOP_TIMER("Insert to map Time");
 
   // optimization
   if(_keyframes.size() > 2){
@@ -138,6 +135,7 @@ bool Map::TriangulateMappoint(MappointPtr mappoint){
 
 void Map::SlidingWindowOptimization(){
   const size_t WindowSize = 10;
+  // START_TIMER;
 
   MapOfPoses poses;
   MapOfPoints3d points;
@@ -171,13 +169,13 @@ void Map::SlidingWindowOptimization(){
     poses.insert(std::pair<int, Pose3d>(frame_id, pose));  
     if(fix_this_frame) fixed_poses.push_back(frame_id);
     
-    std::cout << "frame_id = " << frame_id << " fix_this_frame = " << fix_this_frame << " p = " << pose.p.transpose() << std::endl;
-
     std::vector<MappointPtr>& mappoints = frame->GetAllMappoints();
     for(size_t j = 0; j < mappoints.size(); j++){
       // points
       MappointPtr mpt = mappoints[j];
       if(!mpt || !mpt->IsValid()) continue;
+      Eigen::Vector3d keypoint; 
+      if(!frame->GetKeypointPosition(j, keypoint)) continue;
       int mpt_id = mpt->GetId();
       Position3d point;
       point.p = mpt->GetPosition();
@@ -189,18 +187,25 @@ void Map::SlidingWindowOptimization(){
       point_constraint.id_pose = frame_id;
       point_constraint.id_point = mpt_id;
       point_constraint.id_camera = 0;
+      point_constraint.keypoint = keypoint;
       point_constraint.pixel_sigma = 0.8;
       point_constraints.push_back(point_constraint);
     }
   }
+  // STOP_TIMER("SlidingWindowOptimization Time1");
+  // START_TIMER;
 
   std::vector<int> inliers;
   int num_inliers = Optimize(poses, points, camera_list, point_constraints, fixed_poses, fixed_points, inliers);
+  // STOP_TIMER("SlidingWindowOptimization Time2");
+  // START_TIMER;
 
   std::cout << "after optimization : " << std::endl;
 
-
   // copy back to map
+  KeyframeMessagePtr keyframe_message = std::shared_ptr<KeyframeMessage>(new KeyframeMessage);
+  MapMessagePtr map_message = std::shared_ptr<MapMessage>(new MapMessage);
+
   for(auto& kv : poses){
     int frame_id = kv.first;
     Pose3d pose = kv.second;
@@ -210,7 +215,8 @@ void Map::SlidingWindowOptimization(){
     pose_eigen.block<3, 1>(0, 3) = pose.p;
     _keyframes[frame_id]->SetPose(pose_eigen);
 
-    std::cout << "frame_id = " << frame_id << " p = " << pose.p.transpose() << std::endl;
+    keyframe_message->ids.push_back(frame_id);
+    keyframe_message->poses.push_back(pose_eigen);
   }
 
   for(auto& kv : points){
@@ -218,8 +224,14 @@ void Map::SlidingWindowOptimization(){
     Position3d position = kv.second;
     if(_mappoints.count(mpt_id) == 0) continue;
     _mappoints[mpt_id]->SetPosition(position.p);
+
+    map_message->ids.push_back(mpt_id);
+    map_message->points.push_back(position.p);
   }
+  _ros_publisher->PublisheKeyframe(keyframe_message);
+  _ros_publisher->PublishMap(map_message);
   std::cout << "--------------SlidingWindowOptimization Finish------------------------" << std::endl;
+  // STOP_TIMER("SlidingWindowOptimization Time3");
 
 }
 

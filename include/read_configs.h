@@ -33,6 +33,18 @@ struct KeyframeConfig {
   double max_angle;
 };
 
+struct RosPublisherConfig{
+  int feature;
+  std::string feature_topic;
+  int frame_pose;
+  std::string frame_pose_topic;
+  int keyframe;
+  std::string keyframe_topic;
+  std::string path_topic;
+  int map;
+  std::string map_topic;
+};
+
 struct Configs{
   std::string dataroot;
   std::string camera_config_path;
@@ -42,6 +54,7 @@ struct Configs{
   SuperPointConfig superpoint_config;
   SuperGlueConfig superglue_config;
   KeyframeConfig keyframe_config;
+  RosPublisherConfig ros_publisher_config;
 
   Configs(const std::string& config_file){
     std::cout << "config_file = " << config_file << std::endl;
@@ -103,9 +116,18 @@ struct Configs{
     keyframe_config.max_num_match = keyframe_node["max_num_match"].as<int>();
     keyframe_config.max_distance = keyframe_node["max_distance"].as<double>();
     keyframe_config.max_angle = keyframe_node["max_angle"].as<double>();
+
+    YAML::Node ros_publisher_node = file_node["ros_publisher"];
+    ros_publisher_config.feature = ros_publisher_node["feature"].as<int>();
+    ros_publisher_config.feature_topic = ros_publisher_node["feature_topic"].as<std::string>();   
+    ros_publisher_config.frame_pose = ros_publisher_node["frame_pose"].as<int>();
+    ros_publisher_config.frame_pose_topic = ros_publisher_node["frame_pose_topic"].as<std::string>();
+    ros_publisher_config.keyframe = ros_publisher_node["keyframe"].as<int>();
+    ros_publisher_config.keyframe_topic = ros_publisher_node["keyframe_topic"].as<std::string>();
+    ros_publisher_config.path_topic = ros_publisher_node["path_topic"].as<std::string>();
+    ros_publisher_config.map = ros_publisher_node["map"].as<int>();
+    ros_publisher_config.map_topic = ros_publisher_node["map_topic"].as<std::string>();
   }
 };
-
-
 
 #endif  // READ_CONFIGS_H_
