@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(air_slam)
 
 set(CMAKE_CXX_STANDARD 14)
+add_definitions(-w)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)

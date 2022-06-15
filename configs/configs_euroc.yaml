@@ -1,7 +1,7 @@
-dataroot: "/media/xukuan/something/ubuntu_data/euroc/mav0"
-camera_config_path: "/home/xukuan/project/AirSLAM_dev/AirSLAM/configs/euroc.yaml"
-model_dir: "/home/xukuan/project/AirSLAM_dev/AirSLAM/model/480x752"
-saving_dir: "/home/xukuan/project/AirSLAM_dev/AirSLAM/debug"
+dataroot: "/home/haoyuefan/AirSLAM_src/src/data/euroc/mav0"
+camera_config_path: "/home/haoyuefan/AirSLAM_src/src/configs/euroc.yaml"
+model_dir: "/home/haoyuefan/AirSLAM_src/src/output"
+saving_dir: "/home/haoyuefan/AirSLAM_src/src/debug"
 
 superpoint:
   max_keypoints: 700
@@ -38,3 +38,14 @@ keyframe:
   max_distance: 0.5
   max_angle: 0.52
 
+ros_publisher:
+  feature: 1
+  feature_topic: "/AirSLAM/feature"
+  frame_pose: 1
+  frame_pose_topic: "/AirSLAM/frame_pose"
+  keyframe: 1
+  keyframe_topic: "/AirSLAM/keyframe"
+  path_topic: "/AirSLAM/odometry"
+  map: 1
+  map_topic: "/AirSLAM/map"
+ 

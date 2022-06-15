@@ -145,7 +145,7 @@ bool SuperGlue::infer(const Eigen::Matrix<double, 259, Eigen::Dynamic> &features
         return false;
     }
 
-    assert(engine_->getNbBindings() == 8);
+    assert(engine_->getNbBindings() == 7);
 
     const int keypoints_0_index = engine_->getBindingIndex(superglue_config_.input_tensor_names[0].c_str());
     const int scores_0_index = engine_->getBindingIndex(superglue_config_.input_tensor_names[1].c_str());
@@ -172,7 +172,7 @@ bool SuperGlue::infer(const Eigen::Matrix<double, 259, Eigen::Dynamic> &features
 
     BufferManager buffers(engine_, 0, context.get());
 
-    ASSERT(superglue_config_.input_tensor_names.size() == 7);
+    ASSERT(superglue_config_.input_tensor_names.size() == 6);
     if (!process_input(buffers, features0, features1)) {
         return false;
     }

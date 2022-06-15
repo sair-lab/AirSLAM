@@ -3,6 +3,7 @@
 #include <opencv2/opencv.hpp>
 
 PointMatching::PointMatching(SuperGlueConfig& superglue_config) :superglue(superglue_config){
+  _superglue_config = superglue_config;
   if (!superglue.build()){
     std::cout << "Erron in superglue building" << std::endl;
   }
@@ -11,8 +12,8 @@ PointMatching::PointMatching(SuperGlueConfig& superglue_config) :superglue(super
 int PointMatching::MatchingPoints(Eigen::Matrix<double, 259, Eigen::Dynamic>& features0, 
     Eigen::Matrix<double, 259, Eigen::Dynamic>& features1, std::vector<cv::DMatch>& matches){
   matches.clear();
-  NormalizeKeypoints(features0, superglue_config.image_width, superglue_config.image_height);
-  NormalizeKeypoints(features1, superglue_config.image_width, superglue_config.image_height);
+  NormalizeKeypoints(features0, _superglue_config.image_width, _superglue_config.image_height);
+  NormalizeKeypoints(features1, _superglue_config.image_width, _superglue_config.image_height);
   Eigen::VectorXi indices0, indices1;
   Eigen::VectorXd mscores0, mscores1;
   superglue.infer(features0, features1, indices0, indices1, mscores0, mscores1);

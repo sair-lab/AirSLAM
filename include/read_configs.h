@@ -18,7 +18,8 @@ struct SuperPointConfig {
 };
 
 struct SuperGlueConfig {
-  std::vector<int> image_shape;
+  int image_width;
+  int image_height;
   int dla_core;
   std::vector<std::string> input_tensor_names;
   std::vector<std::string> output_tensor_names;
@@ -91,10 +92,8 @@ struct Configs{
 
     
     YAML::Node superglue_node = file_node["superglue"];
-    int image_width = superglue_node["image_width"].as<int>();
-    int image_height = superglue_node["image_height"].as<int>();
-    superglue_config.image_shape.push_back(image_height);
-    superglue_config.image_shape.push_back(image_width);
+    superglue_config.image_width = superglue_node["image_width"].as<int>();
+    superglue_config.image_height = superglue_node["image_height"].as<int>();
     superglue_config.dla_core = superglue_node["dla_core"].as<int>();
     YAML::Node superglue_input_tensor_names_node = superglue_node["input_tensor_names"];
     size_t superglue_num_input_tensor_names = superglue_input_tensor_names_node.size();

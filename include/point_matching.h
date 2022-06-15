@@ -14,6 +14,7 @@ public:
 
 private:
   SuperGlue superglue;
+  SuperGlueConfig _superglue_config;
 };
 
 typedef std::shared_ptr<PointMatching> PointMatchingPtr;

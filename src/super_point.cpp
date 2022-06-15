@@ -102,11 +102,19 @@ bool SuperPoint::construct_network(TensorRTUniquePtr<nvinfer1::IBuilder> &builde
 
 
 bool SuperPoint::infer(const cv::Mat &image, Eigen::Matrix<double, 259, Eigen::Dynamic> &features) {
-    BufferManager buffers(engine_);
     auto context = TensorRTUniquePtr<nvinfer1::IExecutionContext>(engine_->createExecutionContext());
     if (!context) {
         return false;
     }
+    
+    assert(engine_->getNbBindings() == 3);
+
+    const int input_index = engine_->getBindingIndex(super_point_config_.input_tensor_names[0].c_str());
+
+    context->setBindingDimensions(input_index, Dims4(1, 1, image.rows, image.cols));
+
+    BufferManager buffers(engine_, 0, context.get());
+    
     ASSERT(super_point_config_.input_tensor_names.size() == 1);
     if (!process_input(buffers, image)) {
         return false;
@@ -310,7 +318,10 @@ bool SuperPoint::process_output(const BufferManager &buffers, Eigen::Matrix<doub
 
 void SuperPoint::visualization(const std::string &image_name, const cv::Mat &image) {
     cv::Mat image_display;
-    cv::cvtColor(image, image_display, cv::COLOR_GRAY2BGR);
+    if(image.channels() == 1)
+        cv::cvtColor(image, image_display, cv::COLOR_GRAY2BGR);
+    else
+        image_display = image.clone();
     for (auto &keypoint : keypoints_) {
         cv::circle(image_display, cv::Point(int(keypoint[0]), int(keypoint[1])), 1, cv::Scalar(255, 0, 0), -1, 16);
     }
