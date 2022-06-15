@@ -180,7 +180,7 @@ std::vector<size_t> SuperPoint::sort_indexes(std::vector<float> &data) {
 }
 
 void SuperPoint::top_k_keypoints(std::vector<std::vector<int>> &keypoints, std::vector<float> &scores, int k) {
-    if (k < keypoints.size()) {
+    if (k < keypoints.size() && k != -1) {
         std::vector<std::vector<int>> keypoints_top_k;
         std::vector<float> scores_top_k;
         std::vector<size_t> indexes = sort_indexes(scores);
