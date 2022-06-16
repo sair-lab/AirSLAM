@@ -2,8 +2,8 @@
 // Created by haoyuefan on 2021/9/22.
 //
 
-#ifndef ACCELERATE_SUPER_POINT_H
-#define ACCELERATE_SUPER_POINT_H
+#ifndef SUPER_POINT_H_
+#define SUPER_POINT_H_
 
 #include <string>
 #include <memory>
@@ -66,4 +66,4 @@ private:
 
 typedef std::shared_ptr<SuperPoint> SuperPointPtr;
 
-#endif //ACCELERATE_SUPER_POINT_H
+#endif //SUPER_POINT_H_

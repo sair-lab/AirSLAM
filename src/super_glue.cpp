@@ -14,7 +14,6 @@ using namespace tensorrt_log;
 using namespace tensorrt_buffer;
 
 SuperGlue::SuperGlue(const SuperGlueConfig &superglue_config) : superglue_config_(superglue_config), engine_(nullptr) {
-    image_shape_ = superglue_config.image_shape;
     setReportableSeverity(Logger::Severity::kINTERNAL_ERROR);
 }
 
@@ -50,29 +49,29 @@ bool SuperGlue::build() {
         return false;
     }
     profile->setDimensions(superglue_config_.input_tensor_names[0].c_str(), OptProfileSelector::kMIN, Dims3(1, 1, 2));
-    profile->setDimensions(superglue_config_.input_tensor_names[0].c_str(), OptProfileSelector::kOPT, Dims3(1, 500, 2));
+    profile->setDimensions(superglue_config_.input_tensor_names[0].c_str(), OptProfileSelector::kOPT, Dims3(1, 512, 2));
     profile->setDimensions(superglue_config_.input_tensor_names[0].c_str(), OptProfileSelector::kMAX,
-                           Dims3(1, 1000, 2));
+                           Dims3(1, 1024, 2));
     profile->setDimensions(superglue_config_.input_tensor_names[1].c_str(), OptProfileSelector::kMIN, Dims2(1, 1));
-    profile->setDimensions(superglue_config_.input_tensor_names[1].c_str(), OptProfileSelector::kOPT, Dims2(1, 500));
-    profile->setDimensions(superglue_config_.input_tensor_names[1].c_str(), OptProfileSelector::kMAX, Dims2(1, 1000));
+    profile->setDimensions(superglue_config_.input_tensor_names[1].c_str(), OptProfileSelector::kOPT, Dims2(1, 512));
+    profile->setDimensions(superglue_config_.input_tensor_names[1].c_str(), OptProfileSelector::kMAX, Dims2(1, 1024));
     profile->setDimensions(superglue_config_.input_tensor_names[2].c_str(), OptProfileSelector::kMIN, Dims3(1, 256, 1));
     profile->setDimensions(superglue_config_.input_tensor_names[2].c_str(), OptProfileSelector::kOPT,
-                           Dims3(1, 256, 500));
+                           Dims3(1, 256, 512));
     profile->setDimensions(superglue_config_.input_tensor_names[2].c_str(), OptProfileSelector::kMAX,
-                           Dims3(1, 256, 1000));
+                           Dims3(1, 256, 1024));
     profile->setDimensions(superglue_config_.input_tensor_names[3].c_str(), OptProfileSelector::kMIN, Dims3(1, 1, 2));
-    profile->setDimensions(superglue_config_.input_tensor_names[3].c_str(), OptProfileSelector::kOPT, Dims3(1, 500, 2));
+    profile->setDimensions(superglue_config_.input_tensor_names[3].c_str(), OptProfileSelector::kOPT, Dims3(1, 512, 2));
     profile->setDimensions(superglue_config_.input_tensor_names[3].c_str(), OptProfileSelector::kMAX,
-                           Dims3(1, 1000, 2));
+                           Dims3(1, 1024, 2));
     profile->setDimensions(superglue_config_.input_tensor_names[4].c_str(), OptProfileSelector::kMIN, Dims2(1, 1));
-    profile->setDimensions(superglue_config_.input_tensor_names[4].c_str(), OptProfileSelector::kOPT, Dims2(1, 500));
-    profile->setDimensions(superglue_config_.input_tensor_names[4].c_str(), OptProfileSelector::kMAX, Dims2(1, 1000));
+    profile->setDimensions(superglue_config_.input_tensor_names[4].c_str(), OptProfileSelector::kOPT, Dims2(1, 512));
+    profile->setDimensions(superglue_config_.input_tensor_names[4].c_str(), OptProfileSelector::kMAX, Dims2(1, 1024));
     profile->setDimensions(superglue_config_.input_tensor_names[5].c_str(), OptProfileSelector::kMIN, Dims3(1, 256, 1));
     profile->setDimensions(superglue_config_.input_tensor_names[5].c_str(), OptProfileSelector::kOPT,
-                           Dims3(1, 256, 500));
+                           Dims3(1, 256, 512));
     profile->setDimensions(superglue_config_.input_tensor_names[5].c_str(), OptProfileSelector::kMAX,
-                           Dims3(1, 256, 1000));
+                           Dims3(1, 256, 1024));
     config->addOptimizationProfile(profile);
 
     auto constructed = construct_network(builder, network, config, parser);
@@ -103,7 +102,7 @@ bool SuperGlue::build() {
 
     save_engine();
 
-    ASSERT(network->getNbInputs() == 7);
+    ASSERT(network->getNbInputs() == 6);
     keypoints_0_dims_ = network->getInput(0)->getDimensions();
     scores_0_dims_ = network->getInput(1)->getDimensions();
     descriptors_0_dims_ = network->getInput(2)->getDimensions();
@@ -128,7 +127,7 @@ bool SuperGlue::construct_network(TensorRTUniquePtr<nvinfer1::IBuilder> &builder
     if (!parsed) {
         return false;
     }
-    config->setMaxWorkspaceSize(500_MiB);
+    config->setMaxWorkspaceSize(512_MiB);
     config->setFlag(BuilderFlag::kFP16);
     enableDLA(builder.get(), config.get(), superglue_config_.dla_core);
     return true;
@@ -146,7 +145,7 @@ bool SuperGlue::infer(const Eigen::Matrix<double, 259, Eigen::Dynamic> &features
         return false;
     }
 
-    assert(engine_->getNbBindings() == 8);
+    assert(engine_->getNbBindings() == 7);
 
     const int keypoints_0_index = engine_->getBindingIndex(superglue_config_.input_tensor_names[0].c_str());
     const int scores_0_index = engine_->getBindingIndex(superglue_config_.input_tensor_names[1].c_str());
@@ -171,12 +170,9 @@ bool SuperGlue::infer(const Eigen::Matrix<double, 259, Eigen::Dynamic> &features
     descriptors_1_dims_ = context->getBindingDimensions(descriptors_1_index);
     output_scores_dims_ = context->getBindingDimensions(output_score_index);
 
-    assert(output_scores_dims_.d[1] == (features0.cols() + 1));
-    assert(output_scores_dims_.d[2] == (features1.cols() + 1));
-
     BufferManager buffers(engine_, 0, context.get());
 
-    ASSERT(superglue_config_.input_tensor_names.size() == 7);
+    ASSERT(superglue_config_.input_tensor_names.size() == 6);
     if (!process_input(buffers, features0, features1)) {
         return false;
     }
@@ -243,9 +239,7 @@ bool SuperGlue::process_input(const BufferManager &buffers,
             descriptors_1_buffer[(rowd1 - 3) * features1.cols() + cold1] = features1(rowd1, cold1);
         }
     }
-    for (int i = 0; i < 2; ++i) {
-        shape_buffer[i] = image_shape_[i];
-    }
+
     return true;
 }
 
@@ -370,6 +364,74 @@ void decode(float *scores, int h, int w, std::vector<int> &indices0, std::vector
     delete[] valid1;
 }
 
+void log_sinkhorn_iterations(float *couplings, float *Z, int m, int n,
+                             float *log_mu, float *log_nu, int iters) {
+  auto *u = new float[m]();
+  auto *v = new float[n]();
+  for (int k = 0; k < iters; ++k) {
+    for (int ki = 0; ki < m; ++ki) {
+      float nu_expsum = 0.0;
+      for (int kn = 0; kn < n; ++kn) {
+        nu_expsum += std::exp(couplings[ki * n + kn] + v[kn]);
+      }
+      u[ki] = log_mu[ki] - std::log(nu_expsum);
+    }
+    for (int kj = 0; kj < n; ++kj) {
+      float nu_expsum = 0.0;
+      for (int km = 0; km < m; ++km) {
+        nu_expsum += std::exp(couplings[km * n + kj] + u[km]);
+      }
+      v[kj] = log_nu[kj] - std::log(nu_expsum);
+    }
+  }
+
+  for (int i = 0; i < m; ++i) {
+    for (int j = 0; j < n; ++j) {
+      Z[i * n + j] = couplings[i * n + j] + u[i] + v[j];
+    }
+  }
+  delete[] u;
+  delete[] v;
+}
+
+void log_optimal_transport(float *scores, float *Z, int m, int n,
+                           float alpha = 2.3457, int iters = 100) {
+  auto *couplings = new float[(m + 1) * (n + 1)];
+  for (int i = 0; i < m + 1; ++i) {
+    for (int j = 0; j < n + 1; ++j) {
+      if (i == m || j == n) {
+        couplings[i * (n + 1) + j] = alpha;
+      } else {
+        couplings[i * (n + 1) + j] = scores[i * n + j];
+      }
+    }
+  }
+
+  float norm = -std::log(m + n);
+
+  auto *log_mu = new float[m + 1];
+  auto *log_nu = new float[m + 1];
+  for (int ii = 0; ii < m; ++ii) {
+    log_mu[ii] = norm;
+  }
+  log_mu[m] = std::log(n) + norm;
+
+  for (int jj = 0; jj < n; ++jj) {
+    log_nu[jj] = norm;
+  }
+  log_nu[n] = std::log(m) + norm;
+
+  log_sinkhorn_iterations(couplings, Z, m + 1, n + 1, log_mu, log_nu, iters);
+  for (int ii = 0; ii < m + 1; ++ii) {
+    for (int jj = 0; jj < n + 1; ++jj) {
+      Z[ii * (n + 1) + jj] = Z[ii * (n + 1) + jj] - norm;
+    }
+  }
+  delete[] couplings;
+  delete[] log_mu;
+  delete[] log_nu;
+}
+
 bool SuperGlue::process_output(const BufferManager &buffers,
                                Eigen::VectorXi &indices0,
                                Eigen::VectorXi &indices1,
@@ -382,7 +444,11 @@ bool SuperGlue::process_output(const BufferManager &buffers,
     auto *output_score = static_cast<float *>(buffers.getHostBuffer(superglue_config_.output_tensor_names[0]));
     int scores_map_h = output_scores_dims_.d[1];
     int scores_map_w = output_scores_dims_.d[2];
-    decode(output_score, scores_map_h, scores_map_w, indices0_, indices1_, mscores0_, mscores1_);
+    auto *scores = new float[(scores_map_h + 1) * (scores_map_w + 1)];
+    log_optimal_transport(output_score, scores, scores_map_h, scores_map_w);
+    scores_map_h = scores_map_h + 1;
+    scores_map_w = scores_map_w + 1;
+    decode(scores, scores_map_h, scores_map_w, indices0_, indices1_, mscores0_, mscores1_);
     indices0.resize(indices0_.size());
     indices1.resize(indices1_.size());
     mscores0.resize(mscores0_.size());
