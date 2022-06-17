@@ -1,6 +1,0 @@
-onnx>=1.11.0
-onnxruntime>=1.11.1
-torch>=1.11.0
-numpy>=1.22.4
-onnx-graphsurgeon
-opencv-python>=4.6.0.66
