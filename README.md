@@ -13,5 +13,7 @@ https://github.com/NVIDIA/TensorRT
 https://docs.nvidia.com/deeplearning/tensorrt/quick-start-guide/index.html
 
 #### Docker
+```bash
 docker pull yuefan2022/tensorrt-ubuntu20.04-cuda11.6:latest
 docker run -it --env DISPLAY=$DISPLAY --volume /tmp/.X11-unix:/tmp/.X11-unix:rw --privileged --network host --runtime nvidia --gpus all --volume ${PWD}:/workspace --workdir /workspace --name air_slam yuefan2022/tensorrt-ubuntu20.04-cuda11.6:latest /bin/bash
+```
