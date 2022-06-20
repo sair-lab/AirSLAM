@@ -140,9 +140,11 @@ bool SuperGlue::infer(const Eigen::Matrix<double, 259, Eigen::Dynamic> &features
                       Eigen::VectorXd &mscores0,
                       Eigen::VectorXd &mscores1) {
     // Create RAII buffer manager object
-    auto context = TensorRTUniquePtr<nvinfer1::IExecutionContext>(engine_->createExecutionContext());
-    if (!context) {
-        return false;
+    if (!context_) {
+        context_ = TensorRTUniquePtr<nvinfer1::IExecutionContext>(engine_->createExecutionContext());
+        if (!context_) {
+            return false;
+    }
     }
 
     assert(engine_->getNbBindings() == 7);
@@ -155,22 +157,22 @@ bool SuperGlue::infer(const Eigen::Matrix<double, 259, Eigen::Dynamic> &features
     const int descriptors_1_index = engine_->getBindingIndex(superglue_config_.input_tensor_names[5].c_str());
     const int output_score_index = engine_->getBindingIndex(superglue_config_.output_tensor_names[0].c_str());
 
-    context->setBindingDimensions(keypoints_0_index, Dims3(1, features0.cols(), 2));
-    context->setBindingDimensions(scores_0_index, Dims2(1, features0.cols()));
-    context->setBindingDimensions(descriptors_0_index, Dims3(1, 256, features0.cols()));
-    context->setBindingDimensions(keypoints_1_index, Dims3(1, features1.cols(), 2));
-    context->setBindingDimensions(scores_1_index, Dims2(1, features1.cols()));
-    context->setBindingDimensions(descriptors_1_index, Dims3(1, 256, features1.cols()));
+    context_->setBindingDimensions(keypoints_0_index, Dims3(1, features0.cols(), 2));
+    context_->setBindingDimensions(scores_0_index, Dims2(1, features0.cols()));
+    context_->setBindingDimensions(descriptors_0_index, Dims3(1, 256, features0.cols()));
+    context_->setBindingDimensions(keypoints_1_index, Dims3(1, features1.cols(), 2));
+    context_->setBindingDimensions(scores_1_index, Dims2(1, features1.cols()));
+    context_->setBindingDimensions(descriptors_1_index, Dims3(1, 256, features1.cols()));
 
-    keypoints_0_dims_ = context->getBindingDimensions(keypoints_0_index);
-    scores_0_dims_ = context->getBindingDimensions(scores_0_index);
-    descriptors_0_dims_ = context->getBindingDimensions(descriptors_0_index);
-    keypoints_1_dims_ = context->getBindingDimensions(keypoints_1_index);
-    scores_1_dims_ = context->getBindingDimensions(scores_1_index);
-    descriptors_1_dims_ = context->getBindingDimensions(descriptors_1_index);
-    output_scores_dims_ = context->getBindingDimensions(output_score_index);
+    keypoints_0_dims_ = context_->getBindingDimensions(keypoints_0_index);
+    scores_0_dims_ = context_->getBindingDimensions(scores_0_index);
+    descriptors_0_dims_ = context_->getBindingDimensions(descriptors_0_index);
+    keypoints_1_dims_ = context_->getBindingDimensions(keypoints_1_index);
+    scores_1_dims_ = context_->getBindingDimensions(scores_1_index);
+    descriptors_1_dims_ = context_->getBindingDimensions(descriptors_1_index);
+    output_scores_dims_ = context_->getBindingDimensions(output_score_index);
 
-    BufferManager buffers(engine_, 0, context.get());
+    BufferManager buffers(engine_, 0, context_.get());
 
     ASSERT(superglue_config_.input_tensor_names.size() == 6);
     if (!process_input(buffers, features0, features1)) {
@@ -179,7 +181,7 @@ bool SuperGlue::infer(const Eigen::Matrix<double, 259, Eigen::Dynamic> &features
 
     buffers.copyInputToDevice();
 
-    bool status = context->executeV2(buffers.getDeviceBindings().data());
+    bool status = context_->executeV2(buffers.getDeviceBindings().data());
     if (!status) {
         return false;
     }

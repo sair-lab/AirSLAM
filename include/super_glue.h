@@ -50,6 +50,7 @@ private:
     nvinfer1::Dims output_scores_dims_{};
 
     std::shared_ptr<nvinfer1::ICudaEngine> engine_;
+    std::shared_ptr<nvinfer1::IExecutionContext> context_;
 
     bool construct_network(TensorRTUniquePtr<nvinfer1::IBuilder> &builder,
                            TensorRTUniquePtr<nvinfer1::INetworkDefinition> &network,
