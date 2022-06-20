@@ -410,7 +410,7 @@ void log_optimal_transport(float *scores, float *Z, int m, int n,
   float norm = -std::log(m + n);
 
   auto *log_mu = new float[m + 1];
-  auto *log_nu = new float[m + 1];
+  auto *log_nu = new float[n + 1];
   for (int ii = 0; ii < m; ++ii) {
     log_mu[ii] = norm;
   }
