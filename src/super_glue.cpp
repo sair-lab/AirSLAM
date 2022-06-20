@@ -202,7 +202,6 @@ bool SuperGlue::process_input(const BufferManager &buffers,
     auto *keypoints_1_buffer = static_cast<float *>(buffers.getHostBuffer(superglue_config_.input_tensor_names[3]));
     auto *scores_1_buffer = static_cast<float *>(buffers.getHostBuffer(superglue_config_.input_tensor_names[4]));
     auto *descriptors_1_buffer = static_cast<float *>(buffers.getHostBuffer(superglue_config_.input_tensor_names[5]));
-    auto *shape_buffer = static_cast<float *>(buffers.getHostBuffer(superglue_config_.input_tensor_names[6]));
 
     for (int rows0 = 0; rows0 < 1; ++rows0) {
         for (int cols0 = 0; cols0 < features0.cols(); ++cols0) {
