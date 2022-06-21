@@ -1,7 +1,7 @@
-dataroot: "/media/xukuan/something/ubuntu_data/AirSLAM/realsense_test_data"
-camera_config_path: "/home/xukuan/project/AirSLAM_dev/catkin_airslam/src/AirSLAM/configs/realsense_848_480.yaml"
-model_dir: "/home/xukuan/project/AirSLAM_dev/catkin_airslam/src/AirSLAM/model/480x848"
-saving_dir: "/home/xukuan/project/AirSLAM_dev/catkin_airslam/src/AirSLAM/debug"
+dataroot: "/workspace/src/data/realsense"
+camera_config_path: "/workspace/src/configs/realsense_848_480.yaml"
+model_dir: "/workspace/src/output"
+saving_dir: "/workspace/src/debug"
 
 superpoint:
   max_keypoints: 700
@@ -12,8 +12,8 @@ superpoint:
   output_tensor_names:
     - "scores"
     - "descriptors"
-  onnx_file: "superpoint_v1.onnx"
-  engine_file: "superpoint_v1.engine"
+  onnx_file: "superpoint_v1_sim_int32.onnx"
+  engine_file: "superpoint_v1_sim_int32.engine"
   dla_core: -1
 
 superglue:
@@ -28,8 +28,8 @@ superglue:
     - "descriptors_1"
   output_tensor_names:
     - "scores"
-  onnx_file: "superglue_indoor.onnx"
-  engine_file: "superglue_indoor.engine"
+  onnx_file: "superglue_indoor_sim_int32.onnx"
+  engine_file: "superglue_indoor_sim_int32.engine"
   dla_core: -1
 
 keyframe:

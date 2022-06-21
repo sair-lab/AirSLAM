@@ -92,6 +92,37 @@ def attention(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> Tu
     return torch.einsum('bhnm,bdhm->bdhn', prob, value), prob
 
 
+# def attention(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+#     batch = query.shape[0]
+#     dim = query.shape[1]
+#     scores = torch.bmm(query[0, :, :, :].permute(1, 2, 0), key[0, :, :, :].permute(1, 0, 2))
+#     # scores = scores.unsqueeze(dim=0)
+#     if batch == 1:
+#         scores = scores.unsqueeze(dim=0)
+#     else:
+#         for i in range(1, query.shape[0]):
+#             scores = torch.stack((scores, torch.bmm(query[i, :, :, :].permute(1, 2, 0),
+#                                                     key[i, :, :, :].permute(1, 0, 2))), dim=0)
+#     scores = scores / dim ** .5
+#     # scores = torch.einsum('bdhn,bdhm->bhnm', query, key) / dim**.5
+#     prob = torch.nn.functional.softmax(scores, dim=-1)
+
+#     result = torch.bmm(prob[0, :, :, :], value[0, :, :, :].permute(1, 2, 0)).permute(2, 0, 1)
+#     # result = result.unsqueeze(dim=0)
+
+#     if batch == 1:
+#         result = result.unsqueeze(dim=0)
+#     else:
+#         for i in range(1, prob.shape[0]):
+#             result = torch.stack((result, torch.bmm(prob[i, :, :, :],
+#                                                     value[i, :, :, :].permute(1, 2, 0)).permute(2,
+#                                                                                                 0,
+#                                                                                                 1)),
+#                                  dim=0)
+#     # return torch.einsum('bhnm,bdhm->bdhn', prob, value), prob
+#     return result, prob
+
+
 class MultiHeadedAttention(nn.Module):
     """ Multi-head attention to increase model expressivitiy """
 
@@ -263,6 +294,7 @@ class SuperGlue(nn.Module):
         mdesc0, mdesc1 = self.final_proj(desc0), self.final_proj(desc1)
 
         # Compute matching descriptor distance.
+        # scores = torch.bmm(torch.transpose(mdesc0, 1, 2), mdesc1)
         scores = torch.einsum('bdn,bdm->bnm', mdesc0, mdesc1)
         scores = scores / default_config['descriptor_dim'] ** .5
 
