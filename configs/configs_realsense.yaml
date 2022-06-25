@@ -1,7 +1,7 @@
-dataroot: "/workspace/src/data/realsense"
-camera_config_path: "/workspace/src/configs/realsense_848_480.yaml"
-model_dir: "/workspace/src/output"
-saving_dir: "/workspace/src/debug"
+dataroot: "/media/xukuan/something/ubuntu_files/data/AirSLAM/realsense_test_data"
+camera_config_path: "/media/xukuan/something/ubuntu_files/project/AirSLAM/catkin_ws/src/AirSLAM/configs/realsense_848_480.yaml"
+model_dir: "/media/xukuan/something/ubuntu_files/project/AirSLAM/catkin_ws/src/AirSLAM/output"
+saving_dir: "/media/xukuan/something/ubuntu_files/project/AirSLAM/catkin_ws/src/AirSLAM/debug"
 
 superpoint:
   max_keypoints: 700

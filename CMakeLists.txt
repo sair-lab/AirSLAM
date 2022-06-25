@@ -80,8 +80,6 @@ target_link_libraries(${PROJECT_NAME}_lib
   yaml-cpp
 )
 
-message(${G2O_LIBRARIES})
-
 add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_lib ${catkin_LIBRARIES})
 
