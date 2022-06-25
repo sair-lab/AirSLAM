@@ -9,7 +9,6 @@
 #include "camera.h"
 #include "mappoint.h"
 #include "frame.h"
-#include "optimization_3d/optimization_3d.h"
 #include "ros_publisher.h"
 
 class Map{
@@ -23,7 +22,6 @@ public:
 
   bool TriangulateMappoint(MappointPtr mappoint);
   void SlidingWindowOptimization();
-  void GlobalBundleAdjust();
   void SaveMap(const std::string& map_root);
 
 private:

@@ -23,6 +23,10 @@ public:
   double ImageHeight();
   double ImageWidth();
   double BF();
+  double Fx();
+  double Fy();
+  double Cx();
+  double Cy();
   double DepthLowerThr();
   double DepthUpperThr();
   Eigen::Matrix4d& GetExtrinsics();

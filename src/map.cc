@@ -8,7 +8,7 @@
 #include "map.h"
 #include "utils.h"
 #include "frame.h"
-#include "optimization_3d/types.h"
+#include "g2o_optimization/g2o_optimization.h"
 #include "timer.h"
 
 // INITIALIZE_TIMER;
@@ -136,13 +136,11 @@ bool Map::TriangulateMappoint(MappointPtr mappoint){
 void Map::SlidingWindowOptimization(){
   const size_t WindowSize = 10;
   // START_TIMER;
-
   MapOfPoses poses;
   MapOfPoints3d points;
   std::vector<CameraPtr> camera_list;
-  VectorOfPointConstraints point_constraints;
-  std::vector<int> fixed_poses;
-  std::vector<int> fixed_points;
+  VectorOfMonoPointConstraints mono_point_constraints;
+  VectorOfStereoPointConstraints stereo_point_constraints;
 
   // camera
   camera_list.emplace_back(_camera);
@@ -166,8 +164,8 @@ void Map::SlidingWindowOptimization(){
     Pose3d pose;
     pose.q = frame_pose.block<3, 3>(0, 0);
     pose.p = frame_pose.block<3, 1>(0, 3);
+    pose.fixed = fix_this_frame;
     poses.insert(std::pair<int, Pose3d>(frame_id, pose));  
-    if(fix_this_frame) fixed_poses.push_back(frame_id);
     
     std::vector<MappointPtr>& mappoints = frame->GetAllMappoints();
     for(size_t j = 0; j < mappoints.size(); j++){
@@ -179,24 +177,34 @@ void Map::SlidingWindowOptimization(){
       int mpt_id = mpt->GetId();
       Position3d point;
       point.p = mpt->GetPosition();
+      point.fixed = false;
       points.insert(std::pair<int, Position3d>(mpt_id, point));
-      // if(fix_this_frame) fixed_points.push_back(mpt_id);
 
-      // constraints
-      PointConstraint point_constraint;
-      point_constraint.id_pose = frame_id;
-      point_constraint.id_point = mpt_id;
-      point_constraint.id_camera = 0;
-      point_constraint.keypoint = keypoint;
-      point_constraint.pixel_sigma = 0.8;
-      point_constraints.push_back(point_constraint);
+      // visual constraint
+      if(keypoint(2) > 0){
+        StereoPointConstraintPtr stereo_constraint = std::shared_ptr<StereoPointConstraint>(new StereoPointConstraint()); 
+        stereo_constraint->id_pose = frame_id;
+        stereo_constraint->id_point = mpt_id;
+        stereo_constraint->id_camera = 0;
+        stereo_constraint->inlier = true;
+        stereo_constraint->keypoint = keypoint;
+        stereo_constraint->pixel_sigma = 0.8;
+        stereo_point_constraints.push_back(stereo_constraint);
+      }else{
+        MonoPointConstraintPtr mono_constraint = std::shared_ptr<MonoPointConstraint>(new MonoPointConstraint()); 
+        mono_constraint->id_pose = frame_id;
+        mono_constraint->id_point = mpt_id;
+        mono_constraint->id_camera = 0;
+        mono_constraint->inlier = true;
+        mono_constraint->keypoint = keypoint.head(2);
+        mono_constraint->pixel_sigma = 0.8;
+        mono_point_constraints.push_back(mono_constraint);
+      }
     }
   }
   // STOP_TIMER("SlidingWindowOptimization Time1");
   // START_TIMER;
-
-  std::vector<int> inliers;
-  int num_inliers = Optimize(poses, points, camera_list, point_constraints, fixed_poses, fixed_points, inliers);
+  LocalmapOptimization(poses, points, camera_list, mono_point_constraints, stereo_point_constraints);
   // STOP_TIMER("SlidingWindowOptimization Time2");
   // START_TIMER;
 
@@ -228,72 +236,12 @@ void Map::SlidingWindowOptimization(){
     map_message->ids.push_back(mpt_id);
     map_message->points.push_back(position.p);
   }
+
   _ros_publisher->PublisheKeyframe(keyframe_message);
   _ros_publisher->PublishMap(map_message);
   std::cout << "--------------SlidingWindowOptimization Finish------------------------" << std::endl;
   // STOP_TIMER("SlidingWindowOptimization Time3");
 
-}
-
-void Map::GlobalBundleAdjust(){
-  MapOfPoses poses;
-  MapOfPoints3d points;
-  std::vector<CameraPtr> camera_list;
-  VectorOfPointConstraints visual_constraints;
-  std::vector<int> fixed_poses;
-  std::vector<int> fixed_points;
-
-  camera_list.emplace_back(_camera);
-
-  // visual constraint construction
-  for(auto& kv : _mappoints){
-    // points
-    MappointPtr mpt = kv.second;
-    if(!mpt->IsValid()) continue;
-    Position3d point;
-    point.p = mpt->GetPosition();
-    
-    points.insert(std::pair<int, Position3d>(mpt->GetId(), point));
-
-    // visual constraint
-    std::map<int, int> obversers = mpt->GetAllObversers();
-    for(auto& kv : obversers){
-      int frame_id = kv.first;
-      int kpt_idx = kv.second;
-      if(_keyframes.count(frame_id) == 0) continue;
-      if(kpt_idx < 0) continue;
-
-      PointConstraint visual_constraint;
-      visual_constraint.id_pose = frame_id;
-      visual_constraint.id_point = mpt->GetId();
-      visual_constraint.id_camera = 0;                                                      
-
-      if(!_keyframes[frame_id]->GetKeypointPosition(kpt_idx, visual_constraint.keypoint)) continue;
-      visual_constraint.pixel_sigma = 0.8;
-      visual_constraints.push_back(visual_constraint);
-    }
-  }
-
-  std::vector<int> inliers;
-  Optimize(poses, points, camera_list, visual_constraints, fixed_poses, fixed_points, inliers);
-  
-  // copy back to map
-  for(auto& kv : poses){
-    int frame_id = kv.first;
-    Pose3d pose = kv.second;
-    if(_keyframes.count(frame_id) == 0) continue;
-    Eigen::Matrix4d pose_eigen;
-    pose_eigen.block<3, 3>(0, 0) = pose.q.matrix();
-    pose_eigen.block<3, 1>(0, 3) = pose.p;
-    _keyframes[frame_id]->SetPose(pose_eigen);
-  }
-
-  for(auto& kv : points){
-    int mpt_id = kv.first;
-    Position3d position = kv.second;
-    if(_mappoints.count(mpt_id) == 0) continue;
-    _mappoints[mpt_id]->SetPosition(position.p);
-  }
 }
 
 void Map::SaveMap(const std::string& map_root){

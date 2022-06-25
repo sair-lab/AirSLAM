@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(air_slam)
 
 set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -21,9 +22,11 @@ find_package(OpenCV 4.2 REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(CUDA REQUIRED)
 find_package(yaml-cpp REQUIRED)
-find_package(Ceres REQUIRED)
 find_package(Boost REQUIRED)
-
+find_package(G2O REQUIRED)
+# find_package(gflags REQUIRED)
+find_package(Gflags REQUIRED)
+find_package(Glog REQUIRED)
 
 catkin_package(
  INCLUDE_DIRS include
@@ -38,13 +41,15 @@ include_directories(
   ${EIGEN3_INCLUDE_DIRS}
   ${CUDA_INCLUDE_DIRS}
   ${YAML_CPP_INCLUDE_DIR}
-  ${CERES_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
+  ${G2O_INCLUDE_DIR}
+  ${GFLAGS_INCLUDE_DIRS} 
+  ${GLOG_INCLUDE_DIRS}
 )
 
 add_library(${PROJECT_NAME}_lib SHARED
-  src/optimization_3d/optimization_3d.cc
+  src/g2o_optimization/g2o_optimization.cc
   src/super_point.cpp
   src/super_glue.cpp
   src/utils.cc
@@ -66,10 +71,14 @@ target_link_libraries(${PROJECT_NAME}_lib
   ${PROJECT_SOURCE_DIR}/Thirdparty/TensorRTBuffer/lib/libTensorRTBuffer.so
   ${OpenCV_LIBRARIES}
   ${CUDA_LIBRARIES}
-  ${CERES_LIBRARIES}
   ${Boost_LIBRARIES}
+  ${G2O_LIBRARIES}
+  ${GFLAGS_LIBRARIES} 
+  ${GLOG_LIBRARIES}
   yaml-cpp
 )
+
+message(${G2O_LIBRARIES})
 
 add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_lib ${catkin_LIBRARIES})

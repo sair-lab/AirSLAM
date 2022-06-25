@@ -89,6 +89,22 @@ double Camera::BF(){
   return _bf;
 }
 
+double Camera::Fx(){
+  return _fx;
+}
+
+double Camera::Fy(){
+  return _fy;
+}
+
+double Camera::Cx(){
+  return _cx;
+}
+
+double Camera::Cy(){
+  return _cy;
+}
+
 double Camera::DepthLowerThr(){
   return _depth_lower_thr;
 }

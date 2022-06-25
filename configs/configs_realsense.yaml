@@ -1,7 +1,7 @@
-dataroot: "/media/xukuan/something/ubuntu_data/AirSLAM/realsense_test_data"
-camera_config_path: "/home/xukuan/project/AirSLAM_dev/catkin_airslam/src/AirSLAM/configs/realsense_848_480.yaml"
-model_dir: "/home/xukuan/project/AirSLAM_dev/catkin_airslam/src/AirSLAM/model/480x848"
-saving_dir: "/home/xukuan/project/AirSLAM_dev/catkin_airslam/src/AirSLAM/debug"
+dataroot: "/media/xukuan/something/ubuntu_files/data/AirSLAM/realsense_test_data"
+camera_config_path: "/home/xukuan/project/AirSLAM_dev/catkin_checkout/src/AirSLAM/configs/realsense_848_480.yaml"
+model_dir: "/home/xukuan/project/AirSLAM_dev/catkin_checkout/src/AirSLAM/model/480x848"
+saving_dir: "/home/xukuan/project/AirSLAM_dev/catkin_checkout/src/AirSLAM/debug"
 
 superpoint:
   max_keypoints: 700
