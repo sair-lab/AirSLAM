@@ -213,6 +213,7 @@ default_config = {
     'descriptor_dim': 256,
     'keypoint_encoder': [32, 64, 128, 256],
     'GNN_layers': ['self', 'cross'] * 9,
+    'sinkhorn_iterations': 100,
 }
 
 
@@ -299,9 +300,9 @@ class SuperGlue(nn.Module):
         scores = scores / default_config['descriptor_dim'] ** .5
 
         # Run the optimal transport.
-        # scores = log_optimal_transport(
-        #     scores, self.bin_score,
-        #     iters=default_config['sinkhorn_iterations'])
+        scores = log_optimal_transport(
+            scores, self.bin_score,
+            iters=default_config['sinkhorn_iterations'])
         # Get the matches with score above "match_threshold".
         # max0, max1 = scores[:, :-1, :-1].max(2), scores[:, :-1, :-1].max(1)
         # indices0, indices1 = max0.indices, max1.indices
