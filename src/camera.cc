@@ -31,7 +31,6 @@ Camera::Camera(const std::string& camera_file){
 
   camera_configs["LEFT.D"] >> D_l;
   camera_configs["RIGHT.D"] >> D_r;
-  std::cout << "Camera 3" << std::endl;
 
   if(K_l.empty() || K_r.empty() || P_l.empty() || P_r.empty() || R_l.empty() || 
      R_r.empty() || D_l.empty() || D_r.empty() || _image_height == 0 || _image_width == 0){
@@ -88,6 +87,22 @@ double Camera::ImageWidth(){
 
 double Camera::BF(){
   return _bf;
+}
+
+double Camera::Fx(){
+  return _fx;
+}
+
+double Camera::Fy(){
+  return _fy;
+}
+
+double Camera::Cx(){
+  return _cx;
+}
+
+double Camera::Cy(){
+  return _cy;
 }
 
 double Camera::DepthLowerThr(){

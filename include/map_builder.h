@@ -15,6 +15,7 @@
 #include "point_matching.h"
 #include "map.h"
 #include "ros_publisher.h"
+#include "g2o_optimization/types.h"
 
 class MapBuilder{
 public:
@@ -26,7 +27,6 @@ public:
   int TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMatch>& matches);
   int FramePoseOptimization(FramePtr frame, std::vector<MappointPtr>& mappoints, std::vector<int>& inliers);
   void InsertKeyframe(FramePtr frame);
-  void GlobalBundleAdjust();
   void SaveMap(const std::string& map_root);
 
 private:

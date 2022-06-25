@@ -14,9 +14,11 @@
 #include "frame.h"
 #include "point_matching.h"
 #include "map.h"
+#include "g2o_optimization/g2o_optimization.h"
 #include "timer.h"
 #include "debug.h"
 
+INITIALIZE_TIMER;
 
 MapBuilder::MapBuilder(Configs& configs): _init(false), _track_id(0), _configs(configs){
   _ros_publisher = std::shared_ptr<RosPublisher>(new RosPublisher(configs.ros_publisher_config));
@@ -34,9 +36,12 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   // undistort image 
   cv::Mat image_left_rect, image_right_rect;
 
+  // START_TIMER;;
   _camera->UndistortImage(image_left, image_right, image_left_rect, image_right_rect);
+  // STOP_TIMER("UndistortImage");
 
   // extract features
+  // START_TIMER;;
   Eigen::Matrix<double, 259, Eigen::Dynamic> features_left, features_right;
   if(!_superpoint->infer(image_left_rect, features_left)){
     std::cout << "Failed when extracting features of left image !" << std::endl;
@@ -46,20 +51,28 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     std::cout << "Failed when extracting features of right image !" << std::endl;
     return;
   }
+  // STOP_TIMER("Superpoint");
+  // START_TIMER;;
 
   // stereo_match
   std::vector<cv::DMatch> stereo_matches;
   StereoMatch(features_left, features_right, stereo_matches);
+  // STOP_TIMER("StereoMatch");
+  // START_TIMER;;
 
   // // for debug
   SaveStereoMatchResult(image_left, image_right, 
       features_left, features_right, stereo_matches, _configs.saving_dir, frame_id);
   // //////////////////////////
+  // STOP_TIMER("SaveStereoMatchResult");
+  // START_TIMER;;
 
 
   // construct frame
   FramePtr frame = std::shared_ptr<Frame>(new Frame(frame_id, false, _camera));
   frame->AddFeatures(features_left, features_right, stereo_matches);
+  // STOP_TIMER("Construct frame");
+  // START_TIMER;;
 
   // message
   std::vector<cv::KeyPoint>& keypoints = frame->GetAllKeypoints();
@@ -113,6 +126,8 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
       return;
     }
   }
+  // STOP_TIMER("Tracking");
+  // START_TIMER;
 
   // publish message
   {
@@ -126,7 +141,8 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     frame_pose_message->pose = frame->GetPose();
     _ros_publisher->PublishFramePose(frame_pose_message);
   }
-  
+  // STOP_TIMER("Publish");
+  // START_TIMER;
 
   ////// for debug //////
   if(track_keyframe){
@@ -136,7 +152,8 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   }
   ///////////////////////
 
-
+  // STOP_TIMER("SaveTrackingResult");
+  // START_TIMER;
   // update last frame
   _last_frame = frame;
   _last_image = image_left_rect;
@@ -179,6 +196,8 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
 
   InsertKeyframe(frame);
   _last_keyimage = image_left_rect;
+  // STOP_TIMER("InsertKeyframe");
+
   std::cout << "last_keyframe id = " << frame->GetFrameId() << std::endl;
   return;
 }
@@ -242,27 +261,33 @@ bool MapBuilder::Init(FramePtr frame){
 int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMatch>& matches){
   Eigen::Matrix<double, 259, Eigen::Dynamic>& features0 = frame0->GetAllFeatures();
   Eigen::Matrix<double, 259, Eigen::Dynamic>& features1 = frame1->GetAllFeatures();
+  START_TIMER;
   int num_match = _point_matching->MatchingPoints(features0, features1, matches);
   if(num_match < _configs.keyframe_config.min_num_match){
     return num_match;
   }
+  STOP_TIMER("MatchingPoints");
+  START_TIMER;
+  std::vector<int> inliers(frame1->FeatureNum(), -1);
   std::vector<MappointPtr> matched_mappoints(features1.cols(), nullptr);
   std::vector<MappointPtr>& frame0_mappoints = frame0->GetAllMappoints();
   for(auto& match : matches){
     int idx0 = match.queryIdx;
     int idx1 = match.trainIdx;
     matched_mappoints[idx1] = frame0_mappoints[idx0];
+    inliers[idx1] = frame0->GetTrackId(idx0);
   }
-  std::vector<int> inliers(frame1->FeatureNum(), -1);
+  
   int num_inliers = FramePoseOptimization(frame1, matched_mappoints, inliers);
-
+  STOP_TIMER("FramePoseOptimization");
+  START_TIMER;
   // update track id
   int RM = 0;
   if(num_inliers > _configs.keyframe_config.min_num_match){
     for(std::vector<cv::DMatch>::iterator it = matches.begin(); it != matches.end();){
       int idx0 = (*it).queryIdx;
       int idx1 = (*it).trainIdx;
-      if(inliers[idx1] > 0 || !frame0_mappoints[idx0] || frame0_mappoints[idx0]->GetType() == Mappoint::Type::UnTriangulated){
+      if(inliers[idx1] > 0){
         frame1->SetTrackId(idx1, frame0->GetTrackId(idx0));
         frame1->InsertMappoint(idx1, frame0_mappoints[idx0]);
       }
@@ -276,6 +301,7 @@ int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMa
     }
     std::cout << "remove " << RM << " matches" << std::endl;
   }
+  STOP_TIMER("Remove outliers");
 
   return num_inliers;
 }
@@ -286,18 +312,15 @@ int MapBuilder::FramePoseOptimization(
   Eigen::Matrix4d cv_pose;
   std::vector<int> cv_inliers;
   int num_cv_inliers = SolvePnPWithCV(frame, mappoints, cv_pose, cv_inliers);
-
   std::cout << "cv_pose = " << cv_pose.block<3, 1>(0, 3).transpose() << std::endl;
 
-
-  // Second, optimize using ceres to stereo constraints
+  // Second, optimization
   MapOfPoses poses;
   MapOfPoints3d points;
   std::vector<CameraPtr> camera_list;
-  VectorOfPointConstraints point_constraints;
-  std::vector<int> fixed_poses;
-  std::vector<int> fixed_points;
- 
+  VectorOfMonoPointConstraints mono_point_constraints;
+  VectorOfStereoPointConstraints stereo_point_constraints;
+
   camera_list.emplace_back(_camera);
 
   // map of poses
@@ -309,14 +332,13 @@ int MapBuilder::FramePoseOptimization(
     pose.p = _last_pose.p;
     pose.q = _last_pose.q;
   }
-  std::cout << "initial pose = " << pose.p.transpose() << std::endl;
-
   int frame_id = frame->GetFrameId();    
   poses.insert(std::pair<int, Pose3d>(frame_id, pose));  
+  std::cout << "initial pose = " << pose.p.transpose() << std::endl;
 
   // visual constraint construction
-  Eigen::Matrix<double, 259, Eigen::Dynamic>& features = frame->GetAllFeatures();
-  std::vector<double>& u_right = frame->GetAllRightPosition();
+  std::vector<size_t> mono_indexes;
+  std::vector<size_t> stereo_indexes;
   for(size_t i = 0; i < mappoints.size(); i++){
     // points
     MappointPtr mpt = mappoints[i];
@@ -327,21 +349,35 @@ int MapBuilder::FramePoseOptimization(
     int mpt_id = mpt->GetId();
     Position3d point;
     point.p = mpt->GetPosition();
+    point.fixed = true;
     points.insert(std::pair<int, Position3d>(mpt_id, point));
-    fixed_points.push_back(i);
 
     // visual constraint
-    PointConstraint point_constraint;
-    point_constraint.id_pose = frame_id;
-    point_constraint.id_point = mpt_id;
-    point_constraint.id_camera = 0;
-    point_constraint.keypoint = keypoint;
-    point_constraint.pixel_sigma = 0.8;
-    point_constraints.push_back(point_constraint);
-    inliers[i] = mpt_id;
+    if(keypoint(2) > 0){
+      StereoPointConstraintPtr stereo_constraint = std::shared_ptr<StereoPointConstraint>(new StereoPointConstraint()); 
+      stereo_constraint->id_pose = frame_id;
+      stereo_constraint->id_point = mpt_id;
+      stereo_constraint->id_camera = 0;
+      stereo_constraint->inlier = true;
+      stereo_constraint->keypoint = keypoint;
+      stereo_constraint->pixel_sigma = 0.8;
+      stereo_point_constraints.push_back(stereo_constraint);
+      stereo_indexes.push_back(i);
+    }else{
+      MonoPointConstraintPtr mono_constraint = std::shared_ptr<MonoPointConstraint>(new MonoPointConstraint()); 
+      mono_constraint->id_pose = frame_id;
+      mono_constraint->id_point = mpt_id;
+      mono_constraint->id_camera = 0;
+      mono_constraint->inlier = true;
+      mono_constraint->keypoint = keypoint.head(2);
+      mono_constraint->pixel_sigma = 0.8;
+      mono_point_constraints.push_back(mono_constraint);
+      mono_indexes.push_back(i);
+    }
+
   }
-  // START_TIMER;
-  int num_inliers = Optimize(poses, points, camera_list, point_constraints, fixed_poses, fixed_points, inliers);
+  // START_TIMER;;
+  int num_inliers = FrameOptimization(poses, points, camera_list, mono_point_constraints, stereo_point_constraints);
   // STOP_TIMER("Optimize");
 
   std::cout << "poses.begin()->second.p = " << poses.begin()->second.p.transpose() << std::endl;
@@ -354,10 +390,17 @@ int MapBuilder::FramePoseOptimization(
     frame->SetPose(frame_pose);
 
     // update tracked mappoints
-    for(size_t i = 0; i < inliers.size(); i++){
-      int mpt_id = inliers[i];
-      if(mpt_id > 0){
-        frame->InsertMappoint(i, _map->GetMappointPtr(mpt_id));
+    for(size_t i = 0; i < mono_point_constraints.size(); i++){
+      size_t idx = mono_indexes[i];
+      if(!mono_point_constraints[i]->inlier){
+        inliers[idx] = -1;
+      }
+    }
+
+    for(size_t i = 0; i < stereo_point_constraints.size(); i++){
+      size_t idx = stereo_indexes[i];
+      if(!stereo_point_constraints[i]->inlier){
+        inliers[idx] = -1;
       }
     }
 
@@ -383,10 +426,6 @@ void MapBuilder::InsertKeyframe(FramePtr frame){
   _num_since_last_keyframe = 1;
 
   std::cout << "Insert a keyframe" << std::endl;
-}
-
-void MapBuilder::GlobalBundleAdjust(){
-  _map->GlobalBundleAdjust();
 }
 
 void MapBuilder::SaveMap(const std::string& map_root){
