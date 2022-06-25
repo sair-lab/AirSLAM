@@ -108,9 +108,6 @@ def sample_descriptors(keypoints, descriptors, s: int = 8):
 default_config = {
     'descriptor_dim': 256,
     'nms_radius': 4,
-    'keypoint_threshold': 0.005,
-    'max_keypoints': -1,
-    'remove_borders': 4,
 }
 
 
@@ -121,8 +118,17 @@ class SuperPoint(nn.Module):
     Rabinovich. In CVPRW, 2019. https://arxiv.org/abs/1712.07629
     """
 
+    # default_config = {
+    #     'descriptor_dim': 256,
+    #     'nms_radius': 4,
+    #     'keypoint_threshold': 0.005,
+    #     'max_keypoints': -1,
+    #     'remove_borders': 4,
+    # }
+
     def __init__(self):
         super().__init__()
+        # self.config = {**self.default_config, **config}
 
         self.relu = nn.ReLU(inplace=True)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
@@ -145,9 +151,12 @@ class SuperPoint(nn.Module):
             c5, default_config['descriptor_dim'],
             kernel_size=1, stride=1, padding=0)
 
-        mk = default_config['max_keypoints']
-        if mk == 0 or mk < -1:
-            raise ValueError('\"max_keypoints\" must be positive or \"-1\"')
+        # path = Path(__file__).parent / 'weights/superpoint_v1.pth'
+        # self.load_state_dict(torch.load(str(path)))
+
+        # mk = default_config['max_keypoints']
+        # if mk == 0 or mk < -1:
+        #     raise ValueError('\"max_keypoints\" must be positive or \"-1\"')
 
     def forward(self, data):
         """ Compute keypoints, scores, descriptors for image """

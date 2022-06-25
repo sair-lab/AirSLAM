@@ -1,7 +1,7 @@
-dataroot: "/media/xukuan/something/ubuntu_data/euroc/mav0"
-camera_config_path: "/home/xukuan/project/AirSLAM_dev/AirSLAM/configs/euroc.yaml"
-model_dir: "/home/xukuan/project/AirSLAM_dev/AirSLAM/model/480x752"
-saving_dir: "/home/xukuan/project/AirSLAM_dev/AirSLAM/debug"
+dataroot: "/workspace/src/data/euroc/mav0"
+camera_config_path: "/workspace/src/configs/euroc.yaml"
+model_dir: "/workspace/src/output"
+saving_dir: "/workspace/src/debug"
 
 superpoint:
   max_keypoints: 700
@@ -12,8 +12,8 @@ superpoint:
   output_tensor_names:
     - "scores"
     - "descriptors"
-  onnx_file: "superpoint_480x752_int32.onnx"
-  engine_file: "superpoint_480x752_int32.engine"
+  onnx_file: "superpoint_v1_sim_int32.onnx"
+  engine_file: "superpoint_v1_sim_int32.engine"
   dla_core: -1
 
 superglue:
@@ -26,11 +26,10 @@ superglue:
     - "keypoints_1"
     - "scores_1"
     - "descriptors_1"
-    - "shape"
   output_tensor_names:
     - "scores"
-  onnx_file: "superglue_indoor_480x752_int32.onnx"
-  engine_file: "superglue_indoor_480x752_int32.engine"
+  onnx_file: "superglue_indoor_sim_int32.onnx"
+  engine_file: "superglue_indoor_sim_int32.engine"
   dla_core: -1
 
 keyframe:
@@ -39,3 +38,14 @@ keyframe:
   max_distance: 0.5
   max_angle: 0.52
 
+ros_publisher:
+  feature: 1
+  feature_topic: "/AirSLAM/feature"
+  frame_pose: 1
+  frame_pose_topic: "/AirSLAM/frame_pose"
+  keyframe: 1
+  keyframe_topic: "/AirSLAM/keyframe"
+  path_topic: "/AirSLAM/odometry"
+  map: 1
+  map_topic: "/AirSLAM/map"
+ 

@@ -3,6 +3,7 @@ cmake-build-debug
 datasets
 build/*
 saving/*
+data/*
 *.jpg
 *.png
 *.engine

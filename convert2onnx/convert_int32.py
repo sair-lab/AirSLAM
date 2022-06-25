@@ -88,4 +88,5 @@ def convert_model_to_int32(model_path: str, out_path: str):
 
 
 if __name__ == "__main__":
-    convert_model_to_int32(out_path="output/superpoint_480x848_int32.onnx", model_path="output/superpoint_480x848.onnx")
+    convert_model_to_int32(out_path="output/superglue_outdoor_int32.onnx",
+                           model_path="output/superglue_outdoor.onnx")

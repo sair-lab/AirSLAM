@@ -20,24 +20,18 @@ def main():
         description='script to convert superpoint model from pytorch to onnx')
     parser.add_argument('--weight_file', default="weights/superpoint_v1.pth",
                         help="pytorch weight file (.pth)")
-    parser.add_argument('--height', type=int, default=480, help="height in pixels of input image")
-    parser.add_argument('--width', type=int, default=752, help="width in pixels of input image")
-    parser.add_argument('--output_dir', default="output", help="output directory")
-    parser.add_argument('--batch_size', default=1, type=int, help="batch size of input")
+    parser.add_argument('--output_dir', default="output", help="onnx model file output directory")
     args = parser.parse_args()
 
     output_dir = args.output_dir
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
     weight_file = args.weight_file
-    batch_size = args.batch_size
-    h = args.height
-    w = args.width
 
     # Load model.
     superpoint_model = superpoint.SuperPoint()
     pytorch_total_params = sum(p.numel() for p in superpoint_model.parameters())
-    print('total number of params: ', pytorch_total_params)
+    print('total number ff params: ', pytorch_total_params)
 
     # Initialize model with the pretrained weights
     map_location = lambda storage, loc: storage
@@ -47,10 +41,10 @@ def main():
     superpoint_model.eval()
 
     # Create input to the model for onnx trace.
-    input = torch.randn(batch_size, 1, h, w, requires_grad=True)
+    input = torch.randn(1, 1, 480, 752)
 
     torch_out = superpoint_model(input)
-    onnx_filename = os.path.join(output_dir, "superpoint_{}x{}.onnx".format(h, w))
+    onnx_filename = os.path.join(output_dir, weight_file.split("/")[-1].split(".")[0] + ".onnx")
 
     # Export the model
     torch.onnx.export(superpoint_model,  # model being run
@@ -58,15 +52,14 @@ def main():
                       onnx_filename,  # where to save the model (can be a file or file-like object)
                       export_params=True,
                       # store the trained parameter weights inside the model file
-                      opset_version=12,  # the ONNX version to export the model to
-                      do_constant_folding=True,
-                      # whether to execute constant folding for optimization
+                      opset_version=13,  # the ONNX version to export the model to
+                      do_constant_folding=True,  # whether to execute constant folding for optimization
                       input_names=['input'],  # the model's input names
-                      output_names=['scores', 'descriptors'],
-                      # the model's output names
+                      output_names=['scores', 'descriptors'],  # the model's output names
+                      dynamic_axes={'input': {2: 'image_height', 3: "image_width"}}
                       )
 
-    # Check onnx converion.
+    # Check onnx conversion.
     onnx_model = onnx.load(onnx_filename)
     onnx.checker.check_model(onnx_model)
     onnxruntime_session = onnxruntime.InferenceSession(onnx_filename)
