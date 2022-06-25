@@ -37,6 +37,7 @@ private:
     nvinfer1::Dims semi_dims_{};
     nvinfer1::Dims desc_dims_{};
     std::shared_ptr<nvinfer1::ICudaEngine> engine_;
+    std::shared_ptr<nvinfer1::IExecutionContext> context_;
     std::vector<std::vector<int>> keypoints_;
     std::vector<std::vector<double>> descriptors_;
 

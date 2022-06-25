@@ -41,15 +41,14 @@ bool SuperPoint::build() {
     
     auto profile = builder->createOptimizationProfile();
     if (!profile) {
-      return false;
+        return false;
     }
     profile->setDimensions(super_point_config_.input_tensor_names[0].c_str(),
-                         OptProfileSelector::kMIN, Dims4(1, 1, 100, 100));
+                           OptProfileSelector::kMIN, Dims4(1, 1, 100, 100));
     profile->setDimensions(super_point_config_.input_tensor_names[0].c_str(),
-                         OptProfileSelector::kOPT, Dims4(1, 1, 1000, 1000));
+                           OptProfileSelector::kOPT, Dims4(1, 1, 500, 500));
     profile->setDimensions(super_point_config_.input_tensor_names[0].c_str(),
-                         OptProfileSelector::kMAX, Dims4(1, 1, 2000, 2000));
-
+                           OptProfileSelector::kMAX, Dims4(1, 1, 1000, 1000));
     config->addOptimizationProfile(profile);
     
     auto constructed = construct_network(builder, network, config, parser);
@@ -102,18 +101,20 @@ bool SuperPoint::construct_network(TensorRTUniquePtr<nvinfer1::IBuilder> &builde
 
 
 bool SuperPoint::infer(const cv::Mat &image, Eigen::Matrix<double, 259, Eigen::Dynamic> &features) {
-    auto context = TensorRTUniquePtr<nvinfer1::IExecutionContext>(engine_->createExecutionContext());
-    if (!context) {
-        return false;
+    if (!context_) {
+        context_ = TensorRTUniquePtr<nvinfer1::IExecutionContext>(engine_->createExecutionContext());
+        if (!context_) {
+            return false;
+        }
     }
     
     assert(engine_->getNbBindings() == 3);
 
     const int input_index = engine_->getBindingIndex(super_point_config_.input_tensor_names[0].c_str());
 
-    context->setBindingDimensions(input_index, Dims4(1, 1, image.rows, image.cols));
+    context_->setBindingDimensions(input_index, Dims4(1, 1, image.rows, image.cols));
 
-    BufferManager buffers(engine_, 0, context.get());
+    BufferManager buffers(engine_, 0, context_.get());
     
     ASSERT(super_point_config_.input_tensor_names.size() == 1);
     if (!process_input(buffers, image)) {
@@ -121,7 +122,7 @@ bool SuperPoint::infer(const cv::Mat &image, Eigen::Matrix<double, 259, Eigen::D
     }
     buffers.copyInputToDevice();
 
-    bool status = context->executeV2(buffers.getDeviceBindings().data());
+    bool status = context_->executeV2(buffers.getDeviceBindings().data());
     if (!status) {
         return false;
     }

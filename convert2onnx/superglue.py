@@ -92,6 +92,37 @@ def attention(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> Tu
     return torch.einsum('bhnm,bdhm->bdhn', prob, value), prob
 
 
+# def attention(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+#     batch = query.shape[0]
+#     dim = query.shape[1]
+#     scores = torch.bmm(query[0, :, :, :].permute(1, 2, 0), key[0, :, :, :].permute(1, 0, 2))
+#     # scores = scores.unsqueeze(dim=0)
+#     if batch == 1:
+#         scores = scores.unsqueeze(dim=0)
+#     else:
+#         for i in range(1, query.shape[0]):
+#             scores = torch.stack((scores, torch.bmm(query[i, :, :, :].permute(1, 2, 0),
+#                                                     key[i, :, :, :].permute(1, 0, 2))), dim=0)
+#     scores = scores / dim ** .5
+#     # scores = torch.einsum('bdhn,bdhm->bhnm', query, key) / dim**.5
+#     prob = torch.nn.functional.softmax(scores, dim=-1)
+
+#     result = torch.bmm(prob[0, :, :, :], value[0, :, :, :].permute(1, 2, 0)).permute(2, 0, 1)
+#     # result = result.unsqueeze(dim=0)
+
+#     if batch == 1:
+#         result = result.unsqueeze(dim=0)
+#     else:
+#         for i in range(1, prob.shape[0]):
+#             result = torch.stack((result, torch.bmm(prob[i, :, :, :],
+#                                                     value[i, :, :, :].permute(1, 2, 0)).permute(2,
+#                                                                                                 0,
+#                                                                                                 1)),
+#                                  dim=0)
+#     # return torch.einsum('bhnm,bdhm->bdhn', prob, value), prob
+#     return result, prob
+
+
 class MultiHeadedAttention(nn.Module):
     """ Multi-head attention to increase model expressivitiy """
 
@@ -142,36 +173,36 @@ class AttentionalGNN(nn.Module):
         return desc0, desc1
 
 
-# def log_sinkhorn_iterations(Z: torch.Tensor, log_mu: torch.Tensor, log_nu: torch.Tensor, iters: int) -> torch.Tensor:
-#     """ Perform Sinkhorn Normalization in Log-space for stability"""
-#     u, v = torch.zeros_like(log_mu), torch.zeros_like(log_nu)
-#     for _ in range(iters):
-#         u = log_mu - torch.logsumexp(Z + v.unsqueeze(1), dim=2)
-#         v = log_nu - torch.logsumexp(Z + u.unsqueeze(2), dim=1)
-#     return Z + u.unsqueeze(2) + v.unsqueeze(1)
+def log_sinkhorn_iterations(Z: torch.Tensor, log_mu: torch.Tensor, log_nu: torch.Tensor, iters: int) -> torch.Tensor:
+    """ Perform Sinkhorn Normalization in Log-space for stability"""
+    u, v = torch.zeros_like(log_mu), torch.zeros_like(log_nu)
+    for _ in range(iters):
+        u = log_mu - torch.logsumexp(Z + v.unsqueeze(1), dim=2)
+        v = log_nu - torch.logsumexp(Z + u.unsqueeze(2), dim=1)
+    return Z + u.unsqueeze(2) + v.unsqueeze(1)
 
 
-# def log_optimal_transport(scores: torch.Tensor, alpha: torch.Tensor, iters: int) -> torch.Tensor:
-#     """ Perform Differentiable Optimal Transport in Log-space for stability"""
-#     b, m, n = scores.shape
-#     one = scores.new_tensor(1)
-#     ms, ns = (m*one).to(scores), (n*one).to(scores)
-#
-#     bins0 = alpha.expand(b, m, 1)
-#     bins1 = alpha.expand(b, 1, n)
-#     alpha = alpha.expand(b, 1, 1)
-#
-#     couplings = torch.cat([torch.cat([scores, bins0], -1),
-#                            torch.cat([bins1, alpha], -1)], 1)
-#
-#     norm = - (ms + ns).log()
-#     log_mu = torch.cat([norm.expand(m), ns.log()[None] + norm])
-#     log_nu = torch.cat([norm.expand(n), ms.log()[None] + norm])
-#     log_mu, log_nu = log_mu[None].expand(b, -1), log_nu[None].expand(b, -1)
-#
-#     Z = log_sinkhorn_iterations(couplings, log_mu, log_nu, iters)
-#     Z = Z - norm  # multiply probabilities by M+N
-#     return Z
+def log_optimal_transport(scores: torch.Tensor, alpha: torch.Tensor, iters: int) -> torch.Tensor:
+    """ Perform Differentiable Optimal Transport in Log-space for stability"""
+    b, m, n = scores.shape
+    one = scores.new_tensor(1)
+    ms, ns = (m*one).to(scores), (n*one).to(scores)
+
+    bins0 = alpha.expand(b, m, 1)
+    bins1 = alpha.expand(b, 1, n)
+    alpha = alpha.expand(b, 1, 1)
+
+    couplings = torch.cat([torch.cat([scores, bins0], -1),
+                           torch.cat([bins1, alpha], -1)], 1)
+
+    norm = - (ms + ns).log()
+    log_mu = torch.cat([norm.expand(m), ns.log()[None] + norm])
+    log_nu = torch.cat([norm.expand(n), ms.log()[None] + norm])
+    log_mu, log_nu = log_mu[None].expand(b, -1), log_nu[None].expand(b, -1)
+
+    Z = log_sinkhorn_iterations(couplings, log_mu, log_nu, iters)
+    Z = Z - norm  # multiply probabilities by M+N
+    return Z
 
 
 # def arange_like(x, dim: int):
@@ -182,6 +213,7 @@ default_config = {
     'descriptor_dim': 256,
     'keypoint_encoder': [32, 64, 128, 256],
     'GNN_layers': ['self', 'cross'] * 9,
+    'sinkhorn_iterations': 100,
 }
 
 
@@ -263,13 +295,14 @@ class SuperGlue(nn.Module):
         mdesc0, mdesc1 = self.final_proj(desc0), self.final_proj(desc1)
 
         # Compute matching descriptor distance.
+        # scores = torch.bmm(torch.transpose(mdesc0, 1, 2), mdesc1)
         scores = torch.einsum('bdn,bdm->bnm', mdesc0, mdesc1)
         scores = scores / default_config['descriptor_dim'] ** .5
 
         # Run the optimal transport.
-        # scores = log_optimal_transport(
-        #     scores, self.bin_score,
-        #     iters=default_config['sinkhorn_iterations'])
+        scores = log_optimal_transport(
+            scores, self.bin_score,
+            iters=default_config['sinkhorn_iterations'])
         # Get the matches with score above "match_threshold".
         # max0, max1 = scores[:, :-1, :-1].max(2), scores[:, :-1, :-1].max(1)
         # indices0, indices1 = max0.indices, max1.indices
