@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(air_slam)
 
 set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_BUILD_TYPE "release")
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 ## Find catkin macros and libraries
