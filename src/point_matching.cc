@@ -31,17 +31,17 @@ int PointMatching::MatchingPoints(Eigen::Matrix<double, 259, Eigen::Dynamic>& fe
     }
   }
   
-
-  // reject outliers
-  std::vector<uchar> inliers;
-  cv::findFundamentalMat(points0, points1, cv::FM_RANSAC, 3, 0.99, inliers);
-  int j = 0;
-  for(int i = 0; i < matches.size(); i++){
-    if(inliers[i]){
-      matches[j++] = matches[i];
-    }
-  }
-  matches.resize(j);
+  int j = matches.size();
+  // // reject outliers
+  // std::vector<uchar> inliers;
+  // cv::findFundamentalMat(points0, points1, cv::FM_RANSAC, 3, 0.99, inliers);
+  // int j = 0;
+  // for(int i = 0; i < matches.size(); i++){
+  //   if(inliers[i]){
+  //     matches[j++] = matches[i];
+  //   }
+  // }
+  // matches.resize(j);
 
   return j;
 }
