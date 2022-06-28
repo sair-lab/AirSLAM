@@ -21,6 +21,7 @@ public:
   MappointPtr GetMappointPtr(int mappoint_id);
 
   bool TriangulateMappoint(MappointPtr mappoint);
+  bool UpdateMappointDescriptor(MappointPtr mappoint);
   void SlidingWindowOptimization();
   void SaveMap(const std::string& map_root);
 

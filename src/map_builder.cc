@@ -239,7 +239,8 @@ bool MapBuilder::Init(FramePtr frame){
     if(frame->BackProjectPoint(i, tmp_position)){
       stereo_point_num++;
       track_ids[i] = _track_id++;
-      MappointPtr mappoint = std::shared_ptr<Mappoint>(new Mappoint(track_ids[i], tmp_position));
+      Eigen::Matrix<double, 256, 1> descriptor = frame->GetDescriptor(i);
+      MappointPtr mappoint = std::shared_ptr<Mappoint>(new Mappoint(track_ids[i], tmp_position, descriptor));
       mappoint->AddObverser(frame_id, i);
       frame->InsertMappoint(i, mappoint);
       new_mappoints.push_back(mappoint);

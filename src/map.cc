@@ -38,6 +38,8 @@ void Map::InsertKeyframe(FramePtr frame){
     if(mpt == nullptr){
       if(track_ids[i] < 0) continue;
       mpt = std::shared_ptr<Mappoint>(new Mappoint(track_ids[i]));
+      Eigen::Matrix<double, 256, 1> descriptor = frame->GetDescriptor(i);
+      mpt->SetDescriptor(descriptor);
       Eigen::Vector3d pf;
       if(frame->BackProjectPoint(i, pf)){
         Eigen::Vector3d pw = Rwf * pf + twf;
@@ -131,6 +133,34 @@ bool Map::TriangulateMappoint(MappointPtr mappoint){
   Eigen::Vector3d p_G_P = qr.solve(Axtbx);
   mappoint->SetPosition(p_G_P);
   return true;
+}
+
+bool Map::UpdateMappointDescriptor(MappointPtr mappoint){
+  const std::map<int, int> obversers = mappoint->GetAllObversers();
+  Eigen::Matrix3Xd G_bearing_vectors;
+  Eigen::Matrix3Xd p_G_C_vector;
+  G_bearing_vectors.resize(Eigen::NoChange, obversers.size());
+  p_G_C_vector.resize(Eigen::NoChange, obversers.size());
+  int num_valid_obversers = 0;
+  for(const auto kv : obversers){
+    int frame_id = kv.first;
+    int keypoint_id = kv.second;
+    if(_keyframes.count(frame_id) == 0) continue;
+    if(keypoint_id < 0) continue;
+    // if(!_keyframes[frame_id]->IsValid()) continue;
+    Eigen::Vector3d keypoint_pos;
+    if(!_keyframes[frame_id]->GetKeypointPosition(keypoint_id, keypoint_pos)) continue;
+
+    Eigen::Vector3d backprojected_pos;
+    _camera->BackProjectMono(keypoint_pos.head(2), backprojected_pos);
+    Eigen::Matrix4d frame_pose = _keyframes[frame_id]->GetPose();
+    Eigen::Matrix3d frame_R = frame_pose.block<3, 3>(0, 0);
+    Eigen::Vector3d frame_p = frame_pose.block<3, 1>(0, 3);
+
+    p_G_C_vector.col(num_valid_obversers) = frame_p;
+    G_bearing_vectors.col(num_valid_obversers) = frame_R * backprojected_pos;
+    num_valid_obversers++;
+  }
 }
 
 void Map::SlidingWindowOptimization(){
@@ -297,84 +327,7 @@ void Map::SaveMap(const std::string& map_root){
   WriteTxt(mappoints_file, mappoints_lines, ",");
 }
 
-// void Map::LoadMap(const std::string& map_root){
 
-//   // load camera file
-//   std::string camera_file = map_root + "/camera.yaml";
-//   camera = std::shared_ptr<Camera>(new Camera(camera_file));
-
-//   // load frame files
-//   std::string frame_root = map_root + "/frames";
-//   std::vector<std::string> frame_files;
-//   GetFiles(frame_root, frame_files);
-//   for(std::string& frame_file : frame_files){
-
-//     std::vector<std::string> keyframe_files;
-//     std::string keyframe_root = frame_root + "/" + frame_file;
-
-//     // load metadata
-//     std::string metadata_path = keyframe_root + "/metadata.txt";
-//     std::vector<std::vector<std::string> > metadata;
-//     ReadTxt(metadata_path, metadata, ",");
-//     int frame_id = atoi(metadata[0][0].c_str());
-//     int64_t timestamp = (int64_t)(atoll(metadata[0][1].c_str()));
-//     int num_kps = atoi(metadata[0][2].c_str());
-//     int num_lines = atoi(metadata[0][3].c_str());
-//     Eigen::Matrix<double, 7, 1> odom_pose;
-//     for(int i = 0; i < 7; ++i){
-//       odom_pose(i, 0) = atof(metadata[0][(i+4)].c_str());
-//     }
-//     FramePtr keyframe = std::shared_ptr<Keyframe>(new Keyframe(frame_id, timestamp, odom_pose));
-
-//     // load points
-//     std::string points_root = keyframe_root + "/points";
-//     std::string keypoints_file = points_root + "/keypoints.npy";
-//     cnpy::NpyArray keypoints_arr = cnpy::npy_load(keypoints_file);
-//     float* keypoints_data = keypoints_arr.data<float>();
-//     std::string descriptors_file = points_root + "/descriptors.npy";
-//     cnpy::NpyArray descriptors_arr = cnpy::npy_load(descriptors_file);
-//     float* descriptors_data = descriptors_arr.data<float>();
-//     std::string scores_file = points_root + "/scores.npy";
-//     cnpy::NpyArray scores_arr = cnpy::npy_load(scores_file);
-//     float* scores_data = scores_arr.data<float>();
-//     std::string track_ids_file = points_root + "/track_ids.npy";
-//     cnpy::NpyArray track_ids_arr = cnpy::npy_load(track_ids_file);
-//     int* track_ids_data = track_ids_arr.data<int>();
-
-//     const int kNumDesc = 256;
-//     for(int i = 0; i < num_kps; i++){
-//       float x = keypoints_data[(2*i)];
-//       float y = keypoints_data[(2*i+1)];
-//       float score = scores_data[i];
-//       cv::KeyPoint keypoint(x, y, 1.0, -1, score);
-//       int track_id = *(track_ids_data + i);
-
-//       Eigen::VectorXf descriptor = 
-//           Eigen::Map<Eigen::VectorXf>((descriptors_data+kNumDesc*i), kNumDesc, 1);
-//       keyframe->AddPoint(keypoint, descriptor, track_id);
-//     }
-
-//     // load line data
-//     std::string line_file_path = keyframe_root + "/lines.txt";
-//     std::vector<std::vector<std::string> > lines;
-//     ReadTxt(line_file_path, lines, ",");
-//     for(std::vector<std::string> line_data : lines){
-//       Line2D line2d;
-//       line2d.x1 = atof(line_data[0].c_str());
-//       line2d.y1 = atof(line_data[1].c_str());
-//       line2d.x2 = atof(line_data[2].c_str());
-//       line2d.y2 = atof(line_data[3].c_str());
-//       for(int i = 4; i < line_data.size(); ++i){
-//         int point_id = static_cast<int>(atof(line_data[i].c_str()));
-//         line2d.point_ids.emplace_back(point_id);
-//       }
-//       keyframe->AddLine(line2d);
-//     }
-//     keyframes[frame_id] = keyframe;
-//   }
-
-//   optimizer = std::shared_ptr<Optimization3d>(new Optimization3d());
-// }
 
 
 // ros::Time ConvertToRosTime(int64_t& t){
@@ -386,122 +339,3 @@ void Map::SaveMap(const std::string& map_root){
 //   return ros::Time(ros_timestamp_sec, ros_timestamp_nsec);
 // }
 
-// void AddNewPoseToPath(
-//     Eigen::Vector3d& pose, nav_msgs::Path& path, std::string& frame_id){
-//   ros::Time current_time = ros::Time::now();
-
-//   geometry_msgs::PoseStamped pose_stamped; 
-//   pose_stamped.pose.position.x = pose(0); 
-//   pose_stamped.pose.position.y = pose(1); 
-
-//   geometry_msgs::Quaternion q = tf::createQuaternionMsgFromYaw(pose(2)); 
-//   pose_stamped.pose.orientation.x = q.x; 
-//   pose_stamped.pose.orientation.y = q.y; 
-//   pose_stamped.pose.orientation.z = q.z; 
-//   pose_stamped.pose.orientation.w = q.w; 
-
-//   pose_stamped.header.stamp = current_time; 
-//   pose_stamped.header.frame_id = frame_id; 
-//   path.poses.push_back(pose_stamped); 
-// }
-
-// void Map::VisualizeMap(){
-//   ros::Time current_time = ros::Time::now();
-//   std::string frame_id = "map";
-
-//   frame_poses_pub = nh.advertise<visualization_msgs::MarkerArray>("/map/frame_pose", 10);
-//   visualization_msgs::MarkerArray frame_pose_msgs;
-
-//   path_pub = nh.advertise<nav_msgs::Path>("/map/frame_path", 10);
-//   nav_msgs::Path path_msgs;
-//   path_msgs.header.stamp = current_time; 
-// 	path_msgs.header.frame_id = frame_id; 
-//   for(auto& kv : keyframes){
-//     FramePtr kf = kv.second;
-//     int64_t time_int = kf->GetTimestamp();
-//     ros::Time timestamp = ConvertToRosTime(time_int);
-//     Eigen::Matrix<double, 7, 1> pose = kf->GetOdomPose();
-
-//     // path
-//     geometry_msgs::PoseStamped pose_stamped; 
-//     pose_stamped.pose.orientation.w = pose(0); 
-//     pose_stamped.pose.orientation.x = pose(1); 
-//     pose_stamped.pose.orientation.y = pose(2); 
-//     pose_stamped.pose.orientation.z = pose(3); 
-//     pose_stamped.pose.position.x = pose(4); 
-//     pose_stamped.pose.position.y = pose(5); 
-//     pose_stamped.pose.position.z = pose(6); 
-
-//     pose_stamped.header.stamp = timestamp; 
-//     pose_stamped.header.frame_id = frame_id; 
-//     path_msgs.poses.push_back(pose_stamped); 
-
-//     // marker
-//     visualization_msgs::Marker marker;
-//     marker.header.frame_id = frame_id;
-//     marker.header.stamp = timestamp;
-//     marker.ns = "frame_pose";
-//     marker.action = visualization_msgs::Marker::ADD;
-//     marker.id = kf->GetFrameId();
-//     marker.type = visualization_msgs::Marker::ARROW;
-//     marker.scale.x = 0.2;
-//     marker.scale.y = 0.03;
-//     marker.scale.z = 0.03;
-//     marker.color.b = 0;
-//     marker.color.g = 0;
-//     marker.color.r = 255;
-//     marker.color.a = 1;
-//     marker.pose = pose_stamped.pose;
-
-//     frame_pose_msgs.markers.push_back(marker);
-//   }
-
-//   // map pointcloud
-//   mappoints_pub = nh.advertise<sensor_msgs::PointCloud> ("/map/mappoints", 1);
-//   sensor_msgs::PointCloud mappoints_msgs;
-//   mappoints_msgs.header.stamp = current_time; 
-// 	mappoints_msgs.header.frame_id = frame_id; 
-
-//   int num_points = 0;
-//   for(auto& kv : mappoints){
-//     if(kv.second->IsValid()) num_points++;
-//   }
-
-//   mappoints_msgs.points.resize(num_points);
-//   mappoints_msgs.channels.resize(3);
-//   mappoints_msgs.channels[0].name = "r";
-//   mappoints_msgs.channels[0].values.resize(num_points);
-//   mappoints_msgs.channels[1].name = "g";
-//   mappoints_msgs.channels[1].values.resize(num_points);
-//   mappoints_msgs.channels[2].name = "b";
-//   mappoints_msgs.channels[2].values.resize(num_points);
-
-
-//   int i = 0;
-//   for(auto& kv : mappoints){
-//     if(!kv.second->IsValid()) continue;
-//     Eigen::Vector3d position = kv.second->GetPosition();
-//     mappoints_msgs.points[i].x = position(0);
-//     mappoints_msgs.points[i].y = position(1);
-//     mappoints_msgs.points[i].z = position(2);
-//     mappoints_msgs.channels[0].values[i] = static_cast<double>(static_cast<int>((position(0)+0.5))%10)/10.0;
-//     mappoints_msgs.channels[1].values[i] = static_cast<double>(static_cast<int>((position(1)+0.5))%10)/10.0;
-//     mappoints_msgs.channels[2].values[i] = static_cast<double>(static_cast<int>((position(2)+0.5))%10)/10.0;
-    
-//     i++;
-//   }
-
-//   ros::Rate loop_rate(1);
-//   while(ros::ok()){
-//     frame_poses_pub.publish(frame_pose_msgs);
-//     path_pub.publish(path_msgs);
-//     mappoints_pub.publish(mappoints_msgs);
-//     ros::spinOnce(); 
-//     loop_rate.sleep(); 
-//   }
-
-//   // frame_poses_pub.publish(frame_pose_msgs);
-//   // path_pub.publish(path_msgs);
-//   // mappoints_pub.publish(mappoints_msgs); 
-//   // ros::Duration(5).sleep();
-// }

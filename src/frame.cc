@@ -85,10 +85,10 @@ size_t Frame::FeatureNum(){
   return _features.cols();
 }
 
-bool Frame::GetKeypointPosition(size_t keypoint_id, Eigen::Vector3d& keypoint_pos){
-  if(keypoint_id > _features.cols()) return false;
-  keypoint_pos.head(2) = _features.block<2, 1>(1, keypoint_id);
-  keypoint_pos(2) = _u_right[keypoint_id];
+bool Frame::GetKeypointPosition(size_t idx, Eigen::Vector3d& keypoint_pos){
+  if(idx > _features.cols()) return false;
+  keypoint_pos.head(2) = _features.block<2, 1>(1, idx);
+  keypoint_pos(2) = _u_right[idx];
   return true;
 }
 
@@ -109,6 +109,12 @@ double Frame::GetRightPosition(size_t idx){
 std::vector<double>& Frame::GetAllRightPosition(){
   return _u_right;
 } 
+
+bool Frame::GetDescriptor(size_t idx, Eigen::Matrix<double, 256, 1>& descriptor) const{
+  if(idx > _features.cols()) return false;
+  descriptor = _features.block<256, 1>(3, idx);
+  return true;
+}
 
 double Frame::GetDepth(size_t idx){
   assert(idx < _depth.size());

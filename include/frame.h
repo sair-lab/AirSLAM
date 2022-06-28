@@ -29,12 +29,14 @@ public:
 
   size_t FeatureNum();
 
-  bool GetKeypointPosition(size_t keypoint_id, Eigen::Vector3d& keypoint_pos);
+  bool GetKeypointPosition(size_t idx, Eigen::Vector3d& keypoint_pos);
   std::vector<cv::KeyPoint>& GetAllKeypoints();
   cv::KeyPoint& GetKeypoint(size_t idx);
 
   double GetRightPosition(size_t idx);
   std::vector<double>& GetAllRightPosition(); 
+
+  bool GetDescriptor(size_t idx, Eigen::Matrix<double, 256, 1>& descriptor) const;
 
   double GetDepth(size_t idx);
   std::vector<double>& GetAllDepth();
