@@ -11,7 +11,7 @@
 #include "g2o_optimization/g2o_optimization.h"
 #include "timer.h"
 
-// INITIALIZE_TIMER;
+INITIALIZE_TIMER;
 
 Map::Map(CameraPtr camera, RosPublisherPtr ros_publisher): _camera(camera), _ros_publisher(ros_publisher){
 }
@@ -38,7 +38,8 @@ void Map::InsertKeyframe(FramePtr frame){
     if(mpt == nullptr){
       if(track_ids[i] < 0) continue;
       mpt = std::shared_ptr<Mappoint>(new Mappoint(track_ids[i]));
-      Eigen::Matrix<double, 256, 1> descriptor = frame->GetDescriptor(i);
+      Eigen::Matrix<double, 256, 1> descriptor;
+      if(!frame->GetDescriptor(i, descriptor)) continue;
       mpt->SetDescriptor(descriptor);
       Eigen::Vector3d pf;
       if(frame->BackProjectPoint(i, pf)){
@@ -61,7 +62,7 @@ void Map::InsertKeyframe(FramePtr frame){
   // STOP_TIMER("Insert to map Time");
 
   // optimization
-  if(_keyframes.size() > 2){
+  if(_keyframes.size() >= 2){
     SlidingWindowOptimization();
   }
 }
@@ -137,35 +138,60 @@ bool Map::TriangulateMappoint(MappointPtr mappoint){
 
 bool Map::UpdateMappointDescriptor(MappointPtr mappoint){
   const std::map<int, int> obversers = mappoint->GetAllObversers();
-  Eigen::Matrix3Xd G_bearing_vectors;
-  Eigen::Matrix3Xd p_G_C_vector;
-  G_bearing_vectors.resize(Eigen::NoChange, obversers.size());
-  p_G_C_vector.resize(Eigen::NoChange, obversers.size());
+  typedef Eigen::Matrix<double, 256, 1> Descriptor;
+  std::vector<Descriptor, Eigen::aligned_allocator<Descriptor> > descriptor_array;
+  descriptor_array.resize(obversers.size());
   int num_valid_obversers = 0;
   for(const auto kv : obversers){
     int frame_id = kv.first;
     int keypoint_id = kv.second;
-    if(_keyframes.count(frame_id) == 0) continue;
-    if(keypoint_id < 0) continue;
-    // if(!_keyframes[frame_id]->IsValid()) continue;
-    Eigen::Vector3d keypoint_pos;
-    if(!_keyframes[frame_id]->GetKeypointPosition(keypoint_id, keypoint_pos)) continue;
-
-    Eigen::Vector3d backprojected_pos;
-    _camera->BackProjectMono(keypoint_pos.head(2), backprojected_pos);
-    Eigen::Matrix4d frame_pose = _keyframes[frame_id]->GetPose();
-    Eigen::Matrix3d frame_R = frame_pose.block<3, 3>(0, 0);
-    Eigen::Vector3d frame_p = frame_pose.block<3, 1>(0, 3);
-
-    p_G_C_vector.col(num_valid_obversers) = frame_p;
-    G_bearing_vectors.col(num_valid_obversers) = frame_R * backprojected_pos;
-    num_valid_obversers++;
+    if(_keyframes.count(frame_id) == 0 || keypoint_id < 0) continue;
+    if(_keyframes[frame_id]->GetDescriptor(keypoint_id, descriptor_array[num_valid_obversers])){
+      num_valid_obversers++;
+    }
   }
+  
+  if(num_valid_obversers == 0){
+    return false;
+  }else if(num_valid_obversers <=2){
+    mappoint->SetDescriptor(descriptor_array[0]);
+    return true;
+  }
+
+  descriptor_array.resize(num_valid_obversers);
+  // Eigen::Matrix<double, 256, Dynamic> descriptors = 
+  //     Eigen::Map<Eigen::Matrix<double, 256, Dynamic>>(descriptor_array[0].data(), 3, descriptor_array.size());
+
+  double distances[num_valid_obversers][num_valid_obversers];
+  for(size_t i = 0; i < num_valid_obversers; i++){
+    distances[i][i]=0;
+    for(size_t j = i + 1; j < num_valid_obversers; j++){
+      double dij = (descriptor_array[i] - descriptor_array[j]).cwiseAbs2().sum();
+      distances[i][j] = dij;
+      distances[j][i] = dij;
+    }
+  }
+
+  // Take the descriptor with least median distance to the rest
+  double best_median = 4.0;
+  size_t best_idx = 0;
+  for(size_t i = 0; i < num_valid_obversers; i++){
+    std::vector<double> di(distances[i], distances[i]+num_valid_obversers);
+    sort(di.begin(), di.end());
+    int median = di[(int)(0.5*(num_valid_obversers-1))];
+    if(median < best_median){
+      best_median = median;
+      best_idx = i;
+    }
+  }
+
+  mappoint->SetDescriptor(descriptor_array[best_idx]);
+  return true;
 }
 
 void Map::SlidingWindowOptimization(){
   const size_t WindowSize = 10;
-  // START_TIMER;
+  START_TIMER;
   MapOfPoses poses;
   MapOfPoints3d points;
   std::vector<CameraPtr> camera_list;
@@ -233,10 +259,40 @@ void Map::SlidingWindowOptimization(){
     }
   }
   // STOP_TIMER("SlidingWindowOptimization Time1");
-  // START_TIMER;
+  START_TIMER;
   LocalmapOptimization(poses, points, camera_list, mono_point_constraints, stereo_point_constraints);
-  // STOP_TIMER("SlidingWindowOptimization Time2");
-  // START_TIMER;
+  STOP_TIMER("SlidingWindowOptimization Time2");
+  START_TIMER;
+
+  // erase outliers
+  std::vector<std::pair<FramePtr, MappointPtr>> outliers;
+  for(auto& mono_point_constraint : mono_point_constraints){
+    if(!mono_point_constraint->inlier){
+      std::map<int, FramePtr>::iterator frame_it = _keyframes.find(mono_point_constraint->id_pose);
+      std::map<int, MappointPtr>::iterator mpt_it = _mappoints.find(mono_point_constraint->id_point);
+      if(frame_it != _keyframes.end() && mpt_it != _mappoints.end() && frame_it->second && mpt_it->second){
+        outliers.emplace_back(frame_it->second, mpt_it->second);
+      }
+    }
+  }
+
+  for(auto& stereo_point_constraint : stereo_point_constraints){
+    if(!stereo_point_constraint->inlier){
+      std::map<int, FramePtr>::iterator frame_it = _keyframes.find(stereo_point_constraint->id_pose);
+      std::map<int, MappointPtr>::iterator mpt_it = _mappoints.find(stereo_point_constraint->id_point);
+      if(frame_it != _keyframes.end() && mpt_it != _mappoints.end() && frame_it->second && mpt_it->second){
+        outliers.emplace_back(frame_it->second, mpt_it->second);
+      }
+    }
+  }
+  RemoveOutliers(outliers);
+  STOP_TIMER("RemoveOutliers Time2");
+  START_TIMER;
+  UpdateFrameConnection(frames.back());
+  STOP_TIMER("UpdateFrameConnection Time2");
+  START_TIMER;
+  PrintConnection();
+  STOP_TIMER("PrintConnection Time2");
 
   std::cout << "after optimization : " << std::endl;
 
@@ -272,6 +328,113 @@ void Map::SlidingWindowOptimization(){
   std::cout << "--------------SlidingWindowOptimization Finish------------------------" << std::endl;
   // STOP_TIMER("SlidingWindowOptimization Time3");
 
+}
+
+std::pair<FramePtr, FramePtr> Map::MakeFramePair(FramePtr frame0, FramePtr frame1){
+  if(frame0->GetFrameId() > frame1->GetFrameId()){
+    return std::pair<FramePtr, FramePtr>(frame0, frame1);
+  }else{
+    return std::pair<FramePtr, FramePtr>(frame1, frame0);
+  }
+}
+
+void Map::RemoveOutliers(const std::vector<std::pair<FramePtr, MappointPtr>>& outliers){
+  std::map<std::pair<FramePtr, FramePtr>, int> bad_connections; 
+  for(auto& kv : outliers){
+    FramePtr frame = kv.first;
+    MappointPtr mpt = kv.second;
+    if(!frame || !mpt || mpt->IsBad()) continue;
+
+    // remove connection in mappoint
+    mpt->RemoveObverser(frame->GetFrameId());
+    std::map<int, int> obversers = mpt->GetAllObversers();
+    for(auto& ob : obversers){
+      std::map<int, FramePtr>::iterator obverser_it = _keyframes.find(ob.first);
+      if(obverser_it != _keyframes.end()){
+        bad_connections[MakeFramePair(frame, obverser_it->second)]++;
+      }
+    }
+
+    if(mpt->ObverserNum() < 2 && !mpt->IsBad()){
+      if(mpt->ObverserNum() > 0){
+        std::map<int, FramePtr>::iterator obverser_it = _keyframes.find(obversers.begin()->first);
+        if(obverser_it != _keyframes.end()){
+          obverser_it->second->RemoveMappoint(obversers.begin()->second);
+        }
+      }
+      mpt->SetBad();
+    }
+
+    // remove connection in frame
+    frame->RemoveMappoint(mpt);
+  }
+
+  // update connections between frames
+  for(auto& bad_connection : bad_connections){
+    FramePtr frame0 = bad_connection.first.first;
+    FramePtr frame1 = bad_connection.first.second;
+    frame0->DecreaseWeight(frame1, bad_connection.second);
+    frame1->DecreaseWeight(frame0, bad_connection.second);
+  }
+}
+
+void Map::UpdateFrameConnection(FramePtr frame){
+  int frame_id = frame->GetFrameId();
+  std::vector<MappointPtr> mappoints = frame->GetAllMappoints();
+  std::map<int, int> connections;
+  for(MappointPtr mpt : mappoints){
+    if(!mpt || mpt->IsBad()) continue;
+    std::map<int, int> obversers = mpt->GetAllObversers();
+    for(auto& kv : obversers){
+      int observer_id = kv.first;
+      if(observer_id == frame_id) continue;
+      if(_keyframes.find(observer_id) == _keyframes.end()) continue;
+      if(connections.find(observer_id) == connections.end()){
+        connections[observer_id] = 1;
+      }else{
+        connections[observer_id]++;
+      }
+    }
+  }
+  if(connections.empty()) return;
+
+  std::set<std::pair<int, FramePtr>> good_connections;
+  FramePtr best_connection;
+  int best_weight = -1;
+  const int MinWeight = 15;
+  for(auto& kv : connections){
+    FramePtr connected_frame = _keyframes[kv.first];
+    assert(connected_frame != nullptr);
+    int connected_weight = kv.second;
+    if(connected_weight > best_weight){
+      best_connection = connected_frame;
+      best_weight = connected_weight;
+    }
+
+    if(connected_weight > MinWeight){
+      good_connections.insert(std::pair<int, FramePtr>(connected_weight, connected_frame));
+      connected_frame->AddConnection(frame, connected_weight);
+    }
+  }
+
+  if(good_connections.empty()){
+    good_connections.insert(std::pair<int, FramePtr>(best_weight, best_connection));
+    best_connection->AddConnection(frame, best_weight);  
+  }
+ 
+  frame->AddConnection(good_connections);
+}
+
+void Map::PrintConnection(){
+  for(auto& kv : _keyframes){
+    FramePtr frame = kv.second;
+    std::vector<std::pair<int, FramePtr>> connections = frame->GetOrderedConnections(-1);
+    std::cout << "Connection of frame " << frame->GetFrameId() << " : ";
+    for(auto& kv : connections){
+      std::cout << kv.second->GetFrameId() << "--" << kv.first << ", ";
+    }
+    std::cout << std::endl;
+  }
 }
 
 void Map::SaveMap(const std::string& map_root){

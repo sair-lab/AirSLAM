@@ -24,6 +24,11 @@ public:
   bool UpdateMappointDescriptor(MappointPtr mappoint);
   void SlidingWindowOptimization();
   void SaveMap(const std::string& map_root);
+  std::pair<FramePtr, FramePtr> MakeFramePair(FramePtr frame0, FramePtr frame1);
+  void RemoveOutliers(const std::vector<std::pair<FramePtr, MappointPtr>>& outliers);
+  void UpdateFrameConnection(FramePtr frame);
+  //debug
+  void PrintConnection();
 
 private:
   CameraPtr _camera;

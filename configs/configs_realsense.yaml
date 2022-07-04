@@ -1,4 +1,4 @@
-dataroot: "/media/xukuan/something/ubuntu_files/data/AirSLAM/realsense_test_data"
+dataroot: "/media/xukuan/something/ubuntu_files/data/AirSLAM/realsense_meeting_room/euroc_style"
 camera_config_path: "/media/xukuan/something/ubuntu_files/project/AirSLAM/catkin_ws/src/AirSLAM/configs/realsense_848_480.yaml"
 model_dir: "/media/xukuan/something/ubuntu_files/project/AirSLAM/catkin_ws/src/AirSLAM/output"
 saving_dir: "/media/xukuan/something/ubuntu_files/project/AirSLAM/catkin_ws/src/AirSLAM/debug"

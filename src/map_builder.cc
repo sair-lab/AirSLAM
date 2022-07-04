@@ -18,7 +18,7 @@
 #include "timer.h"
 #include "debug.h"
 
-INITIALIZE_TIMER;
+// INITIALIZE_TIMER;
 
 MapBuilder::MapBuilder(Configs& configs): _init(false), _track_id(0), _configs(configs){
   _ros_publisher = std::shared_ptr<RosPublisher>(new RosPublisher(configs.ros_publisher_config));
@@ -239,7 +239,8 @@ bool MapBuilder::Init(FramePtr frame){
     if(frame->BackProjectPoint(i, tmp_position)){
       stereo_point_num++;
       track_ids[i] = _track_id++;
-      Eigen::Matrix<double, 256, 1> descriptor = frame->GetDescriptor(i);
+      Eigen::Matrix<double, 256, 1> descriptor;
+      if(!frame->GetDescriptor(i, descriptor)) continue;
       MappointPtr mappoint = std::shared_ptr<Mappoint>(new Mappoint(track_ids[i], tmp_position, descriptor));
       mappoint->AddObverser(frame_id, i);
       frame->InsertMappoint(i, mappoint);

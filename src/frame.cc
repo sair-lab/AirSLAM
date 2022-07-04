@@ -172,3 +172,78 @@ bool Frame::BackProjectPoint(size_t idx, Eigen::Vector3d& p3D){
 CameraPtr Frame::GetCamera(){
   return _camera;
 }
+
+void Frame::AddConnection(std::shared_ptr<Frame> frame, int weight){
+  std::map<std::shared_ptr<Frame>, int>::iterator it = _connections.find(frame);
+  bool add_connection = (it == _connections.end());
+  bool change_connection = (!add_connection && _connections[frame] != weight);
+  if(add_connection || change_connection){
+    if(change_connection){
+      _ordered_connections.erase(std::pair<int, std::shared_ptr<Frame>>(it->second, frame));
+    }
+    _connections[frame] = weight;
+    _ordered_connections.insert(std::pair<int, std::shared_ptr<Frame>>(weight, frame));
+  }
+}
+
+void Frame::AddConnection(std::set<std::pair<int, std::shared_ptr<Frame>>> connections){
+  _ordered_connections = connections;
+  _connections.clear();
+  for(auto& kv : connections){
+    _connections[kv.second] = kv.first;
+  }
+}
+
+void Frame::SetParent(std::shared_ptr<Frame> parent){
+  _parent = parent;
+}
+
+std::shared_ptr<Frame> Frame::GetParent(){
+  return _parent;
+}
+
+void Frame::SetChild(std::shared_ptr<Frame> child){
+  _child = child;
+}
+
+std::shared_ptr<Frame> Frame::GetChild(){
+  return _child;
+}
+
+void Frame::RemoveConnection(std::shared_ptr<Frame> frame){
+  std::map<std::shared_ptr<Frame>, int>::iterator it = _connections.find(frame);
+  if(it != _connections.end()){
+    _ordered_connections.erase(std::pair<int, std::shared_ptr<Frame>>(it->second, it->first));
+    _connections.erase(it);
+  }
+}
+
+void Frame::RemoveMappoint(MappointPtr mappoint){
+  RemoveMappoint(mappoint->GetKeypointIdx(_frame_id));
+}
+
+void Frame::RemoveMappoint(int idx){
+  if(idx < _mappoints.size() && idx >=0){
+    _mappoints[idx] = nullptr;
+  }
+}
+
+void Frame::DecreaseWeight(std::shared_ptr<Frame> frame, int weight){
+  std::map<std::shared_ptr<Frame>, int>::iterator it = _connections.find(frame);
+  if(it != _connections.end()){
+    _ordered_connections.erase(std::pair<int, std::shared_ptr<Frame>>(it->second, it->first));
+    int original_weight = it->second;
+    bool to_remove = (original_weight < (weight+15) && _connections.size() >= 2) || (original_weight <= weight);
+    if(to_remove){
+      _connections.erase(it);
+    }else{
+      it->second = original_weight - weight;
+      _ordered_connections.insert(std::pair<int, std::shared_ptr<Frame>>(it->second, it->first));
+    }
+  }
+}
+
+std::vector<std::pair<int, std::shared_ptr<Frame>>> Frame::GetOrderedConnections(int number){
+  int n = (number > 0) ? number : _ordered_connections.size();
+  return std::vector<std::pair<int, std::shared_ptr<Frame>>>(_ordered_connections.begin(), std::next(_ordered_connections.begin(), n));
+}

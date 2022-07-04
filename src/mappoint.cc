@@ -35,6 +35,11 @@ Mappoint::Type Mappoint::GetType(){
 
 void Mappoint::SetBad(){
   _type = Type::Bad;
+  _obversers.clear();
+}
+
+bool Mappoint::IsBad(){
+  return (_type == Type::Bad);
 }
 
 void Mappoint::SetGood(){
@@ -50,8 +55,10 @@ void Mappoint::AddObverser(const int& frame_id, const int& keypoint_index){
 }
 
 void Mappoint::RemoveObverser(const int& frame_id){
-  if(_obversers.count(frame_id) > 0) 
-    _obversers[frame_id] = -1;
+  std::map<int, int>::iterator it = _obversers.find(frame_id);
+  if(it != _obversers.end()){
+    _obversers.erase(it);
+  }
 }
 
 int Mappoint::ObverserNum(){

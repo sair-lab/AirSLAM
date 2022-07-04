@@ -55,6 +55,7 @@ public:
   void SetType(Type& type);
   Type GetType();
   void SetBad();
+  bool IsBad();
   void SetGood();
   bool IsValid();
 
