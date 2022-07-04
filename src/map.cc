@@ -11,7 +11,7 @@
 #include "g2o_optimization/g2o_optimization.h"
 #include "timer.h"
 
-// INITIALIZE_TIMER;
+INITIALIZE_TIMER;
 
 Map::Map(CameraPtr camera, RosPublisherPtr ros_publisher): _camera(camera), _ros_publisher(ros_publisher){
 }
@@ -38,6 +38,9 @@ void Map::InsertKeyframe(FramePtr frame){
     if(mpt == nullptr){
       if(track_ids[i] < 0) continue;
       mpt = std::shared_ptr<Mappoint>(new Mappoint(track_ids[i]));
+      Eigen::Matrix<double, 256, 1> descriptor;
+      if(!frame->GetDescriptor(i, descriptor)) continue;
+      mpt->SetDescriptor(descriptor);
       Eigen::Vector3d pf;
       if(frame->BackProjectPoint(i, pf)){
         Eigen::Vector3d pw = Rwf * pf + twf;
@@ -59,7 +62,7 @@ void Map::InsertKeyframe(FramePtr frame){
   // STOP_TIMER("Insert to map Time");
 
   // optimization
-  if(_keyframes.size() > 2){
+  if(_keyframes.size() >= 2){
     SlidingWindowOptimization();
   }
 }
@@ -133,9 +136,62 @@ bool Map::TriangulateMappoint(MappointPtr mappoint){
   return true;
 }
 
+bool Map::UpdateMappointDescriptor(MappointPtr mappoint){
+  const std::map<int, int> obversers = mappoint->GetAllObversers();
+  typedef Eigen::Matrix<double, 256, 1> Descriptor;
+  std::vector<Descriptor, Eigen::aligned_allocator<Descriptor> > descriptor_array;
+  descriptor_array.resize(obversers.size());
+  int num_valid_obversers = 0;
+  for(const auto kv : obversers){
+    int frame_id = kv.first;
+    int keypoint_id = kv.second;
+    if(_keyframes.count(frame_id) == 0 || keypoint_id < 0) continue;
+    if(_keyframes[frame_id]->GetDescriptor(keypoint_id, descriptor_array[num_valid_obversers])){
+      num_valid_obversers++;
+    }
+  }
+  
+  if(num_valid_obversers == 0){
+    return false;
+  }else if(num_valid_obversers <=2){
+    mappoint->SetDescriptor(descriptor_array[0]);
+    return true;
+  }
+
+  descriptor_array.resize(num_valid_obversers);
+  // Eigen::Matrix<double, 256, Dynamic> descriptors = 
+  //     Eigen::Map<Eigen::Matrix<double, 256, Dynamic>>(descriptor_array[0].data(), 3, descriptor_array.size());
+
+  double distances[num_valid_obversers][num_valid_obversers];
+  for(size_t i = 0; i < num_valid_obversers; i++){
+    distances[i][i]=0;
+    for(size_t j = i + 1; j < num_valid_obversers; j++){
+      double dij = (descriptor_array[i] - descriptor_array[j]).cwiseAbs2().sum();
+      distances[i][j] = dij;
+      distances[j][i] = dij;
+    }
+  }
+
+  // Take the descriptor with least median distance to the rest
+  double best_median = 4.0;
+  size_t best_idx = 0;
+  for(size_t i = 0; i < num_valid_obversers; i++){
+    std::vector<double> di(distances[i], distances[i]+num_valid_obversers);
+    sort(di.begin(), di.end());
+    int median = di[(int)(0.5*(num_valid_obversers-1))];
+    if(median < best_median){
+      best_median = median;
+      best_idx = i;
+    }
+  }
+
+  mappoint->SetDescriptor(descriptor_array[best_idx]);
+  return true;
+}
+
 void Map::SlidingWindowOptimization(){
   const size_t WindowSize = 10;
-  // START_TIMER;
+  START_TIMER;
   MapOfPoses poses;
   MapOfPoints3d points;
   std::vector<CameraPtr> camera_list;
@@ -203,10 +259,40 @@ void Map::SlidingWindowOptimization(){
     }
   }
   // STOP_TIMER("SlidingWindowOptimization Time1");
-  // START_TIMER;
+  START_TIMER;
   LocalmapOptimization(poses, points, camera_list, mono_point_constraints, stereo_point_constraints);
-  // STOP_TIMER("SlidingWindowOptimization Time2");
-  // START_TIMER;
+  STOP_TIMER("SlidingWindowOptimization Time2");
+  START_TIMER;
+
+  // erase outliers
+  std::vector<std::pair<FramePtr, MappointPtr>> outliers;
+  for(auto& mono_point_constraint : mono_point_constraints){
+    if(!mono_point_constraint->inlier){
+      std::map<int, FramePtr>::iterator frame_it = _keyframes.find(mono_point_constraint->id_pose);
+      std::map<int, MappointPtr>::iterator mpt_it = _mappoints.find(mono_point_constraint->id_point);
+      if(frame_it != _keyframes.end() && mpt_it != _mappoints.end() && frame_it->second && mpt_it->second){
+        outliers.emplace_back(frame_it->second, mpt_it->second);
+      }
+    }
+  }
+
+  for(auto& stereo_point_constraint : stereo_point_constraints){
+    if(!stereo_point_constraint->inlier){
+      std::map<int, FramePtr>::iterator frame_it = _keyframes.find(stereo_point_constraint->id_pose);
+      std::map<int, MappointPtr>::iterator mpt_it = _mappoints.find(stereo_point_constraint->id_point);
+      if(frame_it != _keyframes.end() && mpt_it != _mappoints.end() && frame_it->second && mpt_it->second){
+        outliers.emplace_back(frame_it->second, mpt_it->second);
+      }
+    }
+  }
+  RemoveOutliers(outliers);
+  STOP_TIMER("RemoveOutliers Time2");
+  START_TIMER;
+  UpdateFrameConnection(frames.back());
+  STOP_TIMER("UpdateFrameConnection Time2");
+  START_TIMER;
+  PrintConnection();
+  STOP_TIMER("PrintConnection Time2");
 
   std::cout << "after optimization : " << std::endl;
 
@@ -242,6 +328,113 @@ void Map::SlidingWindowOptimization(){
   std::cout << "--------------SlidingWindowOptimization Finish------------------------" << std::endl;
   // STOP_TIMER("SlidingWindowOptimization Time3");
 
+}
+
+std::pair<FramePtr, FramePtr> Map::MakeFramePair(FramePtr frame0, FramePtr frame1){
+  if(frame0->GetFrameId() > frame1->GetFrameId()){
+    return std::pair<FramePtr, FramePtr>(frame0, frame1);
+  }else{
+    return std::pair<FramePtr, FramePtr>(frame1, frame0);
+  }
+}
+
+void Map::RemoveOutliers(const std::vector<std::pair<FramePtr, MappointPtr>>& outliers){
+  std::map<std::pair<FramePtr, FramePtr>, int> bad_connections; 
+  for(auto& kv : outliers){
+    FramePtr frame = kv.first;
+    MappointPtr mpt = kv.second;
+    if(!frame || !mpt || mpt->IsBad()) continue;
+
+    // remove connection in mappoint
+    mpt->RemoveObverser(frame->GetFrameId());
+    std::map<int, int> obversers = mpt->GetAllObversers();
+    for(auto& ob : obversers){
+      std::map<int, FramePtr>::iterator obverser_it = _keyframes.find(ob.first);
+      if(obverser_it != _keyframes.end()){
+        bad_connections[MakeFramePair(frame, obverser_it->second)]++;
+      }
+    }
+
+    if(mpt->ObverserNum() < 2 && !mpt->IsBad()){
+      if(mpt->ObverserNum() > 0){
+        std::map<int, FramePtr>::iterator obverser_it = _keyframes.find(obversers.begin()->first);
+        if(obverser_it != _keyframes.end()){
+          obverser_it->second->RemoveMappoint(obversers.begin()->second);
+        }
+      }
+      mpt->SetBad();
+    }
+
+    // remove connection in frame
+    frame->RemoveMappoint(mpt);
+  }
+
+  // update connections between frames
+  for(auto& bad_connection : bad_connections){
+    FramePtr frame0 = bad_connection.first.first;
+    FramePtr frame1 = bad_connection.first.second;
+    frame0->DecreaseWeight(frame1, bad_connection.second);
+    frame1->DecreaseWeight(frame0, bad_connection.second);
+  }
+}
+
+void Map::UpdateFrameConnection(FramePtr frame){
+  int frame_id = frame->GetFrameId();
+  std::vector<MappointPtr> mappoints = frame->GetAllMappoints();
+  std::map<int, int> connections;
+  for(MappointPtr mpt : mappoints){
+    if(!mpt || mpt->IsBad()) continue;
+    std::map<int, int> obversers = mpt->GetAllObversers();
+    for(auto& kv : obversers){
+      int observer_id = kv.first;
+      if(observer_id == frame_id) continue;
+      if(_keyframes.find(observer_id) == _keyframes.end()) continue;
+      if(connections.find(observer_id) == connections.end()){
+        connections[observer_id] = 1;
+      }else{
+        connections[observer_id]++;
+      }
+    }
+  }
+  if(connections.empty()) return;
+
+  std::set<std::pair<int, FramePtr>> good_connections;
+  FramePtr best_connection;
+  int best_weight = -1;
+  const int MinWeight = 15;
+  for(auto& kv : connections){
+    FramePtr connected_frame = _keyframes[kv.first];
+    assert(connected_frame != nullptr);
+    int connected_weight = kv.second;
+    if(connected_weight > best_weight){
+      best_connection = connected_frame;
+      best_weight = connected_weight;
+    }
+
+    if(connected_weight > MinWeight){
+      good_connections.insert(std::pair<int, FramePtr>(connected_weight, connected_frame));
+      connected_frame->AddConnection(frame, connected_weight);
+    }
+  }
+
+  if(good_connections.empty()){
+    good_connections.insert(std::pair<int, FramePtr>(best_weight, best_connection));
+    best_connection->AddConnection(frame, best_weight);  
+  }
+ 
+  frame->AddConnection(good_connections);
+}
+
+void Map::PrintConnection(){
+  for(auto& kv : _keyframes){
+    FramePtr frame = kv.second;
+    std::vector<std::pair<int, FramePtr>> connections = frame->GetOrderedConnections(-1);
+    std::cout << "Connection of frame " << frame->GetFrameId() << " : ";
+    for(auto& kv : connections){
+      std::cout << kv.second->GetFrameId() << "--" << kv.first << ", ";
+    }
+    std::cout << std::endl;
+  }
 }
 
 void Map::SaveMap(const std::string& map_root){
@@ -297,84 +490,7 @@ void Map::SaveMap(const std::string& map_root){
   WriteTxt(mappoints_file, mappoints_lines, ",");
 }
 
-// void Map::LoadMap(const std::string& map_root){
 
-//   // load camera file
-//   std::string camera_file = map_root + "/camera.yaml";
-//   camera = std::shared_ptr<Camera>(new Camera(camera_file));
-
-//   // load frame files
-//   std::string frame_root = map_root + "/frames";
-//   std::vector<std::string> frame_files;
-//   GetFiles(frame_root, frame_files);
-//   for(std::string& frame_file : frame_files){
-
-//     std::vector<std::string> keyframe_files;
-//     std::string keyframe_root = frame_root + "/" + frame_file;
-
-//     // load metadata
-//     std::string metadata_path = keyframe_root + "/metadata.txt";
-//     std::vector<std::vector<std::string> > metadata;
-//     ReadTxt(metadata_path, metadata, ",");
-//     int frame_id = atoi(metadata[0][0].c_str());
-//     int64_t timestamp = (int64_t)(atoll(metadata[0][1].c_str()));
-//     int num_kps = atoi(metadata[0][2].c_str());
-//     int num_lines = atoi(metadata[0][3].c_str());
-//     Eigen::Matrix<double, 7, 1> odom_pose;
-//     for(int i = 0; i < 7; ++i){
-//       odom_pose(i, 0) = atof(metadata[0][(i+4)].c_str());
-//     }
-//     FramePtr keyframe = std::shared_ptr<Keyframe>(new Keyframe(frame_id, timestamp, odom_pose));
-
-//     // load points
-//     std::string points_root = keyframe_root + "/points";
-//     std::string keypoints_file = points_root + "/keypoints.npy";
-//     cnpy::NpyArray keypoints_arr = cnpy::npy_load(keypoints_file);
-//     float* keypoints_data = keypoints_arr.data<float>();
-//     std::string descriptors_file = points_root + "/descriptors.npy";
-//     cnpy::NpyArray descriptors_arr = cnpy::npy_load(descriptors_file);
-//     float* descriptors_data = descriptors_arr.data<float>();
-//     std::string scores_file = points_root + "/scores.npy";
-//     cnpy::NpyArray scores_arr = cnpy::npy_load(scores_file);
-//     float* scores_data = scores_arr.data<float>();
-//     std::string track_ids_file = points_root + "/track_ids.npy";
-//     cnpy::NpyArray track_ids_arr = cnpy::npy_load(track_ids_file);
-//     int* track_ids_data = track_ids_arr.data<int>();
-
-//     const int kNumDesc = 256;
-//     for(int i = 0; i < num_kps; i++){
-//       float x = keypoints_data[(2*i)];
-//       float y = keypoints_data[(2*i+1)];
-//       float score = scores_data[i];
-//       cv::KeyPoint keypoint(x, y, 1.0, -1, score);
-//       int track_id = *(track_ids_data + i);
-
-//       Eigen::VectorXf descriptor = 
-//           Eigen::Map<Eigen::VectorXf>((descriptors_data+kNumDesc*i), kNumDesc, 1);
-//       keyframe->AddPoint(keypoint, descriptor, track_id);
-//     }
-
-//     // load line data
-//     std::string line_file_path = keyframe_root + "/lines.txt";
-//     std::vector<std::vector<std::string> > lines;
-//     ReadTxt(line_file_path, lines, ",");
-//     for(std::vector<std::string> line_data : lines){
-//       Line2D line2d;
-//       line2d.x1 = atof(line_data[0].c_str());
-//       line2d.y1 = atof(line_data[1].c_str());
-//       line2d.x2 = atof(line_data[2].c_str());
-//       line2d.y2 = atof(line_data[3].c_str());
-//       for(int i = 4; i < line_data.size(); ++i){
-//         int point_id = static_cast<int>(atof(line_data[i].c_str()));
-//         line2d.point_ids.emplace_back(point_id);
-//       }
-//       keyframe->AddLine(line2d);
-//     }
-//     keyframes[frame_id] = keyframe;
-//   }
-
-//   optimizer = std::shared_ptr<Optimization3d>(new Optimization3d());
-// }
 
 
 // ros::Time ConvertToRosTime(int64_t& t){
@@ -386,122 +502,3 @@ void Map::SaveMap(const std::string& map_root){
 //   return ros::Time(ros_timestamp_sec, ros_timestamp_nsec);
 // }
 
-// void AddNewPoseToPath(
-//     Eigen::Vector3d& pose, nav_msgs::Path& path, std::string& frame_id){
-//   ros::Time current_time = ros::Time::now();
-
-//   geometry_msgs::PoseStamped pose_stamped; 
-//   pose_stamped.pose.position.x = pose(0); 
-//   pose_stamped.pose.position.y = pose(1); 
-
-//   geometry_msgs::Quaternion q = tf::createQuaternionMsgFromYaw(pose(2)); 
-//   pose_stamped.pose.orientation.x = q.x; 
-//   pose_stamped.pose.orientation.y = q.y; 
-//   pose_stamped.pose.orientation.z = q.z; 
-//   pose_stamped.pose.orientation.w = q.w; 
-
-//   pose_stamped.header.stamp = current_time; 
-//   pose_stamped.header.frame_id = frame_id; 
-//   path.poses.push_back(pose_stamped); 
-// }
-
-// void Map::VisualizeMap(){
-//   ros::Time current_time = ros::Time::now();
-//   std::string frame_id = "map";
-
-//   frame_poses_pub = nh.advertise<visualization_msgs::MarkerArray>("/map/frame_pose", 10);
-//   visualization_msgs::MarkerArray frame_pose_msgs;
-
-//   path_pub = nh.advertise<nav_msgs::Path>("/map/frame_path", 10);
-//   nav_msgs::Path path_msgs;
-//   path_msgs.header.stamp = current_time; 
-// 	path_msgs.header.frame_id = frame_id; 
-//   for(auto& kv : keyframes){
-//     FramePtr kf = kv.second;
-//     int64_t time_int = kf->GetTimestamp();
-//     ros::Time timestamp = ConvertToRosTime(time_int);
-//     Eigen::Matrix<double, 7, 1> pose = kf->GetOdomPose();
-
-//     // path
-//     geometry_msgs::PoseStamped pose_stamped; 
-//     pose_stamped.pose.orientation.w = pose(0); 
-//     pose_stamped.pose.orientation.x = pose(1); 
-//     pose_stamped.pose.orientation.y = pose(2); 
-//     pose_stamped.pose.orientation.z = pose(3); 
-//     pose_stamped.pose.position.x = pose(4); 
-//     pose_stamped.pose.position.y = pose(5); 
-//     pose_stamped.pose.position.z = pose(6); 
-
-//     pose_stamped.header.stamp = timestamp; 
-//     pose_stamped.header.frame_id = frame_id; 
-//     path_msgs.poses.push_back(pose_stamped); 
-
-//     // marker
-//     visualization_msgs::Marker marker;
-//     marker.header.frame_id = frame_id;
-//     marker.header.stamp = timestamp;
-//     marker.ns = "frame_pose";
-//     marker.action = visualization_msgs::Marker::ADD;
-//     marker.id = kf->GetFrameId();
-//     marker.type = visualization_msgs::Marker::ARROW;
-//     marker.scale.x = 0.2;
-//     marker.scale.y = 0.03;
-//     marker.scale.z = 0.03;
-//     marker.color.b = 0;
-//     marker.color.g = 0;
-//     marker.color.r = 255;
-//     marker.color.a = 1;
-//     marker.pose = pose_stamped.pose;
-
-//     frame_pose_msgs.markers.push_back(marker);
-//   }
-
-//   // map pointcloud
-//   mappoints_pub = nh.advertise<sensor_msgs::PointCloud> ("/map/mappoints", 1);
-//   sensor_msgs::PointCloud mappoints_msgs;
-//   mappoints_msgs.header.stamp = current_time; 
-// 	mappoints_msgs.header.frame_id = frame_id; 
-
-//   int num_points = 0;
-//   for(auto& kv : mappoints){
-//     if(kv.second->IsValid()) num_points++;
-//   }
-
-//   mappoints_msgs.points.resize(num_points);
-//   mappoints_msgs.channels.resize(3);
-//   mappoints_msgs.channels[0].name = "r";
-//   mappoints_msgs.channels[0].values.resize(num_points);
-//   mappoints_msgs.channels[1].name = "g";
-//   mappoints_msgs.channels[1].values.resize(num_points);
-//   mappoints_msgs.channels[2].name = "b";
-//   mappoints_msgs.channels[2].values.resize(num_points);
-
-
-//   int i = 0;
-//   for(auto& kv : mappoints){
-//     if(!kv.second->IsValid()) continue;
-//     Eigen::Vector3d position = kv.second->GetPosition();
-//     mappoints_msgs.points[i].x = position(0);
-//     mappoints_msgs.points[i].y = position(1);
-//     mappoints_msgs.points[i].z = position(2);
-//     mappoints_msgs.channels[0].values[i] = static_cast<double>(static_cast<int>((position(0)+0.5))%10)/10.0;
-//     mappoints_msgs.channels[1].values[i] = static_cast<double>(static_cast<int>((position(1)+0.5))%10)/10.0;
-//     mappoints_msgs.channels[2].values[i] = static_cast<double>(static_cast<int>((position(2)+0.5))%10)/10.0;
-    
-//     i++;
-//   }
-
-//   ros::Rate loop_rate(1);
-//   while(ros::ok()){
-//     frame_poses_pub.publish(frame_pose_msgs);
-//     path_pub.publish(path_msgs);
-//     mappoints_pub.publish(mappoints_msgs);
-//     ros::spinOnce(); 
-//     loop_rate.sleep(); 
-//   }
-
-//   // frame_poses_pub.publish(frame_pose_msgs);
-//   // path_pub.publish(path_msgs);
-//   // mappoints_pub.publish(mappoints_msgs); 
-//   // ros::Duration(5).sleep();
-// }

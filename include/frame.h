@@ -29,12 +29,14 @@ public:
 
   size_t FeatureNum();
 
-  bool GetKeypointPosition(size_t keypoint_id, Eigen::Vector3d& keypoint_pos);
+  bool GetKeypointPosition(size_t idx, Eigen::Vector3d& keypoint_pos);
   std::vector<cv::KeyPoint>& GetAllKeypoints();
   cv::KeyPoint& GetKeypoint(size_t idx);
 
   double GetRightPosition(size_t idx);
   std::vector<double>& GetAllRightPosition(); 
+
+  bool GetDescriptor(size_t idx, Eigen::Matrix<double, 256, 1>& descriptor) const;
 
   double GetDepth(size_t idx);
   std::vector<double>& GetAllDepth();
@@ -50,8 +52,22 @@ public:
   void InsertMappoint(size_t idx, MappointPtr mappoint);
 
   bool BackProjectPoint(size_t idx, Eigen::Vector3d& p3D);
-  
   CameraPtr GetCamera();
+
+  // covisibility graph
+  void AddConnection(std::shared_ptr<Frame> frame, int weight);
+  void AddConnection(std::set<std::pair<int, std::shared_ptr<Frame>>> connections);
+  void SetParent(std::shared_ptr<Frame> parent);
+  std::shared_ptr<Frame> GetParent();
+  void SetChild(std::shared_ptr<Frame> child);
+  std::shared_ptr<Frame> GetChild();
+
+  void RemoveConnection(std::shared_ptr<Frame> frame);
+  void RemoveMappoint(MappointPtr mappoint);
+  void RemoveMappoint(int idx);
+  void DecreaseWeight(std::shared_ptr<Frame> frame, int weight);
+
+  std::vector<std::pair<int, std::shared_ptr<Frame>>> GetOrderedConnections(int number);
 
 private:
   int _frame_id;
@@ -65,6 +81,12 @@ private:
   std::vector<int> _track_ids;
   std::vector<MappointPtr> _mappoints;
   CameraPtr _camera;
+
+  // covisibility graph
+  std::map<std::shared_ptr<Frame>, int> _connections;
+  std::set<std::pair<int, std::shared_ptr<Frame>>> _ordered_connections;
+  std::shared_ptr<Frame> _parent;
+  std::shared_ptr<Frame> _child;
 };
 
 typedef std::shared_ptr<Frame> FramePtr;

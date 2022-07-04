@@ -12,6 +12,11 @@ Mappoint::Mappoint(int& mappoint_id, Eigen::Vector3d& p):
     _id(mappoint_id), _type(Type::Good), _position(p){
 }
 
+Mappoint::Mappoint(int& mappoint_id, Eigen::Vector3d& p, Eigen::Matrix<double, 256, 1>& d):
+    _id(mappoint_id), _type(Type::Good), _position(p), _descriptor(d){
+
+}
+
 void Mappoint::SetId(int id){
   _id = id;
 }
@@ -30,6 +35,11 @@ Mappoint::Type Mappoint::GetType(){
 
 void Mappoint::SetBad(){
   _type = Type::Bad;
+  _obversers.clear();
+}
+
+bool Mappoint::IsBad(){
+  return (_type == Type::Bad);
 }
 
 void Mappoint::SetGood(){
@@ -45,8 +55,10 @@ void Mappoint::AddObverser(const int& frame_id, const int& keypoint_index){
 }
 
 void Mappoint::RemoveObverser(const int& frame_id){
-  if(_obversers.count(frame_id) > 0) 
-    _obversers[frame_id] = -1;
+  std::map<int, int>::iterator it = _obversers.find(frame_id);
+  if(it != _obversers.end()){
+    _obversers.erase(it);
+  }
 }
 
 int Mappoint::ObverserNum(){
@@ -68,6 +80,14 @@ void Mappoint::SetPosition(Eigen::Vector3d& p){
 
 Eigen::Vector3d& Mappoint::GetPosition(){
   return _position;
+}
+
+void Mappoint::SetDescriptor(const Eigen::Matrix<double, 256, 1>& descriptor){
+  _descriptor = descriptor;
+}
+
+Eigen::Matrix<double, 256, 1>& Mappoint::GetDescriptor(){
+  return _descriptor;
 }
 
 std::map<int, int>& Mappoint::GetAllObversers(){
