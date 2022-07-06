@@ -13,11 +13,12 @@
 class Frame{
 public:
   Frame();
-  Frame(int frame_id, bool pose_fixed, CameraPtr camera);
+  Frame(int frame_id, bool pose_fixed, CameraPtr camera, double timestamp);
   Frame& operator=(const Frame& other);
 
   void SetFrameId(int frame_id);
   int GetFrameId();
+  double GetTimestamp();
   void SetPoseFixed(bool pose_fixed);
   bool PoseFixed();
   void SetPose(Eigen::Matrix4d& pose);
@@ -71,6 +72,7 @@ public:
 
 private:
   int _frame_id;
+  double _timestamp;
   bool _pose_fixed;
   Eigen::Matrix4d _pose;
 

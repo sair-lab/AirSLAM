@@ -290,9 +290,9 @@ void Map::SlidingWindowOptimization(){
   START_TIMER;
   UpdateFrameConnection(frames.back());
   STOP_TIMER("UpdateFrameConnection Time2");
-  START_TIMER;
-  PrintConnection();
-  STOP_TIMER("PrintConnection Time2");
+  // START_TIMER;
+  // PrintConnection();
+  // STOP_TIMER("PrintConnection Time2");
 
   std::cout << "after optimization : " << std::endl;
 
@@ -435,6 +435,26 @@ void Map::PrintConnection(){
     }
     std::cout << std::endl;
   }
+}
+
+void Map::SaveKeyframeTrajectory(std::string save_root){
+  std::string file_path = ConcatenateFolderAndFileName(save_root, "keyframe_trajectory.txt");
+  std::cout << "Save file to " << file_path << std::endl;
+  std::ofstream f;
+  f.open(file_path.c_str());
+  f << std::fixed;
+  std::cout << "_keyframe_ids.size = " << _keyframe_ids.size() << std::endl;
+  for(auto& frame_id : _keyframe_ids){
+    FramePtr kf = _keyframes[frame_id];
+    Eigen::Matrix4d& pose = kf->GetPose();
+    Eigen::Vector3d t = pose.block<3, 1>(0, 3);
+    Eigen::Quaterniond q(pose.block<3, 3>(0, 0));
+
+    f << std::setprecision(6) << kf->GetTimestamp() << " " 
+      << std::setprecision(9) << t(0) << " " << t(1) << " " << t(2) << " "
+      << q.x() << " " << q.y() << " " << q.z() << " " << q.w() << std::endl;
+  }
+  f.close();
 }
 
 void Map::SaveMap(const std::string& map_root){

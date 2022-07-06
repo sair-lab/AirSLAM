@@ -20,13 +20,14 @@
 class MapBuilder{
 public:
   MapBuilder(Configs& configs);
-  void AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_right);
+  void AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_right, double timestamp);
   void StereoMatch(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
       Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<cv::DMatch>& matches);
   bool Init(FramePtr frame);
   int TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMatch>& matches);
   int FramePoseOptimization(FramePtr frame, std::vector<MappointPtr>& mappoints, std::vector<int>& inliers);
   void InsertKeyframe(FramePtr frame);
+  void SaveTrajectory();
   void SaveMap(const std::string& map_root);
 
 private:

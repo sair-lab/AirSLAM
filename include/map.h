@@ -29,6 +29,7 @@ public:
   void UpdateFrameConnection(FramePtr frame);
   //debug
   void PrintConnection();
+  void SaveKeyframeTrajectory(std::string save_root);
 
 private:
   CameraPtr _camera;

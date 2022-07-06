@@ -2,6 +2,10 @@
 
 #include <Eigen/Geometry>
 
+double GetCurrentTime(){
+  return ros::Time::now().toSec();
+}
+
 RosPublisher::RosPublisher(const RosPublisherConfig& ros_publisher_config): _config(ros_publisher_config){
   if(_config.feature){
     _ros_feature_pub = nh.advertise<sensor_msgs::Image>(_config.feature_topic, 10);

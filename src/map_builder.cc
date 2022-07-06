@@ -32,7 +32,7 @@ MapBuilder::MapBuilder(Configs& configs): _init(false), _track_id(0), _configs(c
   _map = std::shared_ptr<Map>(new Map(_camera, _ros_publisher));
 }
 
-void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_right){
+void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_right, double timestamp){
   // undistort image 
   cv::Mat image_left_rect, image_right_rect;
 
@@ -69,7 +69,7 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
 
 
   // construct frame
-  FramePtr frame = std::shared_ptr<Frame>(new Frame(frame_id, false, _camera));
+  FramePtr frame = std::shared_ptr<Frame>(new Frame(frame_id, false, _camera, timestamp));
   frame->AddFeatures(features_left, features_right, stereo_matches);
   std::cout << "Detected feature point number = " << features_left.cols() << std::endl;
   // STOP_TIMER("Construct frame");
@@ -431,6 +431,10 @@ void MapBuilder::InsertKeyframe(FramePtr frame){
   _num_since_last_keyframe = 1;
 
   std::cout << "Insert a keyframe" << std::endl;
+}
+
+void MapBuilder::SaveTrajectory(){
+  _map->SaveKeyframeTrajectory(_configs.saving_dir);
 }
 
 void MapBuilder::SaveMap(const std::string& map_root){
