@@ -2,6 +2,7 @@
 #include <math.h>
 
 #include "dataset.h"
+#include "ros_publisher.h"
 #include "utils.h"
 
 Dataset::Dataset(const std::string& dataroot){
@@ -16,12 +17,16 @@ Dataset::Dataset(const std::string& dataroot){
   std::vector<std::string> image_names;
   std::cout << "left_image_dir = " << left_image_dir << std::endl;
   GetFileNames(left_image_dir, image_names);
-  std::sort (image_names.begin(), image_names.end()); 
+  if(image_names.size() < 1) return;
+  std::sort(image_names.begin(), image_names.end()); 
+  bool use_current_time = (image_names[0].size() < 18);
   for(std::string& image_name : image_names){
     _left_images.emplace_back(ConcatenateFolderAndFileName(left_image_dir, image_name));
     _right_images.emplace_back(ConcatenateFolderAndFileName(right_image_dir, image_name));
-    double timestamp = (atof(image_name.substr(0, 10).c_str()) + atof(image_name.substr(10, 18).c_str())) / 1e9;
-    _timestamps.emplace_back(timestamp);
+    if(!use_current_time){
+      double timestamp = (atof(image_name.substr(0, 10).c_str()) + atof(image_name.substr(10, 18).c_str())) / 1e9;
+      _timestamps.emplace_back(timestamp);
+    }
   }
 }
 
@@ -35,6 +40,10 @@ bool Dataset::GetData(size_t idx, cv::Mat& left_image, cv::Mat& right_image, dou
   std::cout << "right_image = " << _right_images[idx] << std::endl;
   left_image = cv::imread(_left_images[idx], 0);
   right_image = cv::imread(_right_images[idx], 0);
-  timestamp = _timestamps[idx];
+  if(_timestamps.empty()){
+    timestamp = GetCurrentTime();
+  }else{
+    timestamp = _timestamps[idx];
+  }
   return true;
 }

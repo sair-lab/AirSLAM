@@ -4,12 +4,13 @@
 Frame::Frame(){
 }
 
-Frame::Frame(int frame_id, bool pose_fixed, CameraPtr camera):
-    _frame_id(frame_id), _pose_fixed(pose_fixed), _camera(camera){
+Frame::Frame(int frame_id, bool pose_fixed, CameraPtr camera, double timestamp):
+    _frame_id(frame_id), _pose_fixed(pose_fixed), _camera(camera), _timestamp(timestamp){
 }
 
 Frame& Frame::operator=(const Frame& other){
   _frame_id = other._frame_id;
+  _timestamp = other._timestamp;
   _pose_fixed = other._pose_fixed;
   _pose = other._pose;
 
@@ -29,6 +30,10 @@ void Frame::SetFrameId(int frame_id){
 
 int Frame::GetFrameId(){
   return _frame_id;
+}
+
+double Frame::GetTimestamp(){
+  return _timestamp;
 }
 
 void Frame::SetPoseFixed(bool pose_fixed){

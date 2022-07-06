@@ -1,7 +1,7 @@
-dataroot: "/workspace/src/data/euroc/mav0"
-camera_config_path: "/workspace/src/configs/euroc.yaml"
-model_dir: "/workspace/src/output"
-saving_dir: "/workspace/src/debug"
+dataroot: "/media/xukuan/something/ubuntu_files/data/euroc/mav0"
+camera_config_path: "/media/xukuan/something/ubuntu_files/project/AirSLAM/air_slam_ws/src/AirSLAM/configs/euroc.yaml"
+model_dir: "/media/xukuan/something/ubuntu_files/project/AirSLAM/air_slam_ws/src/AirSLAM/output"
+saving_dir: "/media/xukuan/something/ubuntu_files/project/AirSLAM/air_slam_ws/src/AirSLAM/debug"
 
 superpoint:
   max_keypoints: 700
@@ -33,8 +33,8 @@ superglue:
   dla_core: -1
 
 keyframe:
-  min_num_match: 30
-  max_num_match: 250
+  min_num_match: 20
+  max_num_match: 100
   max_distance: 0.5
   max_angle: 0.52
 

@@ -56,6 +56,8 @@ struct MapMessage{
 typedef std::shared_ptr<MapMessage> MapMessagePtr;
 typedef std::shared_ptr<const MapMessage> MapMessageConstPtr;
 
+double GetCurrentTime();
+
 class RosPublisher{
 public:
   RosPublisher(const RosPublisherConfig& ros_publisher_config);
