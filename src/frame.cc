@@ -5,10 +5,13 @@ Frame::Frame(){
 }
 
 Frame::Frame(int frame_id, bool pose_fixed, CameraPtr camera, double timestamp):
-    _frame_id(frame_id), _pose_fixed(pose_fixed), _camera(camera), _timestamp(timestamp){
+    tracking_frame_id(-1), _frame_id(frame_id), _pose_fixed(pose_fixed), _camera(camera), _timestamp(timestamp){
+  _grid_width_inv = static_cast<double>(FRAME_GRID_COLS)/static_cast<double>(_camera->ImageWidth());
+  _grid_height_inv = static_cast<double>(FRAME_GRID_ROWS)/static_cast<double>(_camera->ImageHeight());
 }
 
 Frame& Frame::operator=(const Frame& other){
+  tracking_frame_id = other.tracking_frame_id;
   _frame_id = other._frame_id;
   _timestamp = other._timestamp;
   _pose_fixed = other._pose_fixed;
@@ -16,6 +19,13 @@ Frame& Frame::operator=(const Frame& other){
 
   _features = other._features;
   _keypoints = other._keypoints;
+  for(int i=0;i<FRAME_GRID_COLS;i++){
+    for(int j=0; j<FRAME_GRID_ROWS; j++){
+      _feature_grid[i][j] = other._feature_grid[i][j];
+    }
+  }
+  _grid_width_inv = other._grid_width_inv;
+  _grid_height_inv = other._grid_height_inv;
   _u_right = other._u_right;
   _depth = other._depth;
   _track_ids = other._track_ids;
@@ -52,6 +62,12 @@ Eigen::Matrix4d& Frame::GetPose(){
   return _pose;
 }
 
+bool Frame::FindGrid(double& x, double& y, int& grid_x, int& grid_y){
+  grid_x = std::round(x * _grid_width_inv);
+  grid_y = std::round(y * _grid_height_inv);
+  return !(grid_x < 0 || grid_x >= FRAME_GRID_COLS || grid_y < 0 || grid_y >= FRAME_GRID_ROWS);
+}
+
 void Frame::AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
     Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<cv::DMatch>& stereo_matches){
   _features = features_left;
@@ -62,6 +78,13 @@ void Frame::AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_lef
     double x = _features(1, i);
     double y = _features(2, i);
     _keypoints.emplace_back(x, y, 8, -1, score);
+
+    // assign to grid
+    int grid_x, grid_y;
+    // assert(FindGrid(x, y, grid_x, grid_y));
+    bool found = FindGrid(x, y, grid_x, grid_y);
+    assert(found);
+    _feature_grid[grid_x][grid_y].push_back(i);
   }
 
   _u_right = std::vector<double>(features_left_size, -1);
@@ -104,6 +127,20 @@ std::vector<cv::KeyPoint>& Frame::GetAllKeypoints(){
 cv::KeyPoint& Frame::GetKeypoint(size_t idx){
   assert(idx < _keypoints.size());
   return _keypoints[idx];
+}
+
+int Frame::GetInlierFlag(std::vector<bool>& inliers_feature_message){
+  int num_inliers = 0;
+  inliers_feature_message.resize(_mappoints.size());
+  for(size_t i = 0; i < _mappoints.size(); i++){
+    if(_mappoints[i] && !_mappoints[i]->IsBad()){
+      inliers_feature_message[i] = true;
+      num_inliers++;
+    }else{
+      inliers_feature_message[i] = false;
+    }
+  }
+  return num_inliers;
 }
 
 double Frame::GetRightPosition(size_t idx){
@@ -178,6 +215,47 @@ CameraPtr Frame::GetCamera(){
   return _camera;
 }
 
+void Frame::FindNeighborKeypoints(Eigen::Vector3d& p2D, std::vector<int>& indices, double r, bool filter) const{
+  double x = p2D(0);
+  double y = p2D(1);
+  double xr = p2D(2);
+  const int min_grid_x = std::max(0, (int)std::floor((x-r)*_grid_width_inv));
+  const int max_grid_x = std::min((int)(FRAME_GRID_COLS-1), (int)std::ceil((x+r)*_grid_width_inv));
+  const int min_grid_y = std::max(0, (int)std::floor((y-r)*_grid_height_inv));
+  const int max_grid_y = std::min((int)(FRAME_GRID_ROWS-1), (int)std::ceil((y+r)*_grid_height_inv));
+  if(min_grid_x >= FRAME_GRID_COLS || max_grid_x < 0 || min_grid_y >= FRAME_GRID_ROWS || max_grid_y <0) return;
+
+  
+  // std::cout << "p2D = " << p2D.transpose() << std::endl;
+  // std::cout << "min_grid_x = " << min_grid_x << " max_grid_x = " << max_grid_x << " min_grid_y = " 
+  //           << min_grid_y << " max_grid_y=" << max_grid_y << std::endl; 
+  // Eigen::VectorXi debug_vec_frame = Eigen::VectorXi::Zero(6);
+
+  for(int gx = min_grid_x; gx <= max_grid_x; gx++){
+    for(int gy = min_grid_y; gy <= max_grid_y; gy++){
+      if(_feature_grid[gx][gy].empty()) continue;
+      for(auto& idx : _feature_grid[gx][gy]){
+        // debug_vec_frame(0) += 1;
+        if(filter && _mappoints[idx] && !_mappoints[idx]->IsBad()) continue;
+        // debug_vec_frame(1) += 1;
+
+        const double dx = _keypoints[idx].pt.x - x;
+        const double dy = _keypoints[idx].pt.y - y;
+        const double dxr = (xr > 0) ? (_u_right[idx] - xr) : 0;
+        if(std::abs(dx) < r && std::abs(dy) < r && std::abs(dxr) < r){
+          indices.push_back(idx);
+        }
+
+        // if(std::abs(dx) < r) debug_vec_frame(2) += 1;
+        // if(std::abs(dy) < r) debug_vec_frame(3) += 1;
+        // if(std::abs(dxr) < r) debug_vec_frame(4) += 1;
+
+      }
+    }
+  }
+  // std::cout << "debug_vec_frame = " << debug_vec_frame.transpose() << std::endl;
+}
+
 void Frame::AddConnection(std::shared_ptr<Frame> frame, int weight){
   std::map<std::shared_ptr<Frame>, int>::iterator it = _connections.find(frame);
   bool add_connection = (it == _connections.end());
@@ -249,6 +327,6 @@ void Frame::DecreaseWeight(std::shared_ptr<Frame> frame, int weight){
 }
 
 std::vector<std::pair<int, std::shared_ptr<Frame>>> Frame::GetOrderedConnections(int number){
-  int n = (number > 0) ? number : _ordered_connections.size();
+  int n = (number > 0 && number < _ordered_connections.size()) ? number : _ordered_connections.size();
   return std::vector<std::pair<int, std::shared_ptr<Frame>>>(_ordered_connections.begin(), std::next(_ordered_connections.begin(), n));
 }

@@ -26,14 +26,9 @@ int main(int argc, char **argv) {
     auto after_infer = std::chrono::steady_clock::now();
     auto cost_time = std::chrono::duration_cast<std::chrono::milliseconds>(after_infer - before_infer).count();
     std::cout << "One Frame Processinh Time: " << cost_time << " ms." << std::endl;
-    if(i > 100) break;
   }
   map_builder.SaveTrajectory();
   ros::shutdown();
-  // std::string save_root = configs.saving_dir;
-  // std::string map_save_dir = ConcatenateFolderAndFileName(save_root, "map");
-  // MakeDir(map_save_dir);
-  // map_builder.SaveMap(map_save_dir);
 
   return 0;
 }
