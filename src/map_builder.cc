@@ -136,11 +136,7 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
 
 
   START_TIMER;
-  auto before_infer = std::chrono::steady_clock::now();
   int track_local_map_num = TrackLocalMap(frame, num_match);
-  auto after_infer = std::chrono::steady_clock::now();
-  auto cost_time = std::chrono::duration_cast<std::chrono::milliseconds>(after_infer - before_infer).count();
-  std::cout << "TrackLocalMap Processinh Time: " << cost_time << " ms." << std::endl;
   STOP_TIMER("TrackLocalMap");
 
   // std::cout << "track_local_map_num = " << track_local_map_num << "   num_match = " << num_match << std::endl;
