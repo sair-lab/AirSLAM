@@ -25,8 +25,17 @@ public:
       Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<cv::DMatch>& matches);
   bool Init(FramePtr frame);
   int TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMatch>& matches);
-  int FramePoseOptimization(FramePtr frame, std::vector<MappointPtr>& mappoints, std::vector<int>& inliers);
+
+  // pose_init = 0 : opencv pnp, pose_init = 1 : last frame pose, pose_init = 2 : original pose
+  int FramePoseOptimization(FramePtr frame, std::vector<MappointPtr>& mappoints, std::vector<int>& inliers, int pose_init = 0);
   void InsertKeyframe(FramePtr frame);
+
+  // for tracking local map
+  void UpdateLocalKeyframes(FramePtr frame);
+  void UpdateLocalMappoints(FramePtr frame);
+  void SearchLocalPoints(FramePtr frame, std::vector<std::pair<int, MappointPtr>>& good_projections);
+  int TrackLocalMap(FramePtr frame, int num_inlier_thr);
+
   void SaveTrajectory();
   void SaveMap(const std::string& map_root);
 
@@ -37,11 +46,17 @@ private:
   FramePtr _last_frame;
   FramePtr _last_keyframe;
   int _num_since_last_keyframe;
+  bool _last_frame_track_well;
 
   cv::Mat _last_image;
   cv::Mat _last_keyimage;
 
   Pose3d _last_pose;
+
+  // for tracking local map
+  FramePtr _ref_keyframe;
+  std::vector<MappointPtr> _local_mappoints;
+  std::vector<FramePtr> _local_keyframes;
 
   // class
   Configs _configs;

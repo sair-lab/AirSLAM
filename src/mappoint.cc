@@ -1,19 +1,19 @@
 #include "mappoint.h"
 
-Mappoint::Mappoint(): _type(Type::UnTriangulated){
+Mappoint::Mappoint(): tracking_frame_id(-1), last_frame_seen(-1), _type(Type::UnTriangulated){
 }
 
 Mappoint::Mappoint(int& mappoint_id): 
-    _id(mappoint_id), _type(Type::UnTriangulated){
+    tracking_frame_id(-1), last_frame_seen(-1), _id(mappoint_id), _type(Type::UnTriangulated){
   if(mappoint_id < 0) exit(0);
 }
 
 Mappoint::Mappoint(int& mappoint_id, Eigen::Vector3d& p):
-    _id(mappoint_id), _type(Type::Good), _position(p){
+    tracking_frame_id(-1), last_frame_seen(-1), _id(mappoint_id), _type(Type::Good), _position(p){
 }
 
 Mappoint::Mappoint(int& mappoint_id, Eigen::Vector3d& p, Eigen::Matrix<double, 256, 1>& d):
-    _id(mappoint_id), _type(Type::Good), _position(p), _descriptor(d){
+    tracking_frame_id(-1), last_frame_seen(-1), _id(mappoint_id), _type(Type::Good), _position(p), _descriptor(d){
 
 }
 

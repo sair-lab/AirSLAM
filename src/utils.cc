@@ -10,6 +10,11 @@ void ConvertVectorToRt(Eigen::Matrix<double, 7, 1>& m, Eigen::Matrix3d& R, Eigen
   t = m.block<3, 1>(4, 0);
 }
 
+// (f1 - f2) * (f1 - f2) = f1 * f1 + f2 * f2 - 2 * f1 *f2 = 2 - 2 * f1 * f2 -> [0, 4]
+double DescriptorDistance(const Eigen::Matrix<double, 256, 1>& f1, const Eigen::Matrix<double, 256, 1>& f2){
+  return 2 * (1.0 - f1.transpose() * f2);
+}
+
 void GetFileNames(std::string path, std::vector<std::string>& filenames){
   DIR *pDir;
   struct dirent* ptr;

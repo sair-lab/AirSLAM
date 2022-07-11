@@ -36,7 +36,7 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   // undistort image 
   cv::Mat image_left_rect, image_right_rect;
 
-  // START_TIMER;;
+  // START_TIMER;; 
   _camera->UndistortImage(image_left, image_right, image_left_rect, image_right_rect);
   // STOP_TIMER("UndistortImage");
 
@@ -60,12 +60,12 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   // STOP_TIMER("StereoMatch");
   // START_TIMER;;
 
-  // // for debug
-  SaveStereoMatchResult(image_left, image_right, 
-      features_left, features_right, stereo_matches, _configs.saving_dir, frame_id);
-  // //////////////////////////
-  // STOP_TIMER("SaveStereoMatchResult");
-  // START_TIMER;;
+  // // // for debug
+  // SaveStereoMatchResult(image_left, image_right, 
+  //     features_left, features_right, stereo_matches, _configs.saving_dir, frame_id);
+  // // //////////////////////////
+  // // STOP_TIMER("SaveStereoMatchResult");
+  // // START_TIMER;;
 
 
   // construct frame
@@ -96,9 +96,11 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
       _last_pose.q = frame_pose.block<3, 3>(0, 0);
       feature_message->inliers = std::vector<bool>(keypoints.size(), true);
       frame_pose_message->pose = frame->GetPose();
+      _last_frame_track_well = true;
     }else{
       feature_message->inliers = std::vector<bool>(keypoints.size(), false);
       frame_pose_message->pose = Eigen::Matrix4d::Identity();
+      _last_frame_track_well = false;
     }
     _ros_publisher->PublishFeature(feature_message);
     _ros_publisher->PublishFramePose(frame_pose_message);
@@ -110,7 +112,7 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   std::vector<cv::DMatch> matches;
   int num_match = TrackFrame(_last_keyframe, frame, matches);
   if(num_match < _configs.keyframe_config.min_num_match){
-    if(_num_since_last_keyframe > 1){
+    if(_num_since_last_keyframe > 1 && _last_frame_track_well){
       // if failed, track with last frame
       track_keyframe = false;
       matches.clear();
@@ -121,12 +123,27 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
         Eigen::Matrix4d frame_pose = _last_frame->GetPose();
         _last_pose.p = frame_pose.block<3, 1>(0, 3);
         _last_pose.q = frame_pose.block<3, 3>(0, 0);
+        _last_frame_track_well = false;
         return;
       }
     }else{
+      _last_frame_track_well = false;
       return;
     }
   }
+  _last_frame_track_well = true;
+
+  // START_TIMER;
+  auto before_infer = std::chrono::steady_clock::now();
+  int track_local_map_num = TrackLocalMap(frame, num_match);
+  auto after_infer = std::chrono::steady_clock::now();
+  auto cost_time = std::chrono::duration_cast<std::chrono::milliseconds>(after_infer - before_infer).count();
+  std::cout << "TrackLocalMap Processinh Time: " << cost_time << " ms." << std::endl;
+  // STOP_TIMER("TrackLocalMap");
+
+  // std::cout << "track_local_map_num = " << track_local_map_num << "   num_match = " << num_match << std::endl;
+  num_match = (track_local_map_num > 0) ? track_local_map_num : num_match;
+
   // STOP_TIMER("Tracking");
   // START_TIMER;
 
@@ -145,13 +162,13 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   // STOP_TIMER("Publish");
   // START_TIMER;
 
-  // ////// for debug //////
-  if(track_keyframe){
-    SaveTrackingResult(_last_keyimage, image_left, _last_keyframe, frame, matches, _configs.saving_dir);
-  }else{
-    SaveTrackingResult(_last_image, image_left, _last_frame, frame, matches, _configs.saving_dir);
-  }
-  // ///////////////////////
+  // // ////// for debug //////
+  // if(track_keyframe){
+  //   SaveTrackingResult(_last_keyimage, image_left, _last_keyframe, frame, matches, _configs.saving_dir);
+  // }else{
+  //   SaveTrackingResult(_last_image, image_left, _last_frame, frame, matches, _configs.saving_dir);
+  // }
+  // // ///////////////////////
 
   // STOP_TIMER("SaveTrackingResult");
   // START_TIMER;
@@ -312,12 +329,15 @@ int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMa
 }
 
 int MapBuilder::FramePoseOptimization(
-    FramePtr frame, std::vector<MappointPtr>& mappoints, std::vector<int>& inliers){
+    FramePtr frame, std::vector<MappointPtr>& mappoints, std::vector<int>& inliers, int pose_init){
   // Solve PnP using opencv to get initial pose
   Eigen::Matrix4d cv_pose;
-  std::vector<int> cv_inliers;
-  int num_cv_inliers = SolvePnPWithCV(frame, mappoints, cv_pose, cv_inliers);
-  std::cout << "cv_pose = " << cv_pose.block<3, 1>(0, 3).transpose() << std::endl;
+  int num_cv_inliers = 0;
+  if(pose_init == 0){
+    std::vector<int> cv_inliers;
+    num_cv_inliers = SolvePnPWithCV(frame, mappoints, cv_pose, cv_inliers);
+    std::cout << "cv_pose = " << cv_pose.block<3, 1>(0, 3).transpose() << std::endl;
+  }
 
   // Second, optimization
   MapOfPoses poses;
@@ -330,9 +350,13 @@ int MapBuilder::FramePoseOptimization(
 
   // map of poses
   Pose3d pose;
-  if(num_cv_inliers > _configs.keyframe_config.min_num_match){
+  if(pose_init == 0 && num_cv_inliers > _configs.keyframe_config.min_num_match){
     pose.p = cv_pose.block<3, 1>(0, 3);
     pose.q = cv_pose.block<3, 3>(0, 0);
+  }else if(pose_init == 2){
+    Eigen::Matrix4d& frame_pose = frame->GetPose();
+    pose.p = frame_pose.block<3, 1>(0, 3);
+    pose.q = frame_pose.block<3, 3>(0, 0);
   }else{
     pose.p = _last_pose.p;
     pose.q = _last_pose.q;
@@ -431,6 +455,131 @@ void MapBuilder::InsertKeyframe(FramePtr frame){
   _num_since_last_keyframe = 1;
 
   std::cout << "Insert a keyframe" << std::endl;
+}
+
+void MapBuilder::UpdateLocalKeyframes(FramePtr frame){
+  int current_frame_id = frame->GetFrameId();
+  std::vector<MappointPtr>& mappoints = frame->GetAllMappoints();
+  std::map<FramePtr, int> keyframes;
+  for(MappointPtr mpt : mappoints){
+    if(!mpt || mpt->IsBad()) continue;
+    const std::map<int, int> obversers = mpt->GetAllObversers();
+    for(auto& kv : obversers){
+      int observer_id = kv.first;
+      if(observer_id == current_frame_id) continue;
+      FramePtr keyframe = _map->GetFramePtr(observer_id);
+      if(!keyframe) continue;
+      keyframes[keyframe]++;
+    }
+  }
+  if(keyframes.empty()) return;
+
+  std::pair<FramePtr, int> max_covi = std::pair<FramePtr, int>(nullptr, -1);
+  _local_keyframes.clear();
+  _local_keyframes.reserve(3 * keyframes.size());
+  for(auto& kv : keyframes){
+    if(kv.second > max_covi.second){
+      max_covi = kv;
+    }
+    _local_keyframes.push_back(kv.first);
+    kv.first->tracking_frame_id = current_frame_id;
+  }
+
+  for(std::vector<FramePtr>::const_iterator it = _local_keyframes.begin(), it_end = _local_keyframes.end(); it!=it_end; it++){
+    if(_local_keyframes.size() > 80) break;
+    FramePtr kf = *it;
+    std::vector<std::pair<int, std::shared_ptr<Frame>>> neighbors = kf->GetOrderedConnections(10);
+    for(auto& neighbor : neighbors){
+      if(neighbor.second->tracking_frame_id != current_frame_id){
+        neighbor.second->tracking_frame_id = current_frame_id;
+        _local_keyframes.push_back(neighbor.second);
+      }
+    }
+
+    FramePtr parent = kf->GetParent();
+    if(parent && parent->tracking_frame_id != current_frame_id){
+      _local_keyframes.push_back(parent);
+    }
+
+    FramePtr child = kf->GetParent();
+    if(child && child->tracking_frame_id != current_frame_id){
+      _local_keyframes.push_back(child);
+    }
+  }
+
+  if(!max_covi.first && (max_covi.second > 10)){
+    _ref_keyframe = max_covi.first;
+  }
+}
+
+void MapBuilder::UpdateLocalMappoints(FramePtr frame){
+  _local_mappoints.clear();
+  int current_frame_id = frame->GetFrameId();
+  for(auto& kf : _local_keyframes){
+    const std::vector<MappointPtr>& mpts = kf->GetAllMappoints();
+    for(auto& mpt : mpts){
+      if(mpt && mpt->IsValid() && mpt->tracking_frame_id != current_frame_id){
+        mpt->tracking_frame_id = current_frame_id;
+        _local_mappoints.push_back(mpt);
+      }
+    }
+  }
+}
+
+void MapBuilder::SearchLocalPoints(FramePtr frame, std::vector<std::pair<int, MappointPtr>>& good_projections){
+  int current_frame_id = frame->GetFrameId();
+  std::vector<MappointPtr>& mpts = frame->GetAllMappoints();
+  for(auto& mpt : mpts){
+    if(mpt) mpt->last_frame_seen = current_frame_id;
+  }
+
+  std::vector<MappointPtr> selected_mappoints;
+  for(auto& mpt : _local_mappoints){
+    if(mpt && mpt->IsValid() && mpt->last_frame_seen != current_frame_id){
+      selected_mappoints.push_back(mpt);
+    }
+  }
+
+  // std::cout << "selected_mappoints = " << selected_mappoints.size() << std::endl;
+  _map->SearchByProjection(frame, selected_mappoints, 1, good_projections);
+
+}
+
+int MapBuilder::TrackLocalMap(FramePtr frame, int num_inlier_thr){
+  UpdateLocalKeyframes(frame);
+  // std::cout << "_local_keyframes.size = " << _local_keyframes.size() << std::endl;
+  if(_local_keyframes.size() < 2) return -1;
+  UpdateLocalMappoints(frame);
+  // std::cout << "_local_mappoints.size = " << _local_mappoints.size() << std::endl;
+  std::vector<std::pair<int, MappointPtr>> good_projections;
+  SearchLocalPoints(frame, good_projections);
+  // std::cout << "good_projections.size = " << good_projections.size() << std::endl;
+  if(good_projections.size() < 3) return -1;
+
+  std::vector<MappointPtr> mappoints = frame->GetAllMappoints();
+  for(auto& good_projection : good_projections){
+    int idx = good_projection.first;
+    if(mappoints[idx] && !mappoints[idx]->IsBad()) continue;
+    mappoints[idx] = good_projection.second;
+  }
+
+  std::vector<int> inliers(mappoints.size(), -1);
+  int num_inliers = FramePoseOptimization(frame, mappoints, inliers, 2);
+
+  // std::cout << "num_inliers = " << num_inliers << "  num_inlier_thr = " << num_inlier_thr << std::endl;
+
+  // update track id
+  if(num_inliers > _configs.keyframe_config.min_num_match && num_inliers > num_inlier_thr){
+    for(size_t i = 0; i < mappoints.size(); i++){
+      if(inliers[i] > 0){
+        frame->SetTrackId(i, mappoints[i]->GetId());
+        frame->InsertMappoint(i, mappoints[i]);
+      }
+    }
+  }else{
+    num_inliers = -1;
+  }
+  return num_inliers;
 }
 
 void MapBuilder::SaveTrajectory(){

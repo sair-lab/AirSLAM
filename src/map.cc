@@ -11,7 +11,7 @@
 #include "g2o_optimization/g2o_optimization.h"
 #include "timer.h"
 
-INITIALIZE_TIMER;
+// INITIALIZE_TIMER;
 
 Map::Map(CameraPtr camera, RosPublisherPtr ros_publisher): _camera(camera), _ros_publisher(ros_publisher){
 }
@@ -166,7 +166,8 @@ bool Map::UpdateMappointDescriptor(MappointPtr mappoint){
   for(size_t i = 0; i < num_valid_obversers; i++){
     distances[i][i]=0;
     for(size_t j = i + 1; j < num_valid_obversers; j++){
-      double dij = (descriptor_array[i] - descriptor_array[j]).cwiseAbs2().sum();
+      // double dij = (descriptor_array[i] - descriptor_array[j]).cwiseAbs2().sum();
+      double dij = DescriptorDistance(descriptor_array[i], descriptor_array[j]);
       distances[i][j] = dij;
       distances[j][i] = dij;
     }
@@ -191,7 +192,7 @@ bool Map::UpdateMappointDescriptor(MappointPtr mappoint){
 
 void Map::SlidingWindowOptimization(){
   const size_t WindowSize = 10;
-  START_TIMER;
+  // START_TIMER;
   MapOfPoses poses;
   MapOfPoints3d points;
   std::vector<CameraPtr> camera_list;
@@ -259,10 +260,10 @@ void Map::SlidingWindowOptimization(){
     }
   }
   // STOP_TIMER("SlidingWindowOptimization Time1");
-  START_TIMER;
+  // START_TIMER;
   LocalmapOptimization(poses, points, camera_list, mono_point_constraints, stereo_point_constraints);
-  STOP_TIMER("SlidingWindowOptimization Time2");
-  START_TIMER;
+  // STOP_TIMER("SlidingWindowOptimization Time2");
+  // START_TIMER;
 
   // erase outliers
   std::vector<std::pair<FramePtr, MappointPtr>> outliers;
@@ -286,10 +287,10 @@ void Map::SlidingWindowOptimization(){
     }
   }
   RemoveOutliers(outliers);
-  STOP_TIMER("RemoveOutliers Time2");
-  START_TIMER;
+  // STOP_TIMER("RemoveOutliers Time2");
+  // START_TIMER;
   UpdateFrameConnection(frames.back());
-  STOP_TIMER("UpdateFrameConnection Time2");
+  // STOP_TIMER("UpdateFrameConnection Time2");
   // START_TIMER;
   // PrintConnection();
   // STOP_TIMER("PrintConnection Time2");
@@ -435,6 +436,70 @@ void Map::PrintConnection(){
     }
     std::cout << std::endl;
   }
+}
+
+void Map::SearchByProjection(FramePtr frame, std::vector<MappointPtr>& mappoints, 
+    int thr, std::vector<std::pair<int, MappointPtr>>& good_projections){
+  Eigen::Matrix4d pose = frame->GetPose();
+  Eigen::Matrix3d Rwc = pose.block<3, 3>(0, 0);
+  Eigen::Vector3d twc = pose.block<3, 1>(0, 3);
+  Eigen::Matrix<double, 259, Eigen::Dynamic>& features = frame->GetAllFeatures();
+  CameraPtr camera = frame->GetCamera();
+  double image_width = camera->ImageWidth();
+  double image_height = camera->ImageHeight();
+  const double r = 12.0 * thr;
+
+  Eigen::VectorXi debug_vec = Eigen::VectorXi::Zero(6);
+  for(auto& mpt : mappoints){
+    // check whether mappoint is valid
+    if(!mpt || !mpt->IsValid()) continue;
+
+    // check whether mappoint is in the front of camera
+    const Eigen::Vector3d& pw = mpt->GetPosition();
+    Eigen::Vector3d pc = Rwc.transpose() * (pw - twc);
+    if(pc(2) <= 0) continue;
+    debug_vec(0) += 1;
+
+    // check whether mappoint can project on the image
+    Eigen::Vector3d p2D;
+    camera->StereoProject(p2D, pc);
+    if(p2D(0) <= 0 || p2D(0) >= image_width || p2D(1) <=0 || p2D(1) >= image_height) continue;
+    debug_vec(1) += 1;
+
+    // find neighbor features 
+    std::vector<int> candidate_ids;
+    frame->FindNeighborKeypoints(p2D, candidate_ids, r, true);
+    // std::cout << "candidate_ids.size() = " << candidate_ids.size() << std::endl;
+    if(candidate_ids.empty()) continue;
+    debug_vec(2) += 1;
+
+    Eigen::Matrix<double, 256, 1>& mpd_desc = mpt->GetDescriptor(); 
+    double best_dist = 4.0;
+    int best_idx = -1;
+    double second_dist = 4.0;
+    for(auto& idx : candidate_ids){
+      double dist = DescriptorDistance(mpd_desc, features.block<256, 1>(3, idx));
+      if(dist < best_dist){
+        second_dist = best_dist;
+        best_dist = dist;
+        best_idx = idx;
+      }else if(dist < second_dist){
+        second_dist = dist;
+      }
+    }
+
+    const double distance_threshold = 0.35;
+    const double ratio_threshold = 0.6;
+    if(best_dist < distance_threshold) debug_vec(3) += 1;
+    if(best_dist < ratio_threshold * second_dist) debug_vec(4) += 1;
+    if(best_dist < distance_threshold && best_dist < ratio_threshold * second_dist){
+      // frame->InsertMappoint(best_idx, mpt);
+      good_projections.emplace_back(best_idx, mpt);
+      debug_vec(5) += 1;
+    }
+  }
+
+  std::cout << "debug_vec = " << debug_vec.transpose() << std::endl;
 }
 
 void Map::SaveKeyframeTrajectory(std::string save_root){

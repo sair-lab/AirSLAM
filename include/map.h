@@ -27,8 +27,9 @@ public:
   std::pair<FramePtr, FramePtr> MakeFramePair(FramePtr frame0, FramePtr frame1);
   void RemoveOutliers(const std::vector<std::pair<FramePtr, MappointPtr>>& outliers);
   void UpdateFrameConnection(FramePtr frame);
-  //debug
   void PrintConnection();
+  void SearchByProjection(FramePtr frame, std::vector<MappointPtr>& mappoints, 
+      int thr, std::vector<std::pair<int, MappointPtr>>& good_projections);
   void SaveKeyframeTrajectory(std::string save_root);
 
 private:

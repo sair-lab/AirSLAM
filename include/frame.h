@@ -10,6 +10,9 @@
 #include "mappoint.h"
 #include "camera.h"
 
+#define FRAME_GRID_ROWS 48
+#define FRAME_GRID_COLS 64
+
 class Frame{
 public:
   Frame();
@@ -24,6 +27,7 @@ public:
   void SetPose(Eigen::Matrix4d& pose);
   Eigen::Matrix4d& GetPose();
 
+  bool FindGrid(double& x, double& y, int& grid_x, int& grid_y);
   void AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
       Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<cv::DMatch>& stereo_matches);
   Eigen::Matrix<double, 259, Eigen::Dynamic>& GetAllFeatures();
@@ -54,6 +58,7 @@ public:
 
   bool BackProjectPoint(size_t idx, Eigen::Vector3d& p3D);
   CameraPtr GetCamera();
+  void FindNeighborKeypoints(Eigen::Vector3d& p2D, std::vector<int>& indices, double r, bool filter = true) const;
 
   // covisibility graph
   void AddConnection(std::shared_ptr<Frame> frame, int weight);
@@ -70,6 +75,9 @@ public:
 
   std::vector<std::pair<int, std::shared_ptr<Frame>>> GetOrderedConnections(int number);
 
+public:
+  int tracking_frame_id;
+
 private:
   int _frame_id;
   double _timestamp;
@@ -78,6 +86,9 @@ private:
 
   Eigen::Matrix<double, 259, Eigen::Dynamic> _features;
   std::vector<cv::KeyPoint> _keypoints;
+  std::vector<int> _feature_grid[FRAME_GRID_COLS][FRAME_GRID_ROWS];
+  double _grid_width_inv;
+  double _grid_height_inv;
   std::vector<double> _u_right;
   std::vector<double> _depth;
   std::vector<int> _track_ids;

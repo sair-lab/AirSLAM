@@ -39,8 +39,10 @@ public:
   template<typename T> bool Project(Eigen::Matrix<T, 2, 1>& point2d, Eigen::Matrix<T, 3, 1>& point3d) const{
     if(point3d(2) <= static_cast<T>(0)) return false;
 
-    T x_normal = point3d(0) / point3d(2);
-    T y_normal = point3d(1) / point3d(2);
+    T z_inv = static_cast<T>(1.0) / point3d(2);
+
+    T x_normal = point3d(0) * z_inv;
+    T y_normal = point3d(1) * z_inv;
 
     point2d(0) = x_normal * static_cast<T>(_fx) + static_cast<T>(_cx);
     point2d(1) = y_normal * static_cast<T>(_fy) + static_cast<T>(_cy);
@@ -54,13 +56,14 @@ public:
   template<typename T> bool StereoProject(Eigen::Matrix<T, 3, 1>& point2d, Eigen::Matrix<T, 3, 1>& point3d) const{
     if(point3d(2) <= static_cast<T>(0)) return false;
 
-    T x_normal = point3d(0) / point3d(2);
-    T y_normal = point3d(1) / point3d(2);
-    T d = point3d(2);
+    T z_inv = static_cast<T>(1.0) / point3d(2);
+
+    T x_normal = point3d(0) * z_inv;
+    T y_normal = point3d(1) * z_inv;
 
     point2d(0) = x_normal * static_cast<T>(_fx) + static_cast<T>(_cx);
     point2d(1) = y_normal * static_cast<T>(_fy) + static_cast<T>(_cy);
-    point2d(2) = point2d(0) - static_cast<T>(_bf) / d;
+    point2d(2) = point2d(0) - static_cast<T>(_bf) * z_inv;
 
     bool x_left_ok = (point2d(0) >= static_cast<T>(0)) && (point2d(0) < static_cast<T>(_image_width));
     bool y_left_ok = (point2d(1) >= static_cast<T>(0)) && (point2d(1) < static_cast<T>(_image_height));

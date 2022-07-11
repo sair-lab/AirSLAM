@@ -70,6 +70,10 @@ public:
   std::map<int, int>& GetAllObversers();
   int GetKeypointIdx(int frame_id);
 
+public:
+  int tracking_frame_id;
+  int last_frame_seen;
+
 private:
   int _id;
   Type _type;

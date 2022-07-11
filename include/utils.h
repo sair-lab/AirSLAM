@@ -47,6 +47,7 @@ using AlignedUnorderedSet =
                        Eigen::aligned_allocator<Type>>;
 
 void ConvertVectorToRt(Eigen::Matrix<double, 7, 1>& m, Eigen::Matrix3d& R, Eigen::Vector3d& t);
+double DescriptorDistance(const Eigen::Matrix<double, 256, 1>& f1, const Eigen::Matrix<double, 256, 1>& f2);
 
 // files
 void GetFileNames(std::string path, std::vector<std::string>& filenames);
