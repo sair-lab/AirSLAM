@@ -129,6 +129,20 @@ cv::KeyPoint& Frame::GetKeypoint(size_t idx){
   return _keypoints[idx];
 }
 
+int Frame::GetInlierFlag(std::vector<bool>& inliers_feature_message){
+  int num_inliers = 0;
+  inliers_feature_message.resize(_mappoints.size());
+  for(size_t i = 0; i < _mappoints.size(); i++){
+    if(_mappoints[i] && !_mappoints[i]->IsBad()){
+      inliers_feature_message[i] = true;
+      num_inliers++;
+    }else{
+      inliers_feature_message[i] = false;
+    }
+  }
+  return num_inliers;
+}
+
 double Frame::GetRightPosition(size_t idx){
   assert(idx < _u_right.size());
   return _u_right[idx];

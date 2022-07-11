@@ -37,6 +37,7 @@ public:
   bool GetKeypointPosition(size_t idx, Eigen::Vector3d& keypoint_pos);
   std::vector<cv::KeyPoint>& GetAllKeypoints();
   cv::KeyPoint& GetKeypoint(size_t idx);
+  int GetInlierFlag(std::vector<bool>& inliers_feature_message);
 
   double GetRightPosition(size_t idx);
   std::vector<double>& GetAllRightPosition(); 
