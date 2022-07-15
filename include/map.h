@@ -9,6 +9,7 @@
 #include "camera.h"
 #include "mappoint.h"
 #include "frame.h"
+#include "g2o_optimization/types.h"
 #include "ros_publisher.h"
 
 class Map{

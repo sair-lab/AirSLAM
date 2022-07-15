@@ -63,7 +63,8 @@ void Map::InsertKeyframe(FramePtr frame){
 
   // optimization
   if(_keyframes.size() >= 2){
-    SlidingWindowOptimization();
+    // SlidingWindowOptimization();
+    LocalMapOptimization(frame);
   }
 }
 
@@ -349,7 +350,8 @@ void Map::SearchNeighborFrames(FramePtr frame, std::vector<FramePtr>& neighbor_f
   neighbor_frames.push_back(frame);
   frame->local_map_optimization_frame_id = frame_id;
   std::vector<std::pair<int, FramePtr>> connections = frame->GetOrderedConnections(-1);
-  int added_first_layer_num = std::min(connections.size(), target_num-1);
+  int connection_num = connections.size();
+  int added_first_layer_num = std::min(connection_num, target_num-1);
   for(int i = 0; i < added_first_layer_num; i++){
     connections[i].second->local_map_optimization_frame_id = frame_id;
     neighbor_frames.push_back(connections[i].second);
@@ -376,9 +378,11 @@ void Map::SearchNeighborFrames(FramePtr frame, std::vector<FramePtr>& neighbor_f
     }
 
     int added_num = std::min(target_num - neighbor_frames.size(), ordered_deeper_layer.size());
-    for(std::map<int, FramePtr>::rbegin rit = ordered_deeper_layer.rbegin(); added_num > 0; added_num--, rit++){
-      rit->second->local_map_optimization_frame_id = frame_id;
-      neighbor_frames.push_back(rit->second);
+    for(std::map<int, FramePtr>::reverse_iterator rit = ordered_deeper_layer.rbegin(); added_num > 0; added_num--, rit++){
+      if(rit->second->local_map_optimization_frame_id != frame_id){
+        rit->second->local_map_optimization_frame_id = frame_id;
+        neighbor_frames.push_back(rit->second);
+      }
     }
   }
 }
@@ -394,6 +398,7 @@ void Map::AddFrameVertex(FramePtr frame, MapOfPoses& poses, bool fix_this_frame)
 }
 
 void Map::LocalMapOptimization(FramePtr new_frame){
+  UpdateFrameConnection(new_frame);
   int new_frame_id = new_frame->GetFrameId();  
 
   MapOfPoses poses;
@@ -405,13 +410,19 @@ void Map::LocalMapOptimization(FramePtr new_frame){
   // camera
   camera_list.emplace_back(_camera);
 
+std::cout << "LocalMapOptimization 1" << std::endl; 
   // select frames
+  size_t fixed_frame_num = 0;
   std::vector<FramePtr> neighbor_frames;
   SearchNeighborFrames(new_frame, neighbor_frames);
+std::cout << "LocalMapOptimization 2" << std::endl; 
+
   for(auto& kf : neighbor_frames){
     bool fix_this_frame = (kf->GetFrameId() == 0);
+    fixed_frame_num = fix_this_frame ? (fixed_frame_num + 1) : fixed_frame_num;
     AddFrameVertex(kf, poses, fix_this_frame);
   }
+std::cout << "LocalMapOptimization 3" << std::endl; 
 
   // select fixed frames and mappoints
   std::map<FramePtr, int> fixed_frames;
@@ -427,64 +438,66 @@ void Map::LocalMapOptimization(FramePtr new_frame){
       for(auto& kv : obversers){
         FramePtr kf = GetFramePtr(kv.first);
         if(!kf) continue;
-        if(kf->local_map_optimization_frame_id != new_frame_id && kf->local_map_optimization_fix_frame_id != new_frame_id){
+        if(kf->local_map_optimization_frame_id != new_frame_id){
           fixed_frames[kf]++;
-          kf->local_map_optimization_fix_frame_id = new_frame_id;
         }
       }
     }
   }
+std::cout << "LocalMapOptimization 4" << std::endl; 
 
-  const int max_fixed_frame_num = 100000;
-  if(fixed_frames.size() > 0){
-    std::map<FramePtr, int> ordered_fixed_frames;
+  // debug
+  PrintConnection();
+  std::cout << "optimized frame : " << std::endl;
+  for(auto& kf : neighbor_frames){
+    std::cout << kf->GetFrameId() << " ";
+  }
+  std::cout << std::endl;
+  std::cout << "fixed frame : " << std::endl;
+
+
+  const size_t max_fixed_frame_num = 100000;
+  if(fixed_frames.size() > 0 && max_fixed_frame_num > fixed_frame_num){
+    std::map<int, FramePtr> ordered_fixed_frames;
     for(auto& kv : fixed_frames){
-      ordered_fixed_frames.insert(kv.second, kv.first);
+      ordered_fixed_frames.insert(std::pair<int, FramePtr>(kv.second, kv.first));
     }
 
-    int 
-
+    size_t to_add_fixed_num = std::min((max_fixed_frame_num-fixed_frame_num), ordered_fixed_frames.size());
+    for(std::map<int, FramePtr>::reverse_iterator rit = ordered_fixed_frames.rbegin(); to_add_fixed_num > 0; to_add_fixed_num--, rit++){
+      rit->second->local_map_optimization_fix_frame_id = new_frame_id;
+      AddFrameVertex(rit->second, poses, true);
+      std::cout << rit->second->GetFrameId() << " ";
+    }
+    fixed_frame_num += to_add_fixed_num;
   }
 
-  // select frames to optimize
-  std::vector<FramePtr> frames;
-  size_t frame_num = std::min(WindowSize, _keyframe_ids.size());
-  for(size_t i = _keyframe_ids.size() - frame_num; i < _keyframe_ids.size(); i++){
-    frames.push_back(_keyframes[_keyframe_ids[i]]);
-  }
+  std::cout << std::endl;
+std::cout << "LocalMapOptimization 5" << std::endl; 
 
-  std::cout << "--------------SlidingWindowOptimization Begin------------------------" << std::endl;
-  std::cout << "before optimization : " << std::endl;
+  // add point constraint
+  for(auto& mpt : mappoints){
+    if(!mpt || !mpt->IsValid()) continue;
 
-  // point constrainnts
-  for(size_t i = 0; i < frames.size(); i++){
-    FramePtr frame = frames[i];
-    bool fix_this_frame = ((i==0) || frame->PoseFixed());
-    int frame_id = frame->GetFrameId();
-    Eigen::Matrix4d& frame_pose = frame->GetPose();
-    Pose3d pose;
-    pose.q = frame_pose.block<3, 3>(0, 0);
-    pose.p = frame_pose.block<3, 1>(0, 3);
-    pose.fixed = fix_this_frame;
-    poses.insert(std::pair<int, Pose3d>(frame_id, pose));  
-    
-    std::vector<MappointPtr>& mappoints = frame->GetAllMappoints();
-    for(size_t j = 0; j < mappoints.size(); j++){
-      // points
-      MappointPtr mpt = mappoints[j];
-      if(!mpt || !mpt->IsValid()) continue;
+    // add vertex
+    int mpt_id = mpt->GetId();
+    Position3d point;
+    point.p = mpt->GetPosition();
+    point.fixed = false;
+    points.insert(std::pair<int, Position3d>(mpt_id, point));
+
+    // add constraints
+    const std::map<int, int> obversers = mpt->GetAllObversers();
+    for(auto& kv : obversers){
+      FramePtr kf = GetFramePtr(kv.first);
+      if(!kf || (kf->local_map_optimization_frame_id != new_frame_id && kf->local_map_optimization_fix_frame_id != new_frame_id)) continue;
+
       Eigen::Vector3d keypoint; 
-      if(!frame->GetKeypointPosition(j, keypoint)) continue;
-      int mpt_id = mpt->GetId();
-      Position3d point;
-      point.p = mpt->GetPosition();
-      point.fixed = false;
-      points.insert(std::pair<int, Position3d>(mpt_id, point));
-
+      if(!kf->GetKeypointPosition(kv.second, keypoint)) continue;
       // visual constraint
       if(keypoint(2) > 0){
         StereoPointConstraintPtr stereo_constraint = std::shared_ptr<StereoPointConstraint>(new StereoPointConstraint()); 
-        stereo_constraint->id_pose = frame_id;
+        stereo_constraint->id_pose = kv.first;
         stereo_constraint->id_point = mpt_id;
         stereo_constraint->id_camera = 0;
         stereo_constraint->inlier = true;
@@ -493,7 +506,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
         stereo_point_constraints.push_back(stereo_constraint);
       }else{
         MonoPointConstraintPtr mono_constraint = std::shared_ptr<MonoPointConstraint>(new MonoPointConstraint()); 
-        mono_constraint->id_pose = frame_id;
+        mono_constraint->id_pose = kv.first;
         mono_constraint->id_point = mpt_id;
         mono_constraint->id_camera = 0;
         mono_constraint->inlier = true;
@@ -503,6 +516,8 @@ void Map::LocalMapOptimization(FramePtr new_frame){
       }
     }
   }
+std::cout << "LocalMapOptimization 6" << std::endl; 
+
   // STOP_TIMER("SlidingWindowOptimization Time1");
   // START_TIMER;
   LocalmapOptimization(poses, points, camera_list, mono_point_constraints, stereo_point_constraints);
@@ -533,7 +548,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
   RemoveOutliers(outliers);
   // STOP_TIMER("RemoveOutliers Time2");
   // START_TIMER;
-  UpdateFrameConnection(frames.back());
+  UpdateFrameConnection(new_frame);
   // STOP_TIMER("UpdateFrameConnection Time2");
   // START_TIMER;
   // PrintConnection();
