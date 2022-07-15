@@ -24,7 +24,7 @@ Dataset::Dataset(const std::string& dataroot){
     _left_images.emplace_back(ConcatenateFolderAndFileName(left_image_dir, image_name));
     _right_images.emplace_back(ConcatenateFolderAndFileName(right_image_dir, image_name));
     if(!use_current_time){
-      double timestamp = (atof(image_name.substr(0, 10).c_str()) + atof(image_name.substr(10, 18).c_str())) / 1e9;
+      double timestamp = atof(image_name.substr(0, 10).c_str()) + atof(image_name.substr(10, 18).c_str()) / 1e9;
       _timestamps.emplace_back(timestamp);
     }
   }

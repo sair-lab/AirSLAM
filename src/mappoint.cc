@@ -1,19 +1,21 @@
 #include "mappoint.h"
 
-Mappoint::Mappoint(): tracking_frame_id(-1), last_frame_seen(-1), _type(Type::UnTriangulated){
+Mappoint::Mappoint(): tracking_frame_id(-1), last_frame_seen(-1), local_map_optimization_frame_id(-1),
+     _type(Type::UnTriangulated){
 }
 
-Mappoint::Mappoint(int& mappoint_id): 
-    tracking_frame_id(-1), last_frame_seen(-1), _id(mappoint_id), _type(Type::UnTriangulated){
+Mappoint::Mappoint(int& mappoint_id): tracking_frame_id(-1), last_frame_seen(-1),
+    local_map_optimization_frame_id(-1), _id(mappoint_id), _type(Type::UnTriangulated){
   if(mappoint_id < 0) exit(0);
 }
 
-Mappoint::Mappoint(int& mappoint_id, Eigen::Vector3d& p):
-    tracking_frame_id(-1), last_frame_seen(-1), _id(mappoint_id), _type(Type::Good), _position(p){
+Mappoint::Mappoint(int& mappoint_id, Eigen::Vector3d& p): tracking_frame_id(-1), last_frame_seen(-1), 
+    local_map_optimization_frame_id(-1), _id(mappoint_id), _type(Type::Good), _position(p){
 }
 
 Mappoint::Mappoint(int& mappoint_id, Eigen::Vector3d& p, Eigen::Matrix<double, 256, 1>& d):
-    tracking_frame_id(-1), last_frame_seen(-1), _id(mappoint_id), _type(Type::Good), _position(p), _descriptor(d){
+    tracking_frame_id(-1), last_frame_seen(-1), local_map_optimization_frame_id(-1), 
+    _id(mappoint_id), _type(Type::Good), _position(p), _descriptor(d){
 
 }
 

@@ -5,13 +5,16 @@ Frame::Frame(){
 }
 
 Frame::Frame(int frame_id, bool pose_fixed, CameraPtr camera, double timestamp):
-    tracking_frame_id(-1), _frame_id(frame_id), _pose_fixed(pose_fixed), _camera(camera), _timestamp(timestamp){
+    tracking_frame_id(-1), local_map_optimization_frame_id(-1), local_map_optimization_fix_frame_id(-1),
+    _frame_id(frame_id), _pose_fixed(pose_fixed), _camera(camera), _timestamp(timestamp){
   _grid_width_inv = static_cast<double>(FRAME_GRID_COLS)/static_cast<double>(_camera->ImageWidth());
   _grid_height_inv = static_cast<double>(FRAME_GRID_ROWS)/static_cast<double>(_camera->ImageHeight());
 }
 
 Frame& Frame::operator=(const Frame& other){
   tracking_frame_id = other.tracking_frame_id;
+  local_map_optimization_frame_id = other.local_map_optimization_frame_id;
+  local_map_optimization_fix_frame_id = other.local_map_optimization_fix_frame_id;
   _frame_id = other._frame_id;
   _timestamp = other._timestamp;
   _pose_fixed = other._pose_fixed;
