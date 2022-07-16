@@ -23,10 +23,10 @@ public:
 
   bool TriangulateMappoint(MappointPtr mappoint);
   bool UpdateMappointDescriptor(MappointPtr mappoint);
-  void SlidingWindowOptimization();
+  void SlidingWindowOptimization(FramePtr new_frame);
   void SearchNeighborFrames(FramePtr frame, std::vector<FramePtr>& neighbor_frames);
   void AddFrameVertex(FramePtr frame, MapOfPoses& poses, bool fix_this_frame);
-  void LocalMapOptimization(FramePtr frame);
+  void LocalMapOptimization(FramePtr new_frame);
   void SaveMap(const std::string& map_root);
   std::pair<FramePtr, FramePtr> MakeFramePair(FramePtr frame0, FramePtr frame1);
   void RemoveOutliers(const std::vector<std::pair<FramePtr, MappointPtr>>& outliers);

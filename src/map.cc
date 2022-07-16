@@ -63,7 +63,7 @@ void Map::InsertKeyframe(FramePtr frame){
 
   // optimization
   if(_keyframes.size() >= 2){
-    // SlidingWindowOptimization();
+    // SlidingWindowOptimization(frame);
     LocalMapOptimization(frame);
   }
 }
@@ -191,8 +191,9 @@ bool Map::UpdateMappointDescriptor(MappointPtr mappoint){
   return true;
 }
 
-void Map::SlidingWindowOptimization(){
+void Map::SlidingWindowOptimization(FramePtr new_frame){
   const size_t WindowSize = 10;
+  int new_frame_id = new_frame->GetFrameId();
   // START_TIMER;
   MapOfPoses poses;
   MapOfPoints3d points;
@@ -233,10 +234,14 @@ void Map::SlidingWindowOptimization(){
       Eigen::Vector3d keypoint; 
       if(!frame->GetKeypointPosition(j, keypoint)) continue;
       int mpt_id = mpt->GetId();
-      Position3d point;
-      point.p = mpt->GetPosition();
-      point.fixed = false;
-      points.insert(std::pair<int, Position3d>(mpt_id, point));
+
+      if(mpt->local_map_optimization_frame_id != new_frame_id){
+        Position3d point;
+        point.p = mpt->GetPosition();
+        point.fixed = false;
+        points.insert(std::pair<int, Position3d>(mpt_id, point));
+        mpt->local_map_optimization_frame_id = new_frame_id;
+      }
 
       // visual constraint
       if(keypoint(2) > 0){
@@ -333,7 +338,7 @@ void Map::SlidingWindowOptimization(){
 }
 
 void Map::SearchNeighborFrames(FramePtr frame, std::vector<FramePtr>& neighbor_frames){
-  const int target_num = 10;
+  const int target_num = 9;
   int frame_id = frame->GetFrameId();
   neighbor_frames.clear();
   // 1. when keyframes are no more than target_num
