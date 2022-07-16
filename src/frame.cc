@@ -319,7 +319,7 @@ void Frame::DecreaseWeight(std::shared_ptr<Frame> frame, int weight){
   if(it != _connections.end()){
     _ordered_connections.erase(std::pair<int, std::shared_ptr<Frame>>(it->second, it->first));
     int original_weight = it->second;
-    bool to_remove = (original_weight < (weight+15) && _connections.size() >= 2) || (original_weight <= weight);
+    bool to_remove = (original_weight < (weight+5) && _connections.size() >= 2) || (original_weight <= weight);
     if(to_remove){
       _connections.erase(it);
     }else{

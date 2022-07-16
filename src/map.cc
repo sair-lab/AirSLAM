@@ -334,7 +334,6 @@ void Map::SlidingWindowOptimization(){
 
 void Map::SearchNeighborFrames(FramePtr frame, std::vector<FramePtr>& neighbor_frames){
   const int target_num = 10;
-
   int frame_id = frame->GetFrameId();
   neighbor_frames.clear();
   // 1. when keyframes are no more than target_num
@@ -368,21 +367,22 @@ void Map::SearchNeighborFrames(FramePtr frame, std::vector<FramePtr>& neighbor_f
     for(auto kf : neighbor_frames){
       std::vector<std::pair<int, FramePtr>> deeper_layer_connections = kf->GetOrderedConnections(-1);
       for(auto& kv : deeper_layer_connections){
-        deeper_layer[kv.second] += kv.first;
+        if(kv.second->local_map_optimization_frame_id != frame_id){
+          deeper_layer[kv.second] += kv.first;
+        }
       }
     }
 
-    std::map<int, FramePtr> ordered_deeper_layer;
+    // std::map<int, FramePtr> ordered_deeper_layer;
+    std::set<std::pair<int, FramePtr>> ordered_deeper_layer;
     for(auto& kv : deeper_layer){
       ordered_deeper_layer.insert(std::pair<int, FramePtr>(kv.second, kv.first));
     }
 
     int added_num = std::min(target_num - neighbor_frames.size(), ordered_deeper_layer.size());
-    for(std::map<int, FramePtr>::reverse_iterator rit = ordered_deeper_layer.rbegin(); added_num > 0; added_num--, rit++){
-      if(rit->second->local_map_optimization_frame_id != frame_id){
-        rit->second->local_map_optimization_frame_id = frame_id;
-        neighbor_frames.push_back(rit->second);
-      }
+    for(std::set<std::pair<int, FramePtr>>::reverse_iterator rit = ordered_deeper_layer.rbegin(); added_num > 0; added_num--, rit++){
+      rit->second->local_map_optimization_frame_id = frame_id;
+      neighbor_frames.push_back(rit->second);
     }
   }
 }
@@ -410,19 +410,16 @@ void Map::LocalMapOptimization(FramePtr new_frame){
   // camera
   camera_list.emplace_back(_camera);
 
-std::cout << "LocalMapOptimization 1" << std::endl; 
   // select frames
   size_t fixed_frame_num = 0;
   std::vector<FramePtr> neighbor_frames;
   SearchNeighborFrames(new_frame, neighbor_frames);
-std::cout << "LocalMapOptimization 2" << std::endl; 
 
   for(auto& kf : neighbor_frames){
     bool fix_this_frame = (kf->GetFrameId() == 0);
     fixed_frame_num = fix_this_frame ? (fixed_frame_num + 1) : fixed_frame_num;
     AddFrameVertex(kf, poses, fix_this_frame);
   }
-std::cout << "LocalMapOptimization 3" << std::endl; 
 
   // select fixed frames and mappoints
   std::map<FramePtr, int> fixed_frames;
@@ -444,27 +441,17 @@ std::cout << "LocalMapOptimization 3" << std::endl;
       }
     }
   }
-std::cout << "LocalMapOptimization 4" << std::endl; 
-
-  // debug
-  PrintConnection();
-  std::cout << "optimized frame : " << std::endl;
-  for(auto& kf : neighbor_frames){
-    std::cout << kf->GetFrameId() << " ";
-  }
-  std::cout << std::endl;
-  std::cout << "fixed frame : " << std::endl;
 
 
-  const size_t max_fixed_frame_num = 100000;
+  const size_t max_fixed_frame_num = 1;
   if(fixed_frames.size() > 0 && max_fixed_frame_num > fixed_frame_num){
-    std::map<int, FramePtr> ordered_fixed_frames;
+    std::set<std::pair<int, FramePtr>> ordered_fixed_frames;
     for(auto& kv : fixed_frames){
       ordered_fixed_frames.insert(std::pair<int, FramePtr>(kv.second, kv.first));
     }
 
     size_t to_add_fixed_num = std::min((max_fixed_frame_num-fixed_frame_num), ordered_fixed_frames.size());
-    for(std::map<int, FramePtr>::reverse_iterator rit = ordered_fixed_frames.rbegin(); to_add_fixed_num > 0; to_add_fixed_num--, rit++){
+    for(std::set<std::pair<int, FramePtr>>::reverse_iterator rit = ordered_fixed_frames.rbegin(); to_add_fixed_num > 0; to_add_fixed_num--, rit++){
       rit->second->local_map_optimization_fix_frame_id = new_frame_id;
       AddFrameVertex(rit->second, poses, true);
       std::cout << rit->second->GetFrameId() << " ";
@@ -473,7 +460,6 @@ std::cout << "LocalMapOptimization 4" << std::endl;
   }
 
   std::cout << std::endl;
-std::cout << "LocalMapOptimization 5" << std::endl; 
 
   // add point constraint
   for(auto& mpt : mappoints){
@@ -516,7 +502,6 @@ std::cout << "LocalMapOptimization 5" << std::endl;
       }
     }
   }
-std::cout << "LocalMapOptimization 6" << std::endl; 
 
   // STOP_TIMER("SlidingWindowOptimization Time1");
   // START_TIMER;
@@ -554,7 +539,6 @@ std::cout << "LocalMapOptimization 6" << std::endl;
   // PrintConnection();
   // STOP_TIMER("PrintConnection Time2");
 
-  std::cout << "after optimization : " << std::endl;
 
   // copy back to map
   KeyframeMessagePtr keyframe_message = std::shared_ptr<KeyframeMessage>(new KeyframeMessage);
@@ -585,7 +569,6 @@ std::cout << "LocalMapOptimization 6" << std::endl;
 
   _ros_publisher->PublisheKeyframe(keyframe_message);
   _ros_publisher->PublishMap(map_message);
-  std::cout << "--------------SlidingWindowOptimization Finish------------------------" << std::endl;
   // STOP_TIMER("SlidingWindowOptimization Time3");
 }
 
@@ -648,11 +631,7 @@ void Map::UpdateFrameConnection(FramePtr frame){
       int observer_id = kv.first;
       if(observer_id == frame_id) continue;
       if(_keyframes.find(observer_id) == _keyframes.end()) continue;
-      if(connections.find(observer_id) == connections.end()){
-        connections[observer_id] = 1;
-      }else{
-        connections[observer_id]++;
-      }
+      connections[observer_id]++;
     }
   }
   if(connections.empty()) return;
