@@ -682,6 +682,7 @@ void Map::PrintConnection(){
 
 void Map::SearchByProjection(FramePtr frame, std::vector<MappointPtr>& mappoints, 
     int thr, std::vector<std::pair<int, MappointPtr>>& good_projections){
+  int frame_id = frame->GetFrameId();
   Eigen::Matrix4d pose = frame->GetPose();
   Eigen::Matrix3d Rwc = pose.block<3, 3>(0, 0);
   Eigen::Vector3d twc = pose.block<3, 1>(0, 3);
@@ -689,7 +690,7 @@ void Map::SearchByProjection(FramePtr frame, std::vector<MappointPtr>& mappoints
   CameraPtr camera = frame->GetCamera();
   double image_width = camera->ImageWidth();
   double image_height = camera->ImageHeight();
-  const double r = 12.0 * thr;
+  const double r = 15.0 * thr;
 
   Eigen::VectorXi debug_vec = Eigen::VectorXi::Zero(6);
   for(auto& mpt : mappoints){

@@ -20,7 +20,7 @@
 
 INITIALIZE_TIMER;
 
-MapBuilder::MapBuilder(Configs& configs): _init(false), _track_id(0), _configs(configs){
+MapBuilder::MapBuilder(Configs& configs): _init(false), _track_id(0), _to_update_local_map(false), _configs(configs){
   _ros_publisher = std::shared_ptr<RosPublisher>(new RosPublisher(configs.ros_publisher_config));
   _camera = std::shared_ptr<Camera>(new Camera(configs.camera_config_path));
   _superpoint = std::shared_ptr<SuperPoint>(new SuperPoint(configs.superpoint_config));
@@ -110,7 +110,8 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   // first track with last keyframe
   bool track_keyframe = true;
   std::vector<cv::DMatch> matches;
-  int num_match = TrackFrame(_last_keyframe, frame, matches);
+  // int num_match = TrackFrame(_last_keyframe, frame, matches);
+  int num_match = TrackFrame(_ref_keyframe, frame, matches);
   if(num_match < _configs.keyframe_config.min_num_match){
     if(_num_since_last_keyframe > 1 && _last_frame_track_well){
       // if failed, track with last frame
@@ -136,7 +137,9 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
 
 
   START_TIMER;
-  int track_local_map_num = TrackLocalMap(frame, num_match);
+  // int track_local_map_num = TrackLocalMap(frame, num_match);
+  // UpdateReferenceFrame(frame);
+  int track_local_map_num = 0;
   STOP_TIMER("TrackLocalMap");
 
   // std::cout << "track_local_map_num = " << track_local_map_num << "   num_match = " << num_match << std::endl;
@@ -181,7 +184,8 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
 
   if(track_keyframe){
     // select keyframe
-    Eigen::Matrix4d& last_keyframe_pose = _last_keyframe->GetPose();
+    // Eigen::Matrix4d& last_keyframe_pose = _last_keyframe->GetPose();
+    Eigen::Matrix4d& last_keyframe_pose = _ref_keyframe->GetPose();
     Eigen::Matrix3d last_R = last_keyframe_pose.block<3, 3>(0, 0);
     Eigen::Vector3d last_t = last_keyframe_pose.block<3, 1>(0, 3);
     Eigen::Matrix3d current_R = frame_pose.block<3, 3>(0, 0);
@@ -274,6 +278,9 @@ bool MapBuilder::Init(FramePtr frame){
   for(MappointPtr mappoint : new_mappoints){
     _map->InsertMappoint(mappoint);
   }
+
+  _ref_keyframe = frame;
+
   return true;
 }
 
@@ -452,11 +459,13 @@ void MapBuilder::InsertKeyframe(FramePtr frame){
   // update last keyframe
   _last_keyframe = frame;
   _num_since_last_keyframe = 1;
+  _ref_keyframe = frame;
+  _to_update_local_map = true;
 
   std::cout << "Insert a keyframe" << std::endl;
 }
 
-void MapBuilder::UpdateLocalKeyframes(FramePtr frame){
+void MapBuilder::UpdateReferenceFrame(FramePtr frame){
   int current_frame_id = frame->GetFrameId();
   std::vector<MappointPtr>& mappoints = frame->GetAllMappoints();
   std::map<FramePtr, int> keyframes;
@@ -474,41 +483,77 @@ void MapBuilder::UpdateLocalKeyframes(FramePtr frame){
   if(keyframes.empty()) return;
 
   std::pair<FramePtr, int> max_covi = std::pair<FramePtr, int>(nullptr, -1);
-  _local_keyframes.clear();
-  _local_keyframes.reserve(3 * keyframes.size());
   for(auto& kv : keyframes){
     if(kv.second > max_covi.second){
       max_covi = kv;
     }
-    _local_keyframes.push_back(kv.first);
-    kv.first->tracking_frame_id = current_frame_id;
   }
-
-  for(std::vector<FramePtr>::const_iterator it = _local_keyframes.begin(), it_end = _local_keyframes.end(); it!=it_end; it++){
-    if(_local_keyframes.size() > 80) break;
-    FramePtr kf = *it;
-    std::vector<std::pair<int, std::shared_ptr<Frame>>> neighbors = kf->GetOrderedConnections(10);
-    for(auto& neighbor : neighbors){
-      if(neighbor.second->tracking_frame_id != current_frame_id){
-        neighbor.second->tracking_frame_id = current_frame_id;
-        _local_keyframes.push_back(neighbor.second);
-      }
-    }
-
-    FramePtr parent = kf->GetParent();
-    if(parent && parent->tracking_frame_id != current_frame_id){
-      _local_keyframes.push_back(parent);
-    }
-
-    FramePtr child = kf->GetParent();
-    if(child && child->tracking_frame_id != current_frame_id){
-      _local_keyframes.push_back(child);
-    }
-  }
-
-  if(!max_covi.first && (max_covi.second > 10)){
+ 
+  if(max_covi.first->GetFrameId() != _ref_keyframe->GetFrameId()){
     _ref_keyframe = max_covi.first;
+    _to_update_local_map = true;
   }
+}
+
+void MapBuilder::UpdateLocalKeyframes(FramePtr frame){
+  _local_keyframes.clear();
+  std::vector<std::pair<int, FramePtr>> neighbor_frames = _ref_keyframe->GetOrderedConnections(-1);
+  for(auto& kv : neighbor_frames){
+    _local_keyframes.push_back(kv.second);
+  }
+
+  // int current_frame_id = frame->GetFrameId();
+  // std::vector<MappointPtr>& mappoints = frame->GetAllMappoints();
+  // std::map<FramePtr, int> keyframes;
+  // for(MappointPtr mpt : mappoints){
+  //   if(!mpt || mpt->IsBad()) continue;
+  //   const std::map<int, int> obversers = mpt->GetAllObversers();
+  //   for(auto& kv : obversers){
+  //     int observer_id = kv.first;
+  //     if(observer_id == current_frame_id) continue;
+  //     FramePtr keyframe = _map->GetFramePtr(observer_id);
+  //     if(!keyframe) continue;
+  //     keyframes[keyframe]++;
+  //   }
+  // }
+  // if(keyframes.empty()) return;
+
+  // std::pair<FramePtr, int> max_covi = std::pair<FramePtr, int>(nullptr, -1);
+  // _local_keyframes.clear();
+  // _local_keyframes.reserve(3 * keyframes.size());
+  // for(auto& kv : keyframes){
+  //   if(kv.second > max_covi.second){
+  //     max_covi = kv;
+  //   }
+  //   _local_keyframes.push_back(kv.first);
+  //   kv.first->tracking_frame_id = current_frame_id;
+  // }
+
+  // for(std::vector<FramePtr>::const_iterator it = _local_keyframes.begin(), it_end = _local_keyframes.end(); it!=it_end; it++){
+  //   if(_local_keyframes.size() > 80) break;
+  //   FramePtr kf = *it;
+  //   std::vector<std::pair<int, std::shared_ptr<Frame>>> neighbors = kf->GetOrderedConnections(10);
+  //   for(auto& neighbor : neighbors){
+  //     if(neighbor.second->tracking_frame_id != current_frame_id){
+  //       neighbor.second->tracking_frame_id = current_frame_id;
+  //       _local_keyframes.push_back(neighbor.second);
+  //     }
+  //   }
+
+  //   FramePtr parent = kf->GetParent();
+  //   if(parent && parent->tracking_frame_id != current_frame_id){
+  //     _local_keyframes.push_back(parent);
+  //   }
+
+  //   FramePtr child = kf->GetParent();
+  //   if(child && child->tracking_frame_id != current_frame_id){
+  //     _local_keyframes.push_back(child);
+  //   }
+  // }
+
+  // if(!max_covi.first && (max_covi.second > 10)){
+  //   _ref_keyframe = max_covi.first;
+  // }
 }
 
 void MapBuilder::UpdateLocalMappoints(FramePtr frame){
@@ -529,7 +574,7 @@ void MapBuilder::SearchLocalPoints(FramePtr frame, std::vector<std::pair<int, Ma
   int current_frame_id = frame->GetFrameId();
   std::vector<MappointPtr>& mpts = frame->GetAllMappoints();
   for(auto& mpt : mpts){
-    if(mpt) mpt->last_frame_seen = current_frame_id;
+    if(mpt && !mpt->IsBad()) mpt->last_frame_seen = current_frame_id;
   }
 
   std::vector<MappointPtr> selected_mappoints;
@@ -545,14 +590,13 @@ void MapBuilder::SearchLocalPoints(FramePtr frame, std::vector<std::pair<int, Ma
 }
 
 int MapBuilder::TrackLocalMap(FramePtr frame, int num_inlier_thr){
-  UpdateLocalKeyframes(frame);
-  // std::cout << "_local_keyframes.size = " << _local_keyframes.size() << std::endl;
-  if(_local_keyframes.size() < 2) return -1;
-  UpdateLocalMappoints(frame);
-  // std::cout << "_local_mappoints.size = " << _local_mappoints.size() << std::endl;
+  if(_to_update_local_map){
+    UpdateLocalKeyframes(frame);
+    UpdateLocalMappoints(frame);
+  }
+
   std::vector<std::pair<int, MappointPtr>> good_projections;
   SearchLocalPoints(frame, good_projections);
-  // std::cout << "good_projections.size = " << good_projections.size() << std::endl;
   if(good_projections.size() < 3) return -1;
 
   std::vector<MappointPtr> mappoints = frame->GetAllMappoints();

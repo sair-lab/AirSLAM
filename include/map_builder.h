@@ -31,6 +31,7 @@ public:
   void InsertKeyframe(FramePtr frame);
 
   // for tracking local map
+  void UpdateReferenceFrame(FramePtr frame);
   void UpdateLocalKeyframes(FramePtr frame);
   void UpdateLocalMappoints(FramePtr frame);
   void SearchLocalPoints(FramePtr frame, std::vector<std::pair<int, MappointPtr>>& good_projections);
@@ -54,6 +55,7 @@ private:
   Pose3d _last_pose;
 
   // for tracking local map
+  bool _to_update_local_map;
   FramePtr _ref_keyframe;
   std::vector<MappointPtr> _local_mappoints;
   std::vector<FramePtr> _local_keyframes;
