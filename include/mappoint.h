@@ -73,6 +73,7 @@ public:
 public:
   int tracking_frame_id;
   int last_frame_seen;
+  int local_map_optimization_frame_id;
 
 private:
   int _id;

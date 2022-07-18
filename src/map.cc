@@ -63,7 +63,8 @@ void Map::InsertKeyframe(FramePtr frame){
 
   // optimization
   if(_keyframes.size() >= 2){
-    SlidingWindowOptimization();
+    // SlidingWindowOptimization(frame);
+    LocalMapOptimization(frame);
   }
 }
 
@@ -190,8 +191,9 @@ bool Map::UpdateMappointDescriptor(MappointPtr mappoint){
   return true;
 }
 
-void Map::SlidingWindowOptimization(){
+void Map::SlidingWindowOptimization(FramePtr new_frame){
   const size_t WindowSize = 10;
+  int new_frame_id = new_frame->GetFrameId();
   // START_TIMER;
   MapOfPoses poses;
   MapOfPoints3d points;
@@ -232,10 +234,14 @@ void Map::SlidingWindowOptimization(){
       Eigen::Vector3d keypoint; 
       if(!frame->GetKeypointPosition(j, keypoint)) continue;
       int mpt_id = mpt->GetId();
-      Position3d point;
-      point.p = mpt->GetPosition();
-      point.fixed = false;
-      points.insert(std::pair<int, Position3d>(mpt_id, point));
+
+      if(mpt->local_map_optimization_frame_id != new_frame_id){
+        Position3d point;
+        point.p = mpt->GetPosition();
+        point.fixed = false;
+        points.insert(std::pair<int, Position3d>(mpt_id, point));
+        mpt->local_map_optimization_frame_id = new_frame_id;
+      }
 
       // visual constraint
       if(keypoint(2) > 0){
@@ -331,6 +337,246 @@ void Map::SlidingWindowOptimization(){
 
 }
 
+void Map::SearchNeighborFrames(FramePtr frame, std::vector<FramePtr>& neighbor_frames){
+  const int target_num = 9;
+  int frame_id = frame->GetFrameId();
+  neighbor_frames.clear();
+  // 1. when keyframes are no more than target_num
+  if(_keyframes.size() <= target_num){
+    for(auto& kv : _keyframes){
+      kv.second->local_map_optimization_frame_id = frame_id;
+      neighbor_frames.push_back(kv.second);
+    }
+    return;
+  }
+
+  // 2. when keyframes are more than target_num
+  neighbor_frames.push_back(frame);
+  frame->local_map_optimization_frame_id = frame_id;
+  std::vector<std::pair<int, FramePtr>> connections = frame->GetOrderedConnections(-1);
+  int connection_num = connections.size();
+  int added_first_layer_num = std::min(connection_num, target_num-1);
+  for(int i = 0; i < added_first_layer_num; i++){
+    connections[i].second->local_map_optimization_frame_id = frame_id;
+    neighbor_frames.push_back(connections[i].second);
+  }
+  FramePtr parent = frame->GetParent();
+  if(parent && parent->local_map_optimization_frame_id != frame_id){
+    parent->local_map_optimization_frame_id = frame_id;
+    neighbor_frames.push_back(parent);
+  }
+
+  // 3. if not enough, search deeper layers
+  while(neighbor_frames.size() < target_num){
+    std::map<FramePtr, int> deeper_layer;
+    for(auto kf : neighbor_frames){
+      std::vector<std::pair<int, FramePtr>> deeper_layer_connections = kf->GetOrderedConnections(-1);
+      for(auto& kv : deeper_layer_connections){
+        if(kv.second->local_map_optimization_frame_id != frame_id){
+          deeper_layer[kv.second] += kv.first;
+        }
+      }
+    }
+
+    // std::map<int, FramePtr> ordered_deeper_layer;
+    std::set<std::pair<int, FramePtr>> ordered_deeper_layer;
+    for(auto& kv : deeper_layer){
+      ordered_deeper_layer.insert(std::pair<int, FramePtr>(kv.second, kv.first));
+    }
+
+    int added_num = std::min(target_num - neighbor_frames.size(), ordered_deeper_layer.size());
+    for(std::set<std::pair<int, FramePtr>>::reverse_iterator rit = ordered_deeper_layer.rbegin(); added_num > 0; added_num--, rit++){
+      rit->second->local_map_optimization_frame_id = frame_id;
+      neighbor_frames.push_back(rit->second);
+    }
+  }
+}
+
+void Map::AddFrameVertex(FramePtr frame, MapOfPoses& poses, bool fix_this_frame){
+  int frame_id = frame->GetFrameId();
+  Eigen::Matrix4d& frame_pose = frame->GetPose();
+  Pose3d pose;
+  pose.q = frame_pose.block<3, 3>(0, 0);
+  pose.p = frame_pose.block<3, 1>(0, 3);
+  pose.fixed = fix_this_frame;
+  poses.insert(std::pair<int, Pose3d>(frame_id, pose)); 
+}
+
+void Map::LocalMapOptimization(FramePtr new_frame){
+  UpdateFrameConnection(new_frame);
+  int new_frame_id = new_frame->GetFrameId();  
+
+  MapOfPoses poses;
+  MapOfPoints3d points;
+  std::vector<CameraPtr> camera_list;
+  VectorOfMonoPointConstraints mono_point_constraints;
+  VectorOfStereoPointConstraints stereo_point_constraints;
+
+  // camera
+  camera_list.emplace_back(_camera);
+
+  // select frames
+  size_t fixed_frame_num = 0;
+  std::vector<FramePtr> neighbor_frames;
+  SearchNeighborFrames(new_frame, neighbor_frames);
+
+  for(auto& kf : neighbor_frames){
+    bool fix_this_frame = (kf->GetFrameId() == 0);
+    fixed_frame_num = fix_this_frame ? (fixed_frame_num + 1) : fixed_frame_num;
+    AddFrameVertex(kf, poses, fix_this_frame);
+  }
+
+  // select fixed frames and mappoints
+  std::map<FramePtr, int> fixed_frames;
+  std::vector<MappointPtr> mappoints;
+  for(auto neighbor_frame : neighbor_frames){
+    std::vector<MappointPtr>& neighbor_mappoints = neighbor_frame->GetAllMappoints();
+    for(MappointPtr mpt : neighbor_mappoints){
+      if(!mpt || !mpt->IsValid() || mpt->local_map_optimization_frame_id == new_frame_id) continue;
+      mpt->local_map_optimization_frame_id = new_frame_id;
+      mappoints.push_back(mpt);
+
+      const std::map<int, int> obversers = mpt->GetAllObversers();
+      for(auto& kv : obversers){
+        FramePtr kf = GetFramePtr(kv.first);
+        if(!kf) continue;
+        if(kf->local_map_optimization_frame_id != new_frame_id){
+          fixed_frames[kf]++;
+        }
+      }
+    }
+  }
+
+
+  const size_t max_fixed_frame_num = 1;
+  if(fixed_frames.size() > 0 && max_fixed_frame_num > fixed_frame_num){
+    std::set<std::pair<int, FramePtr>> ordered_fixed_frames;
+    for(auto& kv : fixed_frames){
+      ordered_fixed_frames.insert(std::pair<int, FramePtr>(kv.second, kv.first));
+    }
+
+    size_t to_add_fixed_num = std::min((max_fixed_frame_num-fixed_frame_num), ordered_fixed_frames.size());
+    for(std::set<std::pair<int, FramePtr>>::reverse_iterator rit = ordered_fixed_frames.rbegin(); to_add_fixed_num > 0; to_add_fixed_num--, rit++){
+      rit->second->local_map_optimization_fix_frame_id = new_frame_id;
+      AddFrameVertex(rit->second, poses, true);
+      std::cout << rit->second->GetFrameId() << " ";
+    }
+    fixed_frame_num += to_add_fixed_num;
+  }
+
+  std::cout << std::endl;
+
+  // add point constraint
+  for(auto& mpt : mappoints){
+    if(!mpt || !mpt->IsValid()) continue;
+
+    // add vertex
+    int mpt_id = mpt->GetId();
+    Position3d point;
+    point.p = mpt->GetPosition();
+    point.fixed = false;
+    points.insert(std::pair<int, Position3d>(mpt_id, point));
+
+    // add constraints
+    const std::map<int, int> obversers = mpt->GetAllObversers();
+    for(auto& kv : obversers){
+      FramePtr kf = GetFramePtr(kv.first);
+      if(!kf || (kf->local_map_optimization_frame_id != new_frame_id && kf->local_map_optimization_fix_frame_id != new_frame_id)) continue;
+
+      Eigen::Vector3d keypoint; 
+      if(!kf->GetKeypointPosition(kv.second, keypoint)) continue;
+      // visual constraint
+      if(keypoint(2) > 0){
+        StereoPointConstraintPtr stereo_constraint = std::shared_ptr<StereoPointConstraint>(new StereoPointConstraint()); 
+        stereo_constraint->id_pose = kv.first;
+        stereo_constraint->id_point = mpt_id;
+        stereo_constraint->id_camera = 0;
+        stereo_constraint->inlier = true;
+        stereo_constraint->keypoint = keypoint;
+        stereo_constraint->pixel_sigma = 0.8;
+        stereo_point_constraints.push_back(stereo_constraint);
+      }else{
+        MonoPointConstraintPtr mono_constraint = std::shared_ptr<MonoPointConstraint>(new MonoPointConstraint()); 
+        mono_constraint->id_pose = kv.first;
+        mono_constraint->id_point = mpt_id;
+        mono_constraint->id_camera = 0;
+        mono_constraint->inlier = true;
+        mono_constraint->keypoint = keypoint.head(2);
+        mono_constraint->pixel_sigma = 0.8;
+        mono_point_constraints.push_back(mono_constraint);
+      }
+    }
+  }
+
+  // STOP_TIMER("SlidingWindowOptimization Time1");
+  // START_TIMER;
+  LocalmapOptimization(poses, points, camera_list, mono_point_constraints, stereo_point_constraints);
+  // STOP_TIMER("SlidingWindowOptimization Time2");
+  // START_TIMER;
+
+  // erase outliers
+  std::vector<std::pair<FramePtr, MappointPtr>> outliers;
+  for(auto& mono_point_constraint : mono_point_constraints){
+    if(!mono_point_constraint->inlier){
+      std::map<int, FramePtr>::iterator frame_it = _keyframes.find(mono_point_constraint->id_pose);
+      std::map<int, MappointPtr>::iterator mpt_it = _mappoints.find(mono_point_constraint->id_point);
+      if(frame_it != _keyframes.end() && mpt_it != _mappoints.end() && frame_it->second && mpt_it->second){
+        outliers.emplace_back(frame_it->second, mpt_it->second);
+      }
+    }
+  }
+
+  for(auto& stereo_point_constraint : stereo_point_constraints){
+    if(!stereo_point_constraint->inlier){
+      std::map<int, FramePtr>::iterator frame_it = _keyframes.find(stereo_point_constraint->id_pose);
+      std::map<int, MappointPtr>::iterator mpt_it = _mappoints.find(stereo_point_constraint->id_point);
+      if(frame_it != _keyframes.end() && mpt_it != _mappoints.end() && frame_it->second && mpt_it->second){
+        outliers.emplace_back(frame_it->second, mpt_it->second);
+      }
+    }
+  }
+  RemoveOutliers(outliers);
+  // STOP_TIMER("RemoveOutliers Time2");
+  // START_TIMER;
+  UpdateFrameConnection(new_frame);
+  // STOP_TIMER("UpdateFrameConnection Time2");
+  // START_TIMER;
+  // PrintConnection();
+  // STOP_TIMER("PrintConnection Time2");
+
+
+  // copy back to map
+  KeyframeMessagePtr keyframe_message = std::shared_ptr<KeyframeMessage>(new KeyframeMessage);
+  MapMessagePtr map_message = std::shared_ptr<MapMessage>(new MapMessage);
+
+  for(auto& kv : poses){
+    int frame_id = kv.first;
+    Pose3d pose = kv.second;
+    if(_keyframes.count(frame_id) == 0) continue;
+    Eigen::Matrix4d pose_eigen;
+    pose_eigen.block<3, 3>(0, 0) = pose.q.matrix();
+    pose_eigen.block<3, 1>(0, 3) = pose.p;
+    _keyframes[frame_id]->SetPose(pose_eigen);
+
+    keyframe_message->ids.push_back(frame_id);
+    keyframe_message->poses.push_back(pose_eigen);
+  }
+
+  for(auto& kv : points){
+    int mpt_id = kv.first;
+    Position3d position = kv.second;
+    if(_mappoints.count(mpt_id) == 0) continue;
+    _mappoints[mpt_id]->SetPosition(position.p);
+
+    map_message->ids.push_back(mpt_id);
+    map_message->points.push_back(position.p);
+  }
+
+  _ros_publisher->PublisheKeyframe(keyframe_message);
+  _ros_publisher->PublishMap(map_message);
+  // STOP_TIMER("SlidingWindowOptimization Time3");
+}
+
 std::pair<FramePtr, FramePtr> Map::MakeFramePair(FramePtr frame0, FramePtr frame1){
   if(frame0->GetFrameId() > frame1->GetFrameId()){
     return std::pair<FramePtr, FramePtr>(frame0, frame1);
@@ -390,11 +636,7 @@ void Map::UpdateFrameConnection(FramePtr frame){
       int observer_id = kv.first;
       if(observer_id == frame_id) continue;
       if(_keyframes.find(observer_id) == _keyframes.end()) continue;
-      if(connections.find(observer_id) == connections.end()){
-        connections[observer_id] = 1;
-      }else{
-        connections[observer_id]++;
-      }
+      connections[observer_id]++;
     }
   }
   if(connections.empty()) return;
@@ -440,6 +682,7 @@ void Map::PrintConnection(){
 
 void Map::SearchByProjection(FramePtr frame, std::vector<MappointPtr>& mappoints, 
     int thr, std::vector<std::pair<int, MappointPtr>>& good_projections){
+  int frame_id = frame->GetFrameId();
   Eigen::Matrix4d pose = frame->GetPose();
   Eigen::Matrix3d Rwc = pose.block<3, 3>(0, 0);
   Eigen::Vector3d twc = pose.block<3, 1>(0, 3);
@@ -447,7 +690,7 @@ void Map::SearchByProjection(FramePtr frame, std::vector<MappointPtr>& mappoints
   CameraPtr camera = frame->GetCamera();
   double image_width = camera->ImageWidth();
   double image_height = camera->ImageHeight();
-  const double r = 12.0 * thr;
+  const double r = 15.0 * thr;
 
   Eigen::VectorXi debug_vec = Eigen::VectorXi::Zero(6);
   for(auto& mpt : mappoints){
@@ -515,7 +758,7 @@ void Map::SaveKeyframeTrajectory(std::string save_root){
     Eigen::Vector3d t = pose.block<3, 1>(0, 3);
     Eigen::Quaterniond q(pose.block<3, 3>(0, 0));
 
-    f << std::setprecision(6) << kf->GetTimestamp() << " " 
+    f << std::setprecision(9) << kf->GetTimestamp() << " " 
       << std::setprecision(9) << t(0) << " " << t(1) << " " << t(2) << " "
       << q.x() << " " << q.y() << " " << q.z() << " " << q.w() << std::endl;
   }
