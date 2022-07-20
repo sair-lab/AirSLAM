@@ -131,9 +131,9 @@ struct Configs{
     line_detector_config.canny_th2 = line_detector_node["canny_th2"].as<double>();
     line_detector_config.canny_aperture_size = line_detector_node["canny_aperture_size"].as<int>();
     line_detector_config.do_merge = line_detector_node["do_merge"].as<int>();
-    line_detector_config.angle_thr = line_detector_node["angle_thr"].as<int>();
-    line_detector_config.distance_thr = line_detector_node["distance_thr"].as<int>();
-    line_detector_config.ep_thr = line_detector_node["ep_thr"].as<int>();
+    line_detector_config.angle_thr = line_detector_node["angle_thr"].as<double>();
+    line_detector_config.distance_thr = line_detector_node["distance_thr"].as<double>();
+    line_detector_config.ep_thr = line_detector_node["ep_thr"].as<double>();
 
     YAML::Node keyframe_node = file_node["keyframe"];
     keyframe_config.min_num_match = keyframe_node["min_num_match"].as<int>();

@@ -4,22 +4,29 @@
 #include <Eigen/Core>
 #include <ros/ros.h>
 
+#include "super_point.h"
+#include "super_glue.h"
 #include "read_configs.h"
 #include "dataset.h"
-#include "map_builder.h"
+#include "camera.h"
+#include "frame.h"
+#include "point_matching.h"
 #include "line_processor.h"
+#include "map.h"
+#include "ros_publisher.h"
+#include "g2o_optimization/types.h"
+#include "debug.h"
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "air_slam");
   std::string config_file = argv[1];
   Configs configs(config_file);
-  MapBuilder map_builder(configs);
   Dataset dataset(configs.dataroot);
   size_t dataset_length = dataset.GetDatasetLength();
 
   CameraPtr camera = std::shared_ptr<Camera>(new Camera(configs.camera_config_path));
   SuperPointPtr superpoint = std::shared_ptr<SuperPoint>(new SuperPoint(configs.superpoint_config));
-  if (!_superpoint->build()){
+  if (!superpoint->build()){
     std::cout << "Error in SuperPoint building" << std::endl;
     exit(0);
   }
@@ -30,7 +37,6 @@ int main(int argc, char **argv) {
 
 
   for(size_t i = 0; i < dataset_length && ros::ok(); ++i){
-    std::cout << "i ===== " << i << std::endl;
     auto before_infer = std::chrono::steady_clock::now();
     cv::Mat left_image, right_image;
     double timestamp;
@@ -39,8 +45,14 @@ int main(int argc, char **argv) {
     std::vector<Eigen::Vector4d> lines;
     line_detector->LineExtractor(left_image, lines);
     std::cout << "line num = " << lines.size() << std::endl;
+
+    auto after_infer = std::chrono::steady_clock::now();
+    auto cost_time = std::chrono::duration_cast<std::chrono::milliseconds>(after_infer - before_infer).count();
+
+    linesSaveLineDetectionResult(left_image, lines, configs.saving_dir, std::to_string(i));
+    std::cout << "One Frame Processinh Time: " << cost_time << " ms." << std::endl;
   }
-  ros::shutdown();
+  // ros::shutdown();
 
   return 0;
 }

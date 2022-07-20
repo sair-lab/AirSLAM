@@ -15,8 +15,8 @@ void SaveMatchingResult(
   cv::Mat save_image;
   if(matches.size() < 1) return;
 
-  drawMatches(image1, keypoints1, image2, keypoints2, matches, save_image);
-  imwrite(save_path, save_image);
+  cv::drawMatches(image1, keypoints1, image2, keypoints2, matches, save_image);
+  cv::imwrite(save_path, save_image);
 }
 
 void SaveStereoMatchResult(cv::Mat& image_left, cv::Mat& image_right, Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
@@ -45,7 +45,7 @@ void SaveStereoMatchResult(cv::Mat& image_left, cv::Mat& image_right, Eigen::Mat
 
 void SaveTrackingResult(cv::Mat& last_image, cv::Mat& image, FramePtr last_frame, FramePtr frame, 
     std::vector<cv::DMatch>& matches, std::string save_root){
-  std::string debug_save_dir = ConcatenateFolderAndFileName(save_root, "debug");
+  std::string debug_save_dir = ConcatenateFolderAndFileName(save_root, "debug/tracking");
   MakeDir(debug_save_dir);  
   cv::Mat debug_image = image.clone();
   cv::Mat debug_last_image = last_image.clone();
@@ -56,4 +56,17 @@ void SaveTrackingResult(cv::Mat& last_image, cv::Mat& image, FramePtr last_frame
   std::string save_image_name = "matching_" + std::to_string(last_frame_id) + "_" + std::to_string(frame_id) + ".jpg";
   std::string save_image_path = ConcatenateFolderAndFileName(debug_save_dir, save_image_name);
     SaveMatchingResult(debug_last_image, last_kpts, debug_image, kpts, matches, save_image_path);
+}
+
+void SaveLineDetectionResult(cv::Mat image, std::vector<Eigen::Vector4d>& lines, std::string save_root, std::string idx){
+  std::string line_save_dir = ConcatenateFolderAndFileName(save_root, "debug/line_detection");
+  MakeDir(line_save_dir); 
+  std::string line_save_image_name = "line_detection_" + idx + ".jpg";
+  std::string save_image_path = ConcatenateFolderAndFileName(line_save_dir, line_save_image_name);
+
+  for(auto& line : lines){
+    cv::line(image, cv::Point2i((int)(line(0)+0.5), (int)(line(1)+0.5)), 
+        cv::Point2i((int)(line(2)+0.5), (int)(line(3)+0.5)), cv::Scalar(0, 250, 0), 2)
+  }
+  cv::imwrite(save_path, save_image);
 }

@@ -18,7 +18,7 @@
 #include "timer.h"
 #include "debug.h"
 
-INITIALIZE_TIMER;
+// INITIALIZE_TIMER;
 
 MapBuilder::MapBuilder(Configs& configs): _init(false), _track_id(0), _to_update_local_map(false), _configs(configs){
   _camera = std::shared_ptr<Camera>(new Camera(configs.camera_config_path));
@@ -37,12 +37,12 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   // undistort image 
   cv::Mat image_left_rect, image_right_rect;
 
-  START_TIMER;; 
+  // START_TIMER;; 
   _camera->UndistortImage(image_left, image_right, image_left_rect, image_right_rect);
-  STOP_TIMER("UndistortImage");
+  // STOP_TIMER("UndistortImage");
 
   // extract features
-  START_TIMER;;
+  // START_TIMER;;
   Eigen::Matrix<double, 259, Eigen::Dynamic> features_left, features_right;
   if(!_superpoint->infer(image_left_rect, features_left)){
     std::cout << "Failed when extracting features of left image !" << std::endl;
@@ -52,14 +52,14 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     std::cout << "Failed when extracting features of right image !" << std::endl;
     return;
   }
-  STOP_TIMER("Superpoint");
-  START_TIMER;;
+  // STOP_TIMER("Superpoint");
+  // START_TIMER;;
 
   // stereo_match
   std::vector<cv::DMatch> stereo_matches;
   StereoMatch(features_left, features_right, stereo_matches);
-  STOP_TIMER("StereoMatch");
-  START_TIMER;;
+  // STOP_TIMER("StereoMatch");
+  // START_TIMER;;
 
   // // // for debug
   // SaveStereoMatchResult(image_left, image_right, 
@@ -73,8 +73,8 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   FramePtr frame = std::shared_ptr<Frame>(new Frame(frame_id, false, _camera, timestamp));
   frame->AddFeatures(features_left, features_right, stereo_matches);
   std::cout << "Detected feature point number = " << features_left.cols() << std::endl;
-  STOP_TIMER("Construct frame");
-  START_TIMER;;
+  // STOP_TIMER("Construct frame");
+  // START_TIMER;;
 
   // message
   std::vector<cv::KeyPoint>& keypoints = frame->GetAllKeypoints();
@@ -134,14 +134,14 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     }
   }
   _last_frame_track_well = true;
-  STOP_TIMER("Tracking");
+  // STOP_TIMER("Tracking");
 
 
-  START_TIMER;
+  // START_TIMER;
   // int track_local_map_num = TrackLocalMap(frame, num_match);
   // UpdateReferenceFrame(frame);
   int track_local_map_num = 0;
-  STOP_TIMER("TrackLocalMap");
+  // STOP_TIMER("TrackLocalMap");
 
   // std::cout << "track_local_map_num = " << track_local_map_num << "   num_match = " << num_match << std::endl;
   num_match = (track_local_map_num > 0) ? track_local_map_num : num_match;
