@@ -35,7 +35,6 @@ int main(int argc, char **argv) {
   RosPublisherPtr ros_publisher = std::shared_ptr<RosPublisher>(new RosPublisher(configs.ros_publisher_config));
   MapPtr map = std::shared_ptr<Map>(new Map(camera, ros_publisher));
 
-
   for(size_t i = 0; i < dataset_length && ros::ok(); ++i){
     auto before_infer = std::chrono::steady_clock::now();
     cv::Mat left_image, right_image;
@@ -48,9 +47,9 @@ int main(int argc, char **argv) {
 
     auto after_infer = std::chrono::steady_clock::now();
     auto cost_time = std::chrono::duration_cast<std::chrono::milliseconds>(after_infer - before_infer).count();
-
-    linesSaveLineDetectionResult(left_image, lines, configs.saving_dir, std::to_string(i));
     std::cout << "One Frame Processinh Time: " << cost_time << " ms." << std::endl;
+
+    SaveLineDetectionResult(left_image, lines, configs.saving_dir, std::to_string(i));
   }
   // ros::shutdown();
 

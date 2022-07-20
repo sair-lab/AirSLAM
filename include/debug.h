@@ -59,14 +59,15 @@ void SaveTrackingResult(cv::Mat& last_image, cv::Mat& image, FramePtr last_frame
 }
 
 void SaveLineDetectionResult(cv::Mat image, std::vector<Eigen::Vector4d>& lines, std::string save_root, std::string idx){
-  std::string line_save_dir = ConcatenateFolderAndFileName(save_root, "debug/line_detection");
+  std::string line_save_dir = ConcatenateFolderAndFileName(save_root, "line_detection");
   MakeDir(line_save_dir); 
   std::string line_save_image_name = "line_detection_" + idx + ".jpg";
   std::string save_image_path = ConcatenateFolderAndFileName(line_save_dir, line_save_image_name);
 
   for(auto& line : lines){
     cv::line(image, cv::Point2i((int)(line(0)+0.5), (int)(line(1)+0.5)), 
-        cv::Point2i((int)(line(2)+0.5), (int)(line(3)+0.5)), cv::Scalar(0, 250, 0), 2)
+        cv::Point2i((int)(line(2)+0.5), (int)(line(3)+0.5)), cv::Scalar(0, 250, 0), 2);
   }
-  cv::imwrite(save_path, save_image);
+  std::cout << "save_image_path = " << save_image_path << std::endl;
+  cv::imwrite(save_image_path, image);
 }
