@@ -13,6 +13,7 @@
 #include "camera.h"
 #include "frame.h"
 #include "point_matching.h"
+#include "line_processor.h"
 #include "map.h"
 #include "ros_publisher.h"
 #include "g2o_optimization/types.h"
@@ -62,10 +63,11 @@ private:
 
   // class
   Configs _configs;
-  RosPublisherPtr _ros_publisher;
   CameraPtr _camera;
   SuperPointPtr _superpoint;
   PointMatchingPtr _point_matching;
+  LineDetectorPtr _line_detector;
+  RosPublisherPtr _ros_publisher;
   MapPtr _map;
 };
 

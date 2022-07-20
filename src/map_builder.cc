@@ -21,7 +21,6 @@
 INITIALIZE_TIMER;
 
 MapBuilder::MapBuilder(Configs& configs): _init(false), _track_id(0), _to_update_local_map(false), _configs(configs){
-  _ros_publisher = std::shared_ptr<RosPublisher>(new RosPublisher(configs.ros_publisher_config));
   _camera = std::shared_ptr<Camera>(new Camera(configs.camera_config_path));
   _superpoint = std::shared_ptr<SuperPoint>(new SuperPoint(configs.superpoint_config));
   if (!_superpoint->build()){
@@ -29,6 +28,8 @@ MapBuilder::MapBuilder(Configs& configs): _init(false), _track_id(0), _to_update
     exit(0);
   }
   _point_matching = std::shared_ptr<PointMatching>(new PointMatching(configs.superglue_config));
+  _line_detector = std::shared_ptr<LineDetector>(new LineDetector(configs.line_detector_config));
+  _ros_publisher = std::shared_ptr<RosPublisher>(new RosPublisher(configs.ros_publisher_config));
   _map = std::shared_ptr<Map>(new Map(_camera, _ros_publisher));
 }
 

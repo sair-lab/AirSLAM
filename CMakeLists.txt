@@ -59,8 +59,9 @@ add_library(${PROJECT_NAME}_lib SHARED
   src/dataset.cc
   src/frame.cc
   src/point_matching.cc
+  src/line_processor.cc
   src/mappoint.cc
-  # src/thread_publisher.cc
+  src/thread_publisher.cc
   src/ros_publisher.cc
   src/map.cc
   src/map_builder.cc
@@ -83,3 +84,5 @@ target_link_libraries(${PROJECT_NAME}_lib
 add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_lib ${catkin_LIBRARIES})
 
+add_executable(${PROJECT_NAME} test.cpp)
+target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_lib ${catkin_LIBRARIES})
