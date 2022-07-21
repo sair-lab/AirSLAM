@@ -21,6 +21,10 @@ public:
 	void MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::vector<Eigen::Vector4f>& dst_lines);
 
 private:
+  void MinXY(float& min_x, float& min_y, float& x, float& y, bool to_sort_x);
+	void MaxXY(float& max_x, float& max_y, float& x, float& y, bool to_sort_x);
+
+private:
 	LineDetectorConfig _line_detector_config;
 	std::shared_ptr<cv::ximgproc::FastLineDetector> fld;
 };

@@ -1,4 +1,5 @@
-dataroot: "/media/xukuan/something1/ubuntu_files/data/AirSLAM/realsense_meeting_room/euroc_style"
+# dataroot: "/media/xukuan/something1/ubuntu_files/data/AirSLAM/realsense_meeting_room/euroc_style"
+dataroot: "/media/xukuan/something1/ubuntu_files/data/AirSLAM/debug_data"
 camera_config_path: "/media/xukuan/something1/ubuntu_files/project/AirSLAM/catkin_ws/src/AirSLAM/configs/realsense_848_480.yaml"
 model_dir: "/media/xukuan/something1/ubuntu_files/project/AirSLAM/catkin_ws/src/AirSLAM/output"
 saving_dir: "/media/xukuan/something1/ubuntu_files/project/AirSLAM/catkin_ws/src/AirSLAM/debug"
@@ -40,9 +41,9 @@ line_ddetector:
   canny_aperture_size: 3
   do_merge: 1
   # line_merger
-  angle_thr: 0.087 # 5 degree
-  distance_thr: 3
-  ep_thr: 15
+  angle_thr: 0.052 # 5 degree
+  distance_thr: 5
+  ep_thr: 30
 
 keyframe:
   min_num_match: 15
