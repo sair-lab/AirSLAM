@@ -143,11 +143,16 @@ void LineDetector::MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::v
                 << " cos_theta22 = " << cos_theta22 << std::endl;
       if(to_merge) std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
 
+
+      float d_angle_case1 = std::abs(angle2 - angle1);
+      float d_angle_case2 = M_PI + std::min(angle1, angle2) - std::max(angle1, angle2);
+      float d_angle = std::min(d_angle_case1, d_angle_case2);
+      float d_distance = std::abs(distance2 - distance1);
       if(to_merge){
-        float d_angle_case1 = std::abs(angle2 - angle1);
-        float d_angle_case2 = M_PI + std::min(angle1, angle2) - std::max(angle1, angle2);
-        float d_angle = std::min(d_angle_case1, d_angle_case2);
-        float d_distance = std::abs(distance2 - distance1);
+        // float d_angle_case1 = std::abs(angle2 - angle1);
+        // float d_angle_case2 = M_PI + std::min(angle1, angle2) - std::max(angle1, angle2);
+        // float d_angle = std::min(d_angle_case1, d_angle_case2);
+        // float d_distance = std::abs(distance2 - distance1);
         to_merge = (d_angle < angle_thr && d_distance < distance_thr);
       }
 
@@ -171,10 +176,10 @@ void LineDetector::MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::v
         }
       }
 
-      // std::cout << "to_merge = " << to_merge 
-      //           << " i = " << i << " distance1 = " << distance1 << " angle1 = " << angle1 
-      //           << " j = " << j << " distance2 = " << distance2 << " angle2 = " << angle2 
-      //           << " d_distance = " << d_distance << " d_angle = " << d_angle << std::endl;
+      std::cout << "to_merge = " << to_merge 
+                << " i = " << i << " distance1 = " << distance1 << " angle1 = " << angle1 
+                << " j = " << j << " distance2 = " << distance2 << " angle2 = " << angle2 
+                << " d_distance = " << d_distance << " d_angle = " << d_angle << std::endl << std::endl << std::endl;
 
       i = j;
       if(to_merge){
@@ -188,7 +193,7 @@ void LineDetector::MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::v
 
   // merge clusters
   dst_lines.clear();
-  dst_lines.resize(cluster_ids.size());
+  dst_lines.reserve(cluster_ids.size());
   for(size_t i = 0; i < cluster_ids.size(); i++){
     float min_x = DBL_MAX;
     float min_y = DBL_MAX;
