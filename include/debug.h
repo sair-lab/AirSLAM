@@ -3,6 +3,8 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
 
+#include "line_processor.h"
+
 void SaveDetectorResult(
     cv::Mat& image, std::vector<cv::KeyPoint>& keypoints, std::string save_path){
 }
@@ -67,10 +69,8 @@ void SaveLineDetectionResult(cv::Mat& image, std::vector<Eigen::Vector4d>& lines
   std::string save_image_path = ConcatenateFolderAndFileName(line_save_dir, line_save_image_name);
 
   for(auto& line : lines){
-    // std::cout << "line = " << line << std::endl;
     cv::line(img_color, cv::Point2i((int)(line(0)+0.5), (int)(line(1)+0.5)), 
         cv::Point2i((int)(line(2)+0.5), (int)(line(3)+0.5)), cv::Scalar(0, 250, 0), 1);
   }
-  std::cout << "save_image_path = " << save_image_path << std::endl;
   cv::imwrite(save_image_path, img_color);
 }

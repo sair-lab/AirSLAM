@@ -14,15 +14,21 @@
 #include "frame.h"
 #include "read_configs.h"
 
+void FilterShortLines(std::vector<Eigen::Vector4f>& lines, float length_thr);
+void FilterShortLines(std::vector<Eigen::Vector4d>& lines, float length_thr);
+
 class LineDetector{
 public:
 	LineDetector(const LineDetectorConfig &line_detector_config);
 	void LineExtractor(cv::Mat& image, std::vector<Eigen::Vector4d>& lines);
-	void MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::vector<Eigen::Vector4f>& dst_lines);
+	void MergeLinesOld(std::vector<Eigen::Vector4f>& source_lines, std::vector<Eigen::Vector4f>& dst_lines);
+	void MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::vector<Eigen::Vector4f>& dst_lines, 
+      float angle_threshold, float distance_threshold, float endpoint_threshold, float theta_threshold);
 
 private:
   void MinXY(float& min_x, float& min_y, float& x, float& y, bool to_sort_x);
-	void MaxXY(float& max_x, float& max_y, float& x, float& y, bool to_sort_x);
+  void MaxXY(float& max_x, float& max_y, float& x, float& y, bool to_sort_x);
+  float PointLineDistance(Eigen::Vector4f line, Eigen::Vector2f point);
 
 private:
 	LineDetectorConfig _line_detector_config;
