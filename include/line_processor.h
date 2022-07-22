@@ -10,18 +10,16 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
 
-#include "mappoint.h"
-#include "frame.h"
 #include "read_configs.h"
 
 void FilterShortLines(std::vector<Eigen::Vector4f>& lines, float length_thr);
 void FilterShortLines(std::vector<Eigen::Vector4d>& lines, float length_thr);
+void AssignPointsToLines(std::vector<Eigen::Vector4d>& lines, Eigen::Matrix2Xd& points, std::vector<std::vector<size_t>>& relation);
 
 class LineDetector{
 public:
 	LineDetector(const LineDetectorConfig &line_detector_config);
 	void LineExtractor(cv::Mat& image, std::vector<Eigen::Vector4d>& lines);
-	void MergeLinesOld(std::vector<Eigen::Vector4f>& source_lines, std::vector<Eigen::Vector4f>& dst_lines);
 	void MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::vector<Eigen::Vector4f>& dst_lines, 
       float angle_threshold, float distance_threshold, float endpoint_threshold, float theta_threshold);
 
