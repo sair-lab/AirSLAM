@@ -3,6 +3,11 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
 
+#include <math.h>
+#include <float.h>
+#include <iostream>
+#include <numeric>
+
 #include "line_processor.h"
 
 void SaveDetectorResult(
@@ -72,5 +77,50 @@ void SaveLineDetectionResult(cv::Mat& image, std::vector<Eigen::Vector4d>& lines
     cv::line(img_color, cv::Point2i((int)(line(0)+0.5), (int)(line(1)+0.5)), 
         cv::Point2i((int)(line(2)+0.5), (int)(line(3)+0.5)), cv::Scalar(0, 250, 0), 1);
   }
+  cv::imwrite(save_image_path, img_color);
+}
+
+cv::Scalar GenerateColor(int id){
+  id++;
+  int red = (id * 23) % 255;
+  int green = (id * 53) % 255;
+  int blue = (id * 79) % 255;
+  return cv::Scalar(blue, green, red);
+}
+
+void SavePointLineRelation(cv::Mat& image, std::vector<Eigen::Vector4d>& lines, Eigen::Matrix2Xd& points, 
+    std::vector<std::set<int>>& relation,  std::string save_root, std::string idx){
+  cv::Mat img_color;
+  cv::cvtColor(image, img_color, cv::COLOR_GRAY2RGB);
+  std::string line_save_dir = ConcatenateFolderAndFileName(save_root, "point_line_relation");
+  MakeDir(line_save_dir); 
+  std::string line_save_image_name = "point_line_relation" + idx + ".jpg";
+  std::string save_image_path = ConcatenateFolderAndFileName(line_save_dir, line_save_image_name);
+
+  size_t point_num = points.cols();
+  std::vector<cv::Scalar> colors(point_num, cv::Scalar(0, 255, 0));
+  std::vector<int> radii(point_num, 1);
+
+  // draw lines
+  for(size_t i = 0; i < lines.size(); i++){
+    cv::Scalar color = GenerateColor(i);
+    Eigen::Vector4d line = lines[i];
+    cv::line(img_color, cv::Point2i((int)(line(0)+0.5), (int)(line(1)+0.5)), 
+        cv::Point2i((int)(line(2)+0.5), (int)(line(3)+0.5)), color, 1);
+
+    for(auto& point_id : relation[i]){
+      colors[point_id] = color;
+      radii[point_id] *= 2;
+    }
+  }
+
+  for(size_t j = 0; j < point_num; j++){
+    double x = points(0, j);
+    double y = points(1, j);
+    std::cout << "r = " << radii[j] << std::endl;
+    cv::circle(img_color, cv::Point(x, y), radii[j], colors[j], 1, cv::LINE_AA);
+  }
+
+
   cv::imwrite(save_image_path, img_color);
 }

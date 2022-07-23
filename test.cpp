@@ -48,13 +48,13 @@ int main(int argc, char **argv) {
 
     // 3. extract point feature
     Eigen::Matrix<double, 259, Eigen::Dynamic> features_left, features_right;
-    if(!_superpoint->infer(image_left_rect, features_left)){
+    if(!superpoint->infer(image_left_rect, features_left)){
       std::cout << "Failed when extracting features of left image !" << std::endl;
-      return;
+      exit(0);
     }
-    if(!_superpoint->infer(image_right_rect, features_right)){
+    if(!superpoint->infer(image_right_rect, features_right)){
       std::cout << "Failed when extracting features of right image !" << std::endl;
-      return;
+      exit(0);
     }
 
     // 4. extract line
@@ -62,13 +62,16 @@ int main(int argc, char **argv) {
     line_detector->LineExtractor(image_left_rect, lines);
     std::cout << "line num = " << lines.size() << std::endl;
 
-    
+    // 5. assign points to lines
+    std::vector<std::set<int>> points_on_lines;
+    Eigen::Matrix2Xd points = features_left.middleRows(1, 2);
+    AssignPointsToLines(lines, points, points_on_lines);
 
     auto after_infer = std::chrono::steady_clock::now();
     auto cost_time = std::chrono::duration_cast<std::chrono::milliseconds>(after_infer - before_infer).count();
     std::cout << "One Frame Processinh Time: " << cost_time << " ms." << std::endl;
 
-    SaveLineDetectionResult(image_left_rect, lines, configs.saving_dir, std::to_string(i));
+    SavePointLineRelation(image_left_rect, lines, points, points_on_lines, configs.saving_dir, std::to_string(i));
   }
   // ros::shutdown();
 

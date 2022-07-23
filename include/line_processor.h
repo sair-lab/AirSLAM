@@ -14,7 +14,7 @@
 
 void FilterShortLines(std::vector<Eigen::Vector4f>& lines, float length_thr);
 void FilterShortLines(std::vector<Eigen::Vector4d>& lines, float length_thr);
-void AssignPointsToLines(std::vector<Eigen::Vector4d>& lines, Eigen::Matrix2Xd& points, std::vector<std::vector<size_t>>& relation);
+void AssignPointsToLines(std::vector<Eigen::Vector4d>& lines, Eigen::Matrix2Xd& points, std::vector<std::set<int>>& relation);
 
 class LineDetector{
 public:

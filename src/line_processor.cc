@@ -39,25 +39,57 @@ void FilterShortLines(std::vector<Eigen::Vector4d>& lines, float length_thr){
   lines.resize(long_line_num);
 }
 
-void AssignPointsToLines(std::vector<Eigen::Vector4d>& lines, Eigen::Matrix2Xd& points, std::vector<std::vector<size_t>>& relation){
+void AssignPointsToLines(std::vector<Eigen::Vector4d>& lines, Eigen::Matrix2Xd& points, std::vector<std::set<int>>& relation){
   Eigen::Array2Xd point_array = points.array();
   Eigen::Array4Xd line_array = Eigen::Map<Eigen::Array4Xd, Eigen::Unaligned>(lines[0].data(), 4, lines.size());
 
-  Eigen::ArrayXf x = point_array.row(0);
-  Eigen::ArrayXf y = point_array.row(1); 
+  Eigen::ArrayXd x = point_array.row(0);
+  Eigen::ArrayXd y = point_array.row(1); 
 
-  Eigen::ArrayXf x1 = line_array.row(0);
-  Eigen::ArrayXf y1 = line_array.row(1);
-  Eigen::ArrayXf x2 = line_array.row(2);
-  Eigen::ArrayXf y2 = line_array.row(3);
+  Eigen::ArrayXd x1 = line_array.row(0);
+  Eigen::ArrayXd y1 = line_array.row(1);
+  Eigen::ArrayXd x2 = line_array.row(2);
+  Eigen::ArrayXd y2 = line_array.row(3);
 
-  Eigen::ArrayXf A = y2 - y1;
-  Eigen::ArrayXf B = x1 - x2;
-  Eigen::ArrayXf C = x2 * y1 - x1 * y2;
-  Eigen::ArrayXf D = (A.square() + B.square()).sqrt();
+  Eigen::ArrayXd A = y2 - y1;
+  Eigen::ArrayXd B = x1 - x2;
+  Eigen::ArrayXd C = x2 * y1 - x1 * y2;
+  Eigen::ArrayXd D = (A.square() + B.square()).sqrt();
 
-  Eigen::MatrixXXf distances = A.matrix().transpose() * x.matrix() + B.matrix().transpose() * y.matrix() + 
+  Eigen::MatrixXd distances = A.matrix().transpose() * x.matrix() + B.matrix().transpose() * y.matrix() + C.matrix().transpose();
+  auto good_distances = (distances.array() <= 3.0);
 
+  relation.clear();
+  relation.reserve(lines.size());
+  for(int i = 0, line_num = lines.size(); i < line_num; i++){
+    std::set<int> points_on_line;
+    for(int j = 0, point_num = points.cols(); j < point_num; j++){
+      if(!good_distances(i, j)) continue;
+
+      double lx1 = x1(i);
+      double ly1 = y1(i);
+      double lx2 = x2(i);
+      double ly2 = y2(i);
+      double px = x(j);
+      double py = y(j);
+      
+      double min_lx = lx1;
+      double max_lx = lx2;
+      double min_ly = ly1;
+      double max_ly = ly2;
+      if(lx1 > lx2) std::swap(min_lx, max_lx);
+      if(ly1 > ly2) std::swap(min_ly, max_ly);
+      if(px < min_lx - 3 || px > max_lx + 3 || py < min_ly - 3 || py > max_ly + 3) continue;
+
+      double side1 = std::pow((lx1 - px), 2) + std::pow((ly1 - py), 2);
+      double side2 = std::pow((lx2 - px), 2) + std::pow((ly2 - py), 2);
+      double line_side = std::pow(D(i), 2);
+      if(side1 <= 9 || side2 <= 9 || ((side1 < line_side + side2) && (side2 < line_side + side1))){
+        points_on_line.insert(j);
+      }
+    }
+    relation.push_back(points_on_line);
+  }
 }
 
 LineDetector::LineDetector(const LineDetectorConfig &line_detector_config): _line_detector_config(line_detector_config){
