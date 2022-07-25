@@ -39,6 +39,77 @@ void FilterShortLines(std::vector<Eigen::Vector4d>& lines, float length_thr){
   lines.resize(long_line_num);
 }
 
+float AngleDiff(float& angle1, float& angle2){
+  float d_angle_case1 = std::abs(angle2 - angle1);
+  float d_angle_case2 = M_PI + std::min(angle1, angle2) - std::max(angle1, angle2);
+  return std::min(d_angle_case1, d_angle_case2);
+}
+
+Eigen::Vector4f MergeTwoLines(const Eigen::Vector4f& line1, const Eigen::Vector4f& line2){
+  double xg = 0.0, yg = 0.0;
+  double delta1x = 0.0, delta1y = 0.0, delta2x = 0.0, delta2y = 0.0;
+  float ax = 0, bx = 0, cx = 0, dx = 0;
+  float ay = 0, by = 0, cy = 0, dy = 0;
+  double li = 0.0, lj = 0.0;
+  double thi = 0.0, thj = 0.0, thr = 0.0;
+  double axg = 0.0, bxg = 0.0, cxg = 0.0, dxg = 0.0, delta1xg = 0.0, delta2xg = 0.0;
+
+  ax = line1(0);
+  ay = line1(1);
+  bx = line1(2);
+  by = line1(3);
+
+  cx = line2(0);
+  cy = line2(1);
+  dx = line2(2);
+  dy = line2(3);
+
+  float dlix = (bx - ax);
+  float dliy = (by - ay);
+  float dljx = (dx - cx);
+  float dljy = (dy - cy);
+
+  li = sqrt((double) (dlix * dlix) + (double) (dliy * dliy));
+  lj = sqrt((double) (dljx * dljx) + (double) (dljy * dljy));
+
+  xg = (li * (double) (ax + bx) + lj * (double) (cx + dx))
+      / (double) (2.0 * (li + lj));
+  yg = (li * (double) (ay + by) + lj * (double) (cy + dy))
+      / (double) (2.0 * (li + lj));
+
+  if(dlix == 0.0f) thi = CV_PI / 2.0;
+  else thi = atan(dliy / dlix);
+
+  if(dljx == 0.0f) thj = CV_PI / 2.0;
+  else thj = atan(dljy / dljx);
+
+  if (fabs(thi - thj) <= CV_PI / 2.0){
+      thr = (li * thi + lj * thj) / (li + lj);
+  }
+  else{
+      double tmp = thj - CV_PI * (thj / fabs(thj));
+      thr = li * thi + lj * tmp;
+      thr /= (li + lj);
+  }
+
+  axg = ((double) ay - yg) * sin(thr) + ((double) ax - xg) * cos(thr);
+  bxg = ((double) by - yg) * sin(thr) + ((double) bx - xg) * cos(thr);
+  cxg = ((double) cy - yg) * sin(thr) + ((double) cx - xg) * cos(thr);
+  dxg = ((double) dy - yg) * sin(thr) + ((double) dx - xg) * cos(thr);
+
+  delta1xg = std::min(axg, std::min(bxg, std::min(cxg,dxg)));
+  delta2xg = std::max(axg, std::max(bxg, std::max(cxg,dxg)));
+
+  delta1x = delta1xg * std::cos(thr) + xg;
+  delta1y = delta1xg * std::sin(thr) + yg;
+  delta2x = delta2xg * std::cos(thr) + xg;
+  delta2y = delta2xg * std::sin(thr) + yg;
+
+  Eigen::Vector4f new_line;
+  new_line << (float)delta1x, (float)delta1y, (float)delta2x, (float)delta2y;
+  return new_line;
+}
+
 void AssignPointsToLines(std::vector<Eigen::Vector4d>& lines, Eigen::Matrix2Xd& points, std::vector<std::set<int>>& relation){
   Eigen::Array2Xd point_array = points.array();
   Eigen::Array4Xd line_array = Eigen::Map<Eigen::Array4Xd, Eigen::Unaligned>(lines[0].data(), 4, lines.size());
@@ -56,16 +127,22 @@ void AssignPointsToLines(std::vector<Eigen::Vector4d>& lines, Eigen::Matrix2Xd& 
   Eigen::ArrayXd C = x2 * y1 - x1 * y2;
   Eigen::ArrayXd D = (A.square() + B.square()).sqrt();
 
-  Eigen::MatrixXd distances = A.matrix().transpose() * x.matrix() + B.matrix().transpose() * y.matrix() + C.matrix().transpose();
-  auto good_distances = (distances.array() <= 3.0);
+  // Eigen::ArrayXXd line_matrix(A.rows(), 3);
+  // line_matrix << A, B, C;
+  // Eigen::ArrayXXd point_marix(x.rows(), 3);
+  // point_marix << x, y, Eigen::ArrayXd::Ones(x.rows());
+
+  // // Eigen::MatrixXd distances = A.matrix().transpose() * x.matrix() + B.matrix().transpose() * y.matrix() + C.matrix().transpose();
+  // Eigen::MatrixXd distances = line_matrix.matrix() * point_marix.matrix().transpose();
+  // auto good_distances = (distances.array() <= 3.0);
 
   relation.clear();
   relation.reserve(lines.size());
   for(int i = 0, line_num = lines.size(); i < line_num; i++){
     std::set<int> points_on_line;
     for(int j = 0, point_num = points.cols(); j < point_num; j++){
-      if(!good_distances(i, j)) continue;
-
+      // if(!good_distances(i, j)) continue;
+      // filter by x, y
       double lx1 = x1(i);
       double ly1 = y1(i);
       double lx2 = x2(i);
@@ -81,6 +158,10 @@ void AssignPointsToLines(std::vector<Eigen::Vector4d>& lines, Eigen::Matrix2Xd& 
       if(ly1 > ly2) std::swap(min_ly, max_ly);
       if(px < min_lx - 3 || px > max_lx + 3 || py < min_ly - 3 || py > max_ly + 3) continue;
 
+      // check distance
+      float pl_distance = std::abs((A(i) * px + B(i) * py + C(i))) / D(i);
+      if(pl_distance > 3) continue;
+
       double side1 = std::pow((lx1 - px), 2) + std::pow((ly1 - py), 2);
       double side2 = std::pow((lx2 - px), 2) + std::pow((ly2 - py), 2);
       double line_side = std::pow(D(i), 2);
@@ -94,8 +175,8 @@ void AssignPointsToLines(std::vector<Eigen::Vector4d>& lines, Eigen::Matrix2Xd& 
 
 LineDetector::LineDetector(const LineDetectorConfig &line_detector_config): _line_detector_config(line_detector_config){
   fld = cv::ximgproc::createFastLineDetector(line_detector_config.length_threshold, line_detector_config.distance_threshold, 
-      // line_detector_config.canny_th1, line_detector_config.canny_th2, line_detector_config.canny_aperture_size, line_detector_config.do_merge);
-      line_detector_config.canny_th1, line_detector_config.canny_th2, line_detector_config.canny_aperture_size, false);
+      line_detector_config.canny_th1, line_detector_config.canny_th2, line_detector_config.canny_aperture_size, line_detector_config.do_merge);
+      // line_detector_config.canny_th1, line_detector_config.canny_th2, line_detector_config.canny_aperture_size, false);
 }
 
 void LineDetector::LineExtractor(cv::Mat& image, std::vector<Eigen::Vector4d>& lines){
@@ -112,10 +193,16 @@ void LineDetector::LineExtractor(cv::Mat& image, std::vector<Eigen::Vector4d>& l
   if(_line_detector_config.do_merge){
     std::vector<Eigen::Vector4f> tmp_lines;
     FilterShortLines(lines, 5);
-    MergeLines(source_lines, tmp_lines, 0.05, 5, 15, 0.2);
+    MergeLines(source_lines, tmp_lines, 0.05, 5, 15);
     FilterShortLines(tmp_lines, 20);
-    MergeLines(tmp_lines, dst_lines, 0.05, 5, 40, 0.2);
-    FilterShortLines(dst_lines, 60);
+    std::cout << "second merge" << std::endl;
+    MergeLines(tmp_lines, dst_lines, 0.05, 5, 30);
+    FilterShortLines(dst_lines, 50);
+
+    // MergeLines(source_lines, tmp_lines, 0.05, 5, 15, 0.2);
+    // FilterShortLines(tmp_lines, 20);
+    // MergeLines(tmp_lines, dst_lines, 0.05, 5, 40, 0.2);
+    // FilterShortLines(dst_lines, 60);
 
     for(auto& line : dst_lines){
       lines.push_back(line.cast<double>());
@@ -129,6 +216,157 @@ void LineDetector::LineExtractor(cv::Mat& image, std::vector<Eigen::Vector4d>& l
 }
 
 void LineDetector::MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::vector<Eigen::Vector4f>& dst_lines,
+    float angle_threshold, float distance_threshold, float endpoint_threshold){
+
+  size_t source_line_num = source_lines.size();
+  Eigen::Array4Xf line_array = Eigen::Map<Eigen::Array4Xf, Eigen::Unaligned>(source_lines[0].data(), 4, source_lines.size());
+  Eigen::ArrayXf x1 = line_array.row(0);
+  Eigen::ArrayXf y1 = line_array.row(1);
+  Eigen::ArrayXf x2 = line_array.row(2);
+  Eigen::ArrayXf y2 = line_array.row(3);
+
+  Eigen::ArrayXf dx = x2 - x1;
+  Eigen::ArrayXf dy = y2 - y1;
+  Eigen::ArrayXf eigen_angles = (dy / dx).atan();
+
+  std::vector<float> angles(&eigen_angles[0], eigen_angles.data()+eigen_angles.cols()*eigen_angles.rows());
+  std::vector<size_t> indices(angles.size());                                                        
+  std::iota(indices.begin(), indices.end(), 0);                                                      
+  std::sort(indices.begin(), indices.end(), [&angles](size_t i1, size_t i2) { return angles[i1] < angles[i2]; });
+
+  // search clusters
+  float angle_thr = angle_threshold;
+  float distance_thr = distance_threshold;
+  float ep_thr = endpoint_threshold * endpoint_threshold;
+  float quater_PI = M_PI / 4.0;
+
+  std::vector<std::vector<size_t>> cluster_ids;
+  std::vector<int> cluster_codes(source_line_num, -1);
+  std::vector<float> delta_angles(source_line_num, FLT_MAX);
+  std::vector<bool> sort_by_x;
+  for(size_t i = 0; i < source_line_num; i++){
+    size_t idx1 = indices[i];
+    float x11 = source_lines[idx1](0);
+    float y11 = source_lines[idx1](1);
+    float x12 = source_lines[idx1](2);
+    float y12 = source_lines[idx1](3);
+    float angle1 = angles[idx1];
+    bool to_sort_x = (std::abs(angle1) < quater_PI);
+    sort_by_x.push_back(to_sort_x);
+    if((to_sort_x && (x12 < x11)) || ((!to_sort_x) && y12 < y11)){
+      std::swap(x11, x12);
+      std::swap(y11, y12);
+    }
+
+    int cluster_code = cluster_codes[i];
+    if(cluster_code < 0){
+      cluster_codes[i] = (int)cluster_ids.size();
+      std::vector<size_t> cluster;
+      cluster.push_back(idx1);
+      cluster_ids.push_back(cluster);
+      cluster_code = cluster_codes[i];
+    }
+
+    for(size_t j = i +1; j < source_line_num; j++){
+      size_t idx2 = indices[j];
+      float x21 = source_lines[idx2](0);
+      float y21 = source_lines[idx2](1);
+      float x22 = source_lines[idx2](2);
+      float y22 = source_lines[idx2](3);
+      if((to_sort_x && (x22 < x21)) || ((!to_sort_x) && y22 < y21)){
+        std::swap(x21, x22);
+        std::swap(y21, y22);
+      }
+
+      // check delta angle
+      float angle2 = angles[idx2];
+      float d_angle = AngleDiff(angle1, angle2);
+      std::cout << "i = " << i << " j = " << j << ", merge" << std::endl;
+      std::cout << "idxi = " << idx1 << " idxj = " << idx2 << std::endl; 
+      std::cout << "linei  = " << source_lines[idx1].transpose() << std::endl;
+      std::cout << "linej  = " << source_lines[idx2].transpose() << std::endl;
+      std::cout << "anglei = " << angle1 << " anglej = " << angle2 << " d_angle = " << d_angle << std::endl;
+      if(d_angle > angle_thr){
+        if(std::abs(angle1) < (M_PI_2 - angle_threshold)){
+          break;
+        }else{
+          continue;
+        }
+      }
+
+     // check cluster code
+      std::function<void(size_t&)> UpdateDeltaData = [&](size_t& update_id){
+        if(d_angle < delta_angles[update_id]){
+          delta_angles[update_id] = d_angle;
+        }
+      };
+      if(cluster_codes[j] == cluster_code){
+        UpdateDeltaData(i);
+        UpdateDeltaData(j);
+        continue;
+      }
+
+      float d1 = PointLineDistance(source_lines[idx1], source_lines[idx2].head(2));
+      float d2 = PointLineDistance(source_lines[idx1], source_lines[idx2].tail(2));
+      float d3 = PointLineDistance(source_lines[idx2], source_lines[idx1].head(2));
+      float d4 = PointLineDistance(source_lines[idx2], source_lines[idx1].tail(2));
+      std::cout << "d1 = " << d1 << " d2 = " << d2 << " d3 = " << d3 << " d4 = " << d4 << std::endl;
+
+      // check distance
+      if(PointLineDistance(source_lines[idx1], source_lines[idx2].head(2)) > distance_thr) continue;
+      if(PointLineDistance(source_lines[idx1], source_lines[idx2].tail(2)) > distance_thr) continue;
+      if(PointLineDistance(source_lines[idx2], source_lines[idx1].head(2)) > distance_thr) continue;
+      if(PointLineDistance(source_lines[idx2], source_lines[idx1].tail(2)) > distance_thr) continue;
+
+      // check endpoints distance
+      float cx12, cy12, cx21, cy21;
+      if((to_sort_x && x12 > x22) || (!to_sort_x && y12 > y22)){
+        cx12 = x22;
+        cy12 = y22;
+        cx21 = x11;
+        cy21 = y11;
+      }else{
+        cx12 = x12;
+        cy12 = y12;
+        cx21 = x21;
+        cy21 = y21;
+      }
+      bool to_merge = ((to_sort_x && cx12 >= cx21) || (!to_sort_x && cy12 >= cy21));
+      if(!to_merge){
+        float d_ep = (cx21 - cx12) * (cx21 - cx12) + (cy21 - cy12) * (cy21 - cy12);
+        to_merge = (d_ep < ep_thr);
+      }
+
+
+      if(to_merge){
+        UpdateDeltaData(i);
+        UpdateDeltaData(j);
+        cluster_ids[cluster_code].push_back(idx2);
+        cluster_codes[j] = cluster_code;
+      }
+    }
+  }
+
+  // merge clusters
+  dst_lines.clear();
+  dst_lines.reserve(cluster_ids.size());
+  for(auto& cluster : cluster_ids){
+    size_t idx0 = cluster[0];
+    std::cout << "------------ new cluster --------" << std::endl;
+    Eigen::Vector4f new_line = source_lines[idx0];
+    std::cout << "idx = " << idx0 << " line = " << new_line.transpose() << std::endl;
+    for(size_t i = 1; i < cluster.size(); i++){
+      new_line = MergeTwoLines(new_line, source_lines[cluster[i]]);
+      std::cout << "idx = " << cluster[i] << " line = " << source_lines[cluster[i]].transpose() << std::endl;
+    }
+    std::cout << "new line  = " << new_line.transpose() << std::endl;
+    std::cout << "------------ new cluster end --------" << std::endl;
+    dst_lines.push_back(new_line);
+  }
+}
+
+
+void LineDetector::MergeLinesOld(std::vector<Eigen::Vector4f>& source_lines, std::vector<Eigen::Vector4f>& dst_lines,
     float angle_threshold, float distance_threshold, float endpoint_threshold, float theta_threshold){
 
   size_t source_line_num = source_lines.size();

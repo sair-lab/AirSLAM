@@ -14,13 +14,16 @@
 
 void FilterShortLines(std::vector<Eigen::Vector4f>& lines, float length_thr);
 void FilterShortLines(std::vector<Eigen::Vector4d>& lines, float length_thr);
+Eigen::Vector4f MergeTwoLines(const Eigen::Vector4f& line1, const Eigen::Vector4f& line2);
 void AssignPointsToLines(std::vector<Eigen::Vector4d>& lines, Eigen::Matrix2Xd& points, std::vector<std::set<int>>& relation);
 
 class LineDetector{
 public:
 	LineDetector(const LineDetectorConfig &line_detector_config);
 	void LineExtractor(cv::Mat& image, std::vector<Eigen::Vector4d>& lines);
-	void MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::vector<Eigen::Vector4f>& dst_lines, 
+  void MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::vector<Eigen::Vector4f>& dst_lines,
+      float angle_threshold, float distance_threshold, float endpoint_threshold);
+	void MergeLinesOld(std::vector<Eigen::Vector4f>& source_lines, std::vector<Eigen::Vector4f>& dst_lines, 
       float angle_threshold, float distance_threshold, float endpoint_threshold, float theta_threshold);
 
 private:

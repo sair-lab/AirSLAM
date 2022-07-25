@@ -105,6 +105,7 @@ void SavePointLineRelation(cv::Mat& image, std::vector<Eigen::Vector4d>& lines, 
   for(size_t i = 0; i < lines.size(); i++){
     cv::Scalar color = GenerateColor(i);
     Eigen::Vector4d line = lines[i];
+    std::cout << "line = " << line.transpose() << std::endl;
     cv::line(img_color, cv::Point2i((int)(line(0)+0.5), (int)(line(1)+0.5)), 
         cv::Point2i((int)(line(2)+0.5), (int)(line(3)+0.5)), color, 1);
 
@@ -117,10 +118,11 @@ void SavePointLineRelation(cv::Mat& image, std::vector<Eigen::Vector4d>& lines, 
   for(size_t j = 0; j < point_num; j++){
     double x = points(0, j);
     double y = points(1, j);
-    std::cout << "r = " << radii[j] << std::endl;
     cv::circle(img_color, cv::Point(x, y), radii[j], colors[j], 1, cv::LINE_AA);
   }
 
 
   cv::imwrite(save_image_path, img_color);
 }
+
+
