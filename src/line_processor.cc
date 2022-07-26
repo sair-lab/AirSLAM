@@ -192,12 +192,14 @@ void LineDetector::LineExtractor(cv::Mat& image, std::vector<Eigen::Vector4d>& l
 
   if(_line_detector_config.do_merge){
     std::vector<Eigen::Vector4f> tmp_lines;
-    FilterShortLines(lines, 5);
+    FilterShortLines(source_lines, 5);
     MergeLines(source_lines, tmp_lines, 0.05, 5, 15);
     FilterShortLines(tmp_lines, 20);
-    std::cout << "second merge" << std::endl;
+    // std::cout << "second merge" << std::endl;
     MergeLines(tmp_lines, dst_lines, 0.05, 5, 30);
     FilterShortLines(dst_lines, 50);
+
+    dst_lines = tmp_lines;
 
     // MergeLines(source_lines, tmp_lines, 0.05, 5, 15, 0.2);
     // FilterShortLines(tmp_lines, 20);
@@ -228,6 +230,7 @@ void LineDetector::MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::v
   Eigen::ArrayXf dx = x2 - x1;
   Eigen::ArrayXf dy = y2 - y1;
   Eigen::ArrayXf eigen_angles = (dy / dx).atan();
+  Eigen::ArrayXf length = (dx * dx + dy * dy).sqrt();
 
   std::vector<float> angles(&eigen_angles[0], eigen_angles.data()+eigen_angles.cols()*eigen_angles.rows());
   std::vector<size_t> indices(angles.size());                                                        
@@ -240,9 +243,8 @@ void LineDetector::MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::v
   float ep_thr = endpoint_threshold * endpoint_threshold;
   float quater_PI = M_PI / 4.0;
 
-  std::vector<std::vector<size_t>> cluster_ids;
-  std::vector<int> cluster_codes(source_line_num, -1);
-  std::vector<float> delta_angles(source_line_num, FLT_MAX);
+  std::vector<std::vector<size_t>> neighbors;
+  neighbors.resize(source_line_num);
   std::vector<bool> sort_by_x;
   for(size_t i = 0; i < source_line_num; i++){
     size_t idx1 = indices[i];
@@ -256,15 +258,6 @@ void LineDetector::MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::v
     if((to_sort_x && (x12 < x11)) || ((!to_sort_x) && y12 < y11)){
       std::swap(x11, x12);
       std::swap(y11, y12);
-    }
-
-    int cluster_code = cluster_codes[i];
-    if(cluster_code < 0){
-      cluster_codes[i] = (int)cluster_ids.size();
-      std::vector<size_t> cluster;
-      cluster.push_back(idx1);
-      cluster_ids.push_back(cluster);
-      cluster_code = cluster_codes[i];
     }
 
     for(size_t j = i +1; j < source_line_num; j++){
@@ -294,29 +287,13 @@ void LineDetector::MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::v
         }
       }
 
-     // check cluster code
-      std::function<void(size_t&)> UpdateDeltaData = [&](size_t& update_id){
-        if(d_angle < delta_angles[update_id]){
-          delta_angles[update_id] = d_angle;
-        }
-      };
-      if(cluster_codes[j] == cluster_code){
-        UpdateDeltaData(i);
-        UpdateDeltaData(j);
-        continue;
-      }
-
-      float d1 = PointLineDistance(source_lines[idx1], source_lines[idx2].head(2));
-      float d2 = PointLineDistance(source_lines[idx1], source_lines[idx2].tail(2));
-      float d3 = PointLineDistance(source_lines[idx2], source_lines[idx1].head(2));
-      float d4 = PointLineDistance(source_lines[idx2], source_lines[idx1].tail(2));
-      std::cout << "d1 = " << d1 << " d2 = " << d2 << " d3 = " << d3 << " d4 = " << d4 << std::endl;
-
       // check distance
-      if(PointLineDistance(source_lines[idx1], source_lines[idx2].head(2)) > distance_thr) continue;
-      if(PointLineDistance(source_lines[idx1], source_lines[idx2].tail(2)) > distance_thr) continue;
-      if(PointLineDistance(source_lines[idx2], source_lines[idx1].head(2)) > distance_thr) continue;
-      if(PointLineDistance(source_lines[idx2], source_lines[idx1].tail(2)) > distance_thr) continue;
+      Eigen::Vector2f mid1 = 0.5 * (source_lines[idx1].head(2) + source_lines[idx1].tail(2));
+      Eigen::Vector2f mid2 = 0.5 * (source_lines[idx2].head(2) + source_lines[idx2].tail(2));
+      float mid1_to_line2 = PointLineDistance(source_lines[idx2], mid1);
+      float mid2_to_line1 = PointLineDistance(source_lines[idx1], mid2);
+      std::cout << "mid1_to_line2 = " << mid1_to_line2 << " mid2_to_line1 = " << mid2_to_line1 << std::endl;
+      if(mid1_to_line2 > distance_thr && mid2_to_line1 > distance_thr) continue;
 
       // check endpoints distance
       float cx12, cy12, cx21, cy21;
@@ -337,20 +314,97 @@ void LineDetector::MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::v
         to_merge = (d_ep < ep_thr);
       }
 
-
+      // check cluster code
       if(to_merge){
-        UpdateDeltaData(i);
-        UpdateDeltaData(j);
-        cluster_ids[cluster_code].push_back(idx2);
-        cluster_codes[j] = cluster_code;
+        neighbors[idx1].push_back(idx2);
+        neighbors[idx2].push_back(idx1);
       }
     }
   }
 
+  // clusters
+  std::vector<int> cluster_codes(source_line_num, -1);
+  std::vector<std::vector<size_t>> cluster_ids;
+  for(size_t i = 0; i < source_line_num; i++){
+    if(cluster_codes[i] >= 0) continue;
+
+    size_t new_code = cluster_ids.size();
+    cluster_codes[i] = new_code;
+    std::vector<size_t> to_check_ids = neighbors[i];
+    std::vector<size_t> cluster;
+    cluster.push_back(i);
+    while(to_check_ids.size() > 0){
+      std::vector<size_t> tmp;
+      for(auto& j : to_check_ids){
+        if(cluster_codes[j] < 0){
+          cluster_codes[j] = new_code;
+          cluster.push_back(j);
+        }
+
+        std::vector<size_t> j_neighbor = neighbors[j];
+        for(auto& k : j_neighbor){
+          if(cluster_codes[k] < 0){
+            tmp.push_back(k);
+          }
+        }
+      }
+      to_check_ids = tmp;
+    }
+    cluster_ids.push_back(cluster);
+  }
+
+  // search sub-cluster
+  std::vector<std::vector<size_t>> new_cluster_ids;
+  for(auto& cluster : cluster_ids){
+    size_t cluster_size = cluster.size();
+    if(cluster_size <= 2){
+      new_cluster_ids.push_back(cluster);
+      continue;
+    }
+
+    std::sort(cluster.begin(), cluster.end(), [&length](size_t i1, size_t i2) { return length(i1) > length(i2); });
+    std::unordered_map<size_t, size_t> line_location;
+    for(size_t i = 0; i < cluster_size; i++){
+      line_location[cluster[i]] = i;
+      std::cout << "i = " << i << " cluster[i] = " << cluster[i] << " line_location[cluster[i]] = " << line_location[cluster[i]] << std::endl;
+    }
+
+    std::cout << "cluster_size  ==================================== " << cluster_size << std::endl;
+    std::vector<bool> clustered(cluster_size, false);
+    for(size_t j = 0; j < cluster_size; j++){
+      if(clustered[j]) continue;
+
+      size_t line_idx = cluster[j];
+      std::vector<size_t> sub_cluster;
+      sub_cluster.push_back(line_idx);
+      std::vector<size_t> line_neighbors = neighbors[line_idx];
+      for(size_t k : line_neighbors){
+        std::cout << "k = " << k << " line_location[k] = " << line_location[k] << std::endl;
+        clustered[line_location[k]] = true;
+        sub_cluster.push_back(k);
+      }
+      std::cout << "sub_cluster.size = " << sub_cluster.size() << std::endl;
+      new_cluster_ids.push_back(sub_cluster);
+    }
+  }
+
+  std::cout << "cluster_ids.size = " << cluster_ids.size() << " new_cluster_ids.size = " << new_cluster_ids.size() << std::endl;
+
+    // if(cluster_size == 1){
+    //   dst_lines.push_back(source_lines[cluster[0]]);
+    //   continue;
+    // }
+
+    // if(cluster_size == 2){
+    //   dst_lines.push_back(MergeTwoLines(source_lines[cluster[0]], source_lines[cluster[1]]));
+    //   continue;
+    // }
+
+
   // merge clusters
   dst_lines.clear();
-  dst_lines.reserve(cluster_ids.size());
-  for(auto& cluster : cluster_ids){
+  dst_lines.reserve(new_cluster_ids.size());
+  for(auto& cluster : new_cluster_ids){
     size_t idx0 = cluster[0];
     std::cout << "------------ new cluster --------" << std::endl;
     Eigen::Vector4f new_line = source_lines[idx0];
