@@ -1,6 +1,8 @@
 #include "frame.h"
 #include <assert.h>
 
+#include "line_processor.h"
+
 Frame::Frame(){
 }
 
@@ -72,7 +74,8 @@ bool Frame::FindGrid(double& x, double& y, int& grid_x, int& grid_y){
 }
 
 void Frame::AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
-    Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<cv::DMatch>& stereo_matches){
+    Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<Eigen::Vector4d>& lines_left, 
+    std::vector<Eigen::Vector4d>& lines_right, std::vector<cv::DMatch>& stereo_matches){
   _features = features_left;
 
   size_t features_left_size = _features.cols();
@@ -106,6 +109,14 @@ void Frame::AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_lef
   SetTrackIds(track_ids);
   std::vector<MappointPtr> mappoints(features_left_size, nullptr);
   _mappoints = mappoints;
+
+  _lines = lines_left;
+  std::vector<std::set<int>> points_on_line_left, points_on_line_right;
+  std::vector<int> line_matches;
+  AssignPointsToLines(lines_left, features_left, points_on_line_left);
+  AssignPointsToLines(lines_right, features_right, points_on_line_right);
+  MatchLines(points_on_line_left, points_on_line_right, stereo_matches, features_left.cols(), features_right.cols(), line_matches);
+  line_left_to_right_match = line_matches;
 }
 
 Eigen::Matrix<double, 259, Eigen::Dynamic>& Frame::GetAllFeatures(){

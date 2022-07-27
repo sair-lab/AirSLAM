@@ -29,7 +29,8 @@ public:
 
   bool FindGrid(double& x, double& y, int& grid_x, int& grid_y);
   void AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
-      Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<cv::DMatch>& stereo_matches);
+      Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<Eigen::Vector4d>& lines_left, 
+      std::vector<Eigen::Vector4d>& lines_right, std::vector<cv::DMatch>& stereo_matches);
   Eigen::Matrix<double, 259, Eigen::Dynamic>& GetAllFeatures();
 
   size_t FeatureNum();
@@ -81,6 +82,9 @@ public:
   int local_map_optimization_frame_id;
   int local_map_optimization_fix_frame_id;
 
+  // debug
+  std::vector<int> line_left_to_right_match;
+
 private:
   int _frame_id;
   double _timestamp;
@@ -96,6 +100,12 @@ private:
   std::vector<double> _depth;
   std::vector<int> _track_ids;
   std::vector<MappointPtr> _mappoints;
+
+  std::vector<Eigen::Vector4d> _lines;
+  std::vector<Eigen::Vector4d> _lines_right;
+  std::vector<bool> _lines_right_valid;
+  std::vector<int> _line_track_ids;
+
   CameraPtr _camera;
 
   // covisibility graph

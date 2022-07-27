@@ -44,6 +44,7 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   // extract features
   // START_TIMER;;
   Eigen::Matrix<double, 259, Eigen::Dynamic> features_left, features_right;
+  std::vector<Eigen::Vector4d> lines_left, lines_right;
   if(!_superpoint->infer(image_left_rect, features_left)){
     std::cout << "Failed when extracting features of left image !" << std::endl;
     return;
@@ -52,6 +53,8 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     std::cout << "Failed when extracting features of right image !" << std::endl;
     return;
   }
+  _line_detector->LineExtractor(image_left_rect, lines_left);
+  _line_detector->LineExtractor(image_right_rect, lines_right);
   // STOP_TIMER("Superpoint");
   // START_TIMER;;
 
@@ -71,7 +74,7 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
 
   // construct frame
   FramePtr frame = std::shared_ptr<Frame>(new Frame(frame_id, false, _camera, timestamp));
-  frame->AddFeatures(features_left, features_right, stereo_matches);
+  frame->AddFeatures(features_left, features_right, lines_left, lines_right, stereo_matches);
   std::cout << "Detected feature point number = " << features_left.cols() << std::endl;
   // STOP_TIMER("Construct frame");
   // START_TIMER;;
