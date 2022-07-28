@@ -79,6 +79,17 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   // STOP_TIMER("Construct frame");
   // START_TIMER;;
 
+
+  // // // for debug
+  // std::cout << "SaveStereoLineMatch" << std::endl;
+  // SaveStereoLineMatch(image_left_rect, image_right_rect, features_left, features_right, 
+  //     lines_left, lines_right, frame->relation_left, frame->relation_right, 
+  //     frame->line_left_to_right_match, _configs.saving_dir, std::to_string(frame_id));
+  // // //////////////////////////
+  // // STOP_TIMER("SaveStereoMatchResult");
+  // // START_TIMER;;
+
+
   // message
   std::vector<cv::KeyPoint>& keypoints = frame->GetAllKeypoints();
   FeatureMessgaePtr feature_message = std::shared_ptr<FeatureMessgae>(new FeatureMessgae);

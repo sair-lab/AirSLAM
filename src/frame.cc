@@ -116,7 +116,10 @@ void Frame::AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_lef
   AssignPointsToLines(lines_left, features_left, points_on_line_left);
   AssignPointsToLines(lines_right, features_right, points_on_line_right);
   MatchLines(points_on_line_left, points_on_line_right, stereo_matches, features_left.cols(), features_right.cols(), line_matches);
+  
   line_left_to_right_match = line_matches;
+  relation_left = points_on_line_left;
+  relation_right = points_on_line_right;
 }
 
 Eigen::Matrix<double, 259, Eigen::Dynamic>& Frame::GetAllFeatures(){

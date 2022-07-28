@@ -207,8 +207,8 @@ void MatchLines(const std::vector<std::set<int>>& points_on_line0, const std::ve
   size_t line_num1 = points_on_line1.size();
   Eigen::MatrixXi matching_matrix = Eigen::MatrixXi::Zero(line_num0, line_num1);
   for(auto& point_match : point_matches){
-    int idx0 = match.queryIdx;
-    int idx1 = match.trainIdx;
+    int idx0 = point_match.queryIdx;
+    int idx1 = point_match.trainIdx;
 
     for(auto& l0 : assigned_lines0[idx0]){
       for(auto& l1 : assigned_lines1[idx1]){

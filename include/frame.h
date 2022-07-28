@@ -84,6 +84,8 @@ public:
 
   // debug
   std::vector<int> line_left_to_right_match;
+  std::vector<std::set<int>> relation_left;
+  std::vector<std::set<int>> relation_right;
 
 private:
   int _frame_id;

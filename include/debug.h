@@ -136,13 +136,16 @@ cv::Mat DrawLinePointRelation(cv::Mat& image, Eigen::Matrix<double, 259, Eigen::
   std::vector<int> radii(point_num, 2);
 
   // draw lines
+  std::cout << points_on_line.size() << std::endl;
   for(size_t i = 0; i < lines.size(); i++){
+    std::cout << "i = " << i << "  line_id = " << line_ids[i] << std::endl;
     cv::Scalar color = GenerateColor(line_ids[i]);
     Eigen::Vector4d line = lines[i];
     cv::line(img_color, cv::Point2i((int)(line(0)+0.5), (int)(line(1)+0.5)), 
         cv::Point2i((int)(line(2)+0.5), (int)(line(3)+0.5)), color, 2);
 
-    for(auto& point_id : relation[i]){
+    std::cout << points_on_line[i].size() << std::endl;
+    for(auto& point_id : points_on_line[i]){
       colors[point_id] = color;
       radii[point_id] *= 2;
     }
@@ -168,8 +171,9 @@ void SaveStereoLineMatch(cv::Mat& image_left, cv::Mat& image_right,
   std::vector<int> line_ids_left(lines_left.size());
   std::vector<int> line_ids_right(lines_right.size(), -1);
   size_t line_id = 1;
+  std::cout << "lines_left.size() = " << lines_left.size() << std::endl;
   for(size_t i = 0; i < lines_left.size(); i++){
-    line_ids_left.push_back(line_id);
+    line_ids_left[i] = line_id;
     int matched_right = right_to_left_line_matches[i];
     if(matched_right > 0){
       line_ids_right[matched_right] = line_id;
@@ -183,17 +187,25 @@ void SaveStereoLineMatch(cv::Mat& image_left, cv::Mat& image_right,
     }
   }
 
+  std::cout << "Draw Left Line Point Relation" << std::endl;
   cv::Mat img_left_color = DrawLinePointRelation(image_left, feature_left, lines_left, points_on_line_left, line_ids_left);
+  std::cout << "Draw Right Line Point Relation" << std::endl;
   cv::Mat img_right_color = DrawLinePointRelation(image_right, feature_right, lines_right, points_on_line_right, line_ids_right);
 
   // save image
   std::string stereo_line_matching_save_dir = ConcatenateFolderAndFileName(save_root, "stereo_line_matching");
-  MakeDir(line_save_dir); 
+  MakeDir(stereo_line_matching_save_dir); 
   std::string line_save_image_name = "stereo_line_matching_" + idx + ".jpg";
   std::string save_image_path = ConcatenateFolderAndFileName(stereo_line_matching_save_dir, line_save_image_name);
+
+  std::cout << "save_image_path = " << save_image_path << std::endl;
 
   int save_rows = img_left_color.rows;
   int save_cols = img_left_color.cols + 10 + img_right_color.cols;
   cv::Mat save_image = cv::Mat::zeros(save_rows, save_cols, img_left_color.type());
-
+  cv::Rect rect1(0, 0, img_left_color.cols, img_left_color.rows);
+  cv::Rect rect2( img_left_color.cols + 10, 0, img_right_color.cols, img_left_color.rows);
+  img_left_color.copyTo(save_image(rect1));
+  img_right_color.copyTo(save_image(rect2));
+  cv::imwrite(save_image_path, save_image);
 }
