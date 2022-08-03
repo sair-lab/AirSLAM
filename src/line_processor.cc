@@ -5,6 +5,7 @@
 #include <iostream>
 #include <numeric>
 
+#include "camera.h"
 #include "timer.h"
 
 INITIALIZE_TIMER;
@@ -236,6 +237,58 @@ void MatchLines(const std::vector<std::set<int>>& points_on_line0, const std::ve
 
     line_matches[col_max_location] = j;
   }
+}
+
+void SortPointsOnLine(std::vector<Eigen::Vector2d>& points, std::vector<size_t>& order, bool sort_by_x = true){
+  size_t num_points = points.size();
+  if(num_points < 1) return;
+
+  order.clear();
+  order.resize(num_points);
+  std::iota(order.begin(), order.end(), 0);       
+  if(sort_by_x){
+    std::sort(order.begin(), order.end(), [&points](size_t i1, size_t i2) { return points[i1](0) < points[i2](0); });
+  }else{
+    std::sort(order.begin(), order.end(), [&points](size_t i1, size_t i2) { return points[i1](1) < points[i2](1); });
+  }                                
+}
+
+bool TriangleByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& line_right, 
+    const CameraPtr& camera, Vector6d& line_3d){
+  double x11 = line_left(0);
+  double y11 = line_left(1);
+  double x12 = line_left(2);
+  double y12 = line_left(3);
+
+  double x21 = line_right(0);
+  double y21 = line_right(1);
+  double x22 = line_right(2);
+  double y22 = line_right(3);
+
+  double dx_left = x12 - x11;
+  if(std::abs(dx_left) <= 1e-5) return false;
+  double dy_left = y12 - y11;
+  double angle_left = std::atan(dy_left / dx_left);
+  if(std::abs(angle_left) < 0.087) return false;
+
+  double k_inv = dx_left / dy_left;
+  double x21_left = x11 + k_inv * (y21 - y11);
+  double x22_left = x11 + k_inv * (y22 - y11);
+
+  std::vector<Eigen::Vector2d> points;
+  points.emplace_back(line_left.head(2));
+  points.emplace_back(line_left.tail(2));
+  points.emplace_back(x21_left, y21);
+  points.emplace_back(x22_left, y22);
+  std::vector<size_t> order;
+  SortPointsOnLine(points, order);
+
+  Eigen::Vector3d point_3d1, point_3d2;
+  camera->BackProjectStereo(points[order[0]], point_3d1);
+  camera->BackProjectStereo(points[order[(order.size() - 1)]], point_3d1);
+
+  line_3d.topRows(3) = point_3d1;
+  line_3d.bottomRows(3) = point_3d2;
 }
 
 LineDetector::LineDetector(const LineDetectorConfig &line_detector_config): _line_detector_config(line_detector_config){
