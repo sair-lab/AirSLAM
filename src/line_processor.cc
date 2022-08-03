@@ -291,6 +291,61 @@ bool TriangleByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& l
   line_3d.bottomRows(3) = point_3d2;
 }
 
+bool CompoutePlaneFromPoints(const Eigen::Vector3d& point1, const Eigen::Vector3d& point2, 
+    const Eigen::Vector3d& point3, Eigen::Vector4d& plane){
+  Eigen::Vector3d line12 = point2 - point1;
+  Eigen::Vector3d line13 = point3 - point1;
+
+  Eigen::Vector3d n = line12.cross(line13);
+  plane.head(3) = n.normalized();
+  plane(3) = - n.transpose() * point1;
+  return true;
+}
+
+bool ComputeLineFramePlanes(const Eigen::Vector4d& plane1, const Eigen::Vector4d& plane2, Line3DPtr line3d){
+  Eigen::Vector3d n1 = plane1.head(3);
+  Eigen::Vector3d n2 = plane2.head(3);
+
+  double cos_theta = n1.transpose() * n2 / (n1.norm() * n2.norm())
+  // cos10 = cos170 = 0.9848
+  if(std::abs(cos_theta) > 0.9848) return false;
+
+  Eigen::Vector3d d = n1.cross(n2);
+  Eigen::Vector3d w = plane2(3) * n1 - plane1(3) * n2;
+  line3d->setD(d);
+  line3d->setW(w);
+  line3d->normalize();
+  return true;
+}
+
+bool TriangleByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d& pose1, 
+    const Eigen::Vector4d& line_2d2, const Eigen::Matrix4d& pose2, Line3DPtr line3d){
+  Eigen::Matrix3d Rw1 = pose1.block<3, 3>(0, 0);
+  Eigen::Vector3d tw1 = pose1.block<3, 1>(0, 3);
+  Eigen::Matrix3d Rw2 = pose2.block<3, 3>(0, 0);
+  Eigen::Vector3d tw2 = pose2.block<3, 1>(0, 3);
+
+  Eigen::Matrix3d R12 = Rw1.transpose() * Rw2;
+  Eigen::Vector3d t12 = Rw1.transpose() * (tw2 - tw1);
+
+  Eigen::Vector4d plane1, plane2;
+  Eigen::Vector3d point11, point12, point13;
+  point11 << line_2d1.head(2), 1.0;
+  point12 << line_2d1.tail(2), 1.0;
+  point13 << 0.0, 0.0, 0.0;
+  if(!ComputeLineFramePlanes(point11, point12, point13, plane1)) return false;
+
+  Eigen::Vector3d point21, point22;
+  point21 << line_2d1.head(2), 1.0;
+  point22 << line_2d1.tail(2), 1.0;
+
+  point21 = R12 * point21 + t12;
+  point22 = R12 * point22 + t12;
+  if(!ComputeLineFramePlanes(point21, point22, t12, plane2)) return false;
+
+ return ComputeLineFramePlanes(plane1, plane2, line3d);
+}
+
 LineDetector::LineDetector(const LineDetectorConfig &line_detector_config): _line_detector_config(line_detector_config){
   fld = cv::ximgproc::createFastLineDetector(line_detector_config.length_threshold, line_detector_config.distance_threshold, 
       line_detector_config.canny_th1, line_detector_config.canny_th2, line_detector_config.canny_aperture_size, line_detector_config.do_merge);

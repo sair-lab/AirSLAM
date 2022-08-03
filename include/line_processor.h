@@ -10,6 +10,9 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
 
+#include <g2o/types/slam3d/types_slam3d.h>
+#include <g2o/types/slam3d_addons/types_slam3d_addons.h>
+
 #include "utils.h"
 #include "read_configs.h"
 
@@ -26,7 +29,14 @@ void MatchLines(const std::vector<std::set<int>>& points_on_line0, const std::ve
 void SortPointsOnLine(std::vector<Eigen::Vector2d>& points, std::vector<size_t>& order, bool sort_by_x = true);
 bool TriangleByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& line_right, 
     const CameraPtr& camera, Vector6d& line_3d);
-bool TriangleByTwoFrames();
+
+bool CompoutePlaneFromPoints(const Eigen::Vector3d& point1, const Eigen::Vector3d& point2, 
+    const Eigen::Vector3d& point3, Eigen::Vector4d& plane);
+bool ComputeLineFramePlanes(const Eigen::Vector4d& plane1, const Eigen::Vector4d& plane2, Line3DPtr line3d);
+
+// line_2d1, line_2d2 : line in normalized plane of camera
+bool TriangleByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d& pose1, 
+    const Eigen::Vector4d& line_2d2, const Eigen::Matrix4d& pose2, Line3DPtr line3d);
 
 class LineDetector{
 public:
