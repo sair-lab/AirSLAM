@@ -69,6 +69,7 @@ public:
   size_t LineNum();
   void SetLineTrackId(size_t idx, int line_track_id);
   void InsertMapline(size_t idx, MaplinePtr mapline);
+  const std::vector<std::map<int, double>>& GetPointsOnLines();
   bool TriangleStereoLine(size_t idx, Vector6d& endpoints);
 
   // covisibility graph

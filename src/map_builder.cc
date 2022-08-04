@@ -321,14 +321,22 @@ bool MapBuilder::Init(FramePtr frame){
 }
 
 int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMatch>& matches){
+  // START_TIMER;
+  // point tracking
   Eigen::Matrix<double, 259, Eigen::Dynamic>& features0 = frame0->GetAllFeatures();
   Eigen::Matrix<double, 259, Eigen::Dynamic>& features1 = frame1->GetAllFeatures();
-  // START_TIMER;
   int num_match = _point_matching->MatchingPoints(features0, features1, matches);
   if(num_match < _configs.keyframe_config.min_num_match){
     return num_match;
   }
   // STOP_TIMER("MatchingPoints");
+
+  // line tracking
+  std::vector<std::map<int, double>> points_on_lines0 = frame0->GetPointsOnLines();
+  std::vector<std::map<int, double>> points_on_lines1 = frame1->GetPointsOnLines();
+  std::vector<int> line_matches;
+  MatchLines(points_on_line0, points_on_line1, matches, features0.cols(), features1.cols(), line_matches);
+
   // START_TIMER;
   std::vector<int> inliers(frame1->FeatureNum(), -1);
   std::vector<MappointPtr> matched_mappoints(features1.cols(), nullptr);

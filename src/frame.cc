@@ -298,6 +298,10 @@ void Frame::InsertMapline(size_t idx, MaplinePtr mapline){
   }
 }
 
+const std::vector<std::map<int, double>>& GetPointsOnLines(){
+  return _points_on_lines;
+}
+
 bool Frame::TriangleStereoLine(size_t idx, Vector6d& endpoints){
   if(idx >= _lines.size() || !_lines_right_valid[idx]) return false;
   return TriangleByStereo(_lines[idx], _lines_right[idx], _camera, endpoints);
