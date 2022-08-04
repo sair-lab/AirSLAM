@@ -26,6 +26,7 @@
 #include <g2o/types/slam3d_addons/types_slam3d_addons.h>
 
 typedef std::shared_ptr<g2o::Line3D> Line3DPtr;
+typedef std::shared_ptr<const g2o::Line3D> ConstLine3DPtr;
 
 // Eigen type
 typedef Eigen::Matrix<double, 6, 1> Vector6d;

@@ -302,7 +302,7 @@ bool CompoutePlaneFromPoints(const Eigen::Vector3d& point1, const Eigen::Vector3
   return true;
 }
 
-bool ComputeLineFramePlanes(const Eigen::Vector4d& plane1, const Eigen::Vector4d& plane2, Line3DPtr line3d){
+bool ComputeLineFramePlanes(const Eigen::Vector4d& plane1, const Eigen::Vector4d& plane2, Line3DPtr line_3d){
   Eigen::Vector3d n1 = plane1.head(3);
   Eigen::Vector3d n2 = plane2.head(3);
 
@@ -312,14 +312,14 @@ bool ComputeLineFramePlanes(const Eigen::Vector4d& plane1, const Eigen::Vector4d
 
   Eigen::Vector3d d = n1.cross(n2);
   Eigen::Vector3d w = plane2(3) * n1 - plane1(3) * n2;
-  line3d->setD(d);
-  line3d->setW(w);
-  line3d->normalize();
+  line_3d->setD(d);
+  line_3d->setW(w);
+  line_3d->normalize();
   return true;
 }
 
 bool TriangleByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d& pose1, 
-    const Eigen::Vector4d& line_2d2, const Eigen::Matrix4d& pose2, Line3DPtr line3d){
+    const Eigen::Vector4d& line_2d2, const Eigen::Matrix4d& pose2, Line3DPtr line_3d){
   Eigen::Matrix3d Rw1 = pose1.block<3, 3>(0, 0);
   Eigen::Vector3d tw1 = pose1.block<3, 1>(0, 3);
   Eigen::Matrix3d Rw2 = pose2.block<3, 3>(0, 0);
@@ -343,7 +343,23 @@ bool TriangleByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d&
   point22 = R12 * point22 + t12;
   if(!ComputeLineFramePlanes(point21, point22, t12, plane2)) return false;
 
- return ComputeLineFramePlanes(plane1, plane2, line3d);
+ return ComputeLineFramePlanes(plane1, plane2, line_3d);
+}
+
+bool ComputeLine3DFromEndpoints(const Eigen::Vector6d& endpoints, Line3DPtr line_3d){
+  Eigen::Vector3d point3d1 = endpoints.head(3);
+  Eigen::Vector3d point3d2 = endpoints.tail(3);
+
+  Eigen::Verctor3d l = point3d2 - point3d1;
+  if(l.norm() < 0.01) return false;
+
+  Eigen::Vector6d line_cart;
+  line_cart << point3d1, l;
+  g2o::Line3D line = g2o::Line3D::fromCartesian(line_cart);
+
+  line_3d->setW(line.w());
+  line_3d->setD(line.d());
+  return true;
 }
 
 LineDetector::LineDetector(const LineDetectorConfig &line_detector_config): _line_detector_config(line_detector_config){

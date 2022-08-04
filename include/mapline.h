@@ -15,13 +15,13 @@
 
 #include "utils.h"
 
-static constexpr int kMaxInt = std::numeric_limits<int>::max();
+static constexpr int kMaxIntLine = std::numeric_limits<int>::max();
 
 struct LineObverser {
   int frame_id;
   int line_index;
 
-  inline LineObverser() : frame_id(kMaxInt), line_index(kMaxInt) {}
+  inline LineObverser() : frame_id(kMaxIntLine), line_index(kMaxIntLine) {}
   inline LineObverser(int& _frame_id, int _line_index)
       : frame_id(_frame_id), line_index(_line_index) {}
 
@@ -39,7 +39,7 @@ struct LineObverser {
     }
   }
   inline bool isValid() const {
-    return frame_id != kMaxInt && line_index != kMaxInt;
+    return frame_id != kMaxIntLine && line_index != kMaxIntLine;
   }
 };
 
@@ -54,7 +54,6 @@ public:
 
   Mapline();
   Mapline(int& mappoint_id);
-  Mapline(int& mappoint_id, Vector6d& p);
   void SetId(int id);
   int GetId();
   void SetType(Type& type);
@@ -64,8 +63,13 @@ public:
   void SetGood();
   bool IsValid();
 
-  void SetPosition(Vector6d& p);
-  Vector6d& GetPosition();
+  void SetEndpoints(Vector6d& p);
+  Vector6d& GetEndpoints();
+  void SetEndpointsUpdateStatus(bool status);
+  bool ToEndpointsUpdate();
+  void SetLine3D(Line3D& line_3d);
+  ConstLine3DPtr GetLine3DPtr();
+  Line3D GetLine3D();
 
   void AddObverser(const int& frame_id, const int& line_index);
   void RemoveObverser(const int& frame_id);
@@ -74,18 +78,16 @@ public:
   int GetLineIdx(int frame_id);
 
 public:
-  int tracking_frame_id;
-  int last_frame_seen;
-  int local_map_optimization_frame_id;
 
 private:
   int _id;
   Type _type;
-  Vector6d _position;
+  bool _to_update_endpoints;
+  Vector6d _endpoints;
   Line3DPtr _line_3d;
   std::map<int, int> _obversers;  // frame_id - line_index 
 };
 
-typedef std::shared_ptr<Mapline> MappointPtr;
+typedef std::shared_ptr<Mapline> MaplinePtr;
 
 #endif  // MAPLINE_H_

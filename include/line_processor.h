@@ -32,11 +32,13 @@ bool TriangleByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& l
 
 bool CompoutePlaneFromPoints(const Eigen::Vector3d& point1, const Eigen::Vector3d& point2, 
     const Eigen::Vector3d& point3, Eigen::Vector4d& plane);
-bool ComputeLineFramePlanes(const Eigen::Vector4d& plane1, const Eigen::Vector4d& plane2, Line3DPtr line3d);
+bool ComputeLineFramePlanes(const Eigen::Vector4d& plane1, const Eigen::Vector4d& plane2, Line3DPtr line_3d);
 
 // line_2d1, line_2d2 : line in normalized plane of camera
 bool TriangleByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d& pose1, 
-    const Eigen::Vector4d& line_2d2, const Eigen::Matrix4d& pose2, Line3DPtr line3d);
+    const Eigen::Vector4d& line_2d2, const Eigen::Matrix4d& pose2, Line3DPtr line_3d);
+
+bool ComputeLine3DFromEndpoints(const Eigen::Vector6d& endpoints, Line3DPtr line_3d);
 
 class LineDetector{
 public:
