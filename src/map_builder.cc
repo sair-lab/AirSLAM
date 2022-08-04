@@ -20,7 +20,8 @@
 
 // INITIALIZE_TIMER;
 
-MapBuilder::MapBuilder(Configs& configs): _init(false), _track_id(0), _to_update_local_map(false), _configs(configs){
+MapBuilder::MapBuilder(Configs& configs): _init(false), _track_id(0), _line_track_id(0), 
+    _to_update_local_map(false), _configs(configs){
   _camera = std::shared_ptr<Camera>(new Camera(configs.camera_config_path));
   _superpoint = std::shared_ptr<SuperPoint>(new SuperPoint(configs.superpoint_config));
   if (!_superpoint->build()){
@@ -283,6 +284,23 @@ bool MapBuilder::Init(FramePtr frame){
     }
   }
 
+  // construct maplines
+  size_t line_num = frame->LineNum();
+  std::vector<MaplinePtr> new_maplines;
+  for(size_t i = 0; i < line_num; i++){
+    frame->SetLineTrackId(i, _line_track_id);
+    MaplinePtr mapline = std::shared_ptr<Mapline>(new Mapline(_line_track_id));
+    Vector6d endpoints;
+    if(TriangleStereoLine(i, endpoints)){
+      mapline->SetEndpoints(endpoints);
+    }
+    mapline->AddObverser(frame_id, i);
+    frame->InsertMapline(i, mapline);
+    new_maplines.push_back(mapline);
+    _line_track_id++;
+  }
+
+
   // add frame and mappoints to map
   if(stereo_point_num < 100) return false;
   Eigen::Matrix4d init_pose = Eigen::Matrix4d::Identity();
@@ -292,6 +310,9 @@ bool MapBuilder::Init(FramePtr frame){
   InsertKeyframe(frame);
   for(MappointPtr mappoint : new_mappoints){
     _map->InsertMappoint(mappoint);
+  }
+  for(MaplinePtr mapline : new_maplines){
+    _map->InsertMapline(mapline);
   }
 
   _ref_keyframe = frame;

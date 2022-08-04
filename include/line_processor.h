@@ -22,9 +22,10 @@ float PointLineDistance(Eigen::Vector4f line, Eigen::Vector2f point);
 float AngleDiff(float& angle1, float& angle2);
 Eigen::Vector4f MergeTwoLines(const Eigen::Vector4f& line1, const Eigen::Vector4f& line2);
 void AssignPointsToLines(std::vector<Eigen::Vector4d>& lines, Eigen::Matrix<double, 259, Eigen::Dynamic>& points, 
-    std::vector<std::set<int>>& relation);
-void MatchLines(const std::vector<std::set<int>>& points_on_line0, const std::vector<std::set<int>>& points_on_line1, 
-    const std::vector<cv::DMatch>& point_matches, size_t point_num0, size_t point_num1, std::vector<int>& line_matches);
+    std::vector<std::map<int, double>>& relation);
+void MatchLines(const std::vector<std::map<int, double>>& points_on_line0, 
+    const std::vector<std::map<int, double>>& points_on_line1, const std::vector<cv::DMatch>& point_matches, 
+    size_t point_num0, size_t point_num1, std::vector<int>& line_matches);
 
 void SortPointsOnLine(std::vector<Eigen::Vector2d>& points, std::vector<size_t>& order, bool sort_by_x = true);
 bool TriangleByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& line_right, 

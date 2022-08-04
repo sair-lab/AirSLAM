@@ -45,6 +45,7 @@ private:
   // tmp 
   bool _init;
   int _track_id;
+  int _line_track_id;
   FramePtr _last_frame;
   FramePtr _last_keyframe;
   int _num_since_last_keyframe;

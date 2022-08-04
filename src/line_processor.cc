@@ -123,7 +123,7 @@ Eigen::Vector4f MergeTwoLines(const Eigen::Vector4f& line1, const Eigen::Vector4
 }
 
 void AssignPointsToLines(std::vector<Eigen::Vector4d>& lines, Eigen::Matrix<double, 259, Eigen::Dynamic>& points, 
-    std::vector<std::set<int>>& relation){
+    std::vector<std::map<int, double>>& relation){
   Eigen::Array2Xd point_array = points.middleRows(1, 2).array();
   Eigen::Array4Xd line_array = Eigen::Map<Eigen::Array4Xd, Eigen::Unaligned>(lines[0].data(), 4, lines.size());
 
@@ -140,19 +140,10 @@ void AssignPointsToLines(std::vector<Eigen::Vector4d>& lines, Eigen::Matrix<doub
   Eigen::ArrayXd C = x2 * y1 - x1 * y2;
   Eigen::ArrayXd D = (A.square() + B.square()).sqrt();
 
-  // Eigen::ArrayXXd line_matrix(A.rows(), 3);
-  // line_matrix << A, B, C;
-  // Eigen::ArrayXXd point_marix(x.rows(), 3);
-  // point_marix << x, y, Eigen::ArrayXd::Ones(x.rows());
-
-  // // Eigen::MatrixXd distances = A.matrix().transpose() * x.matrix() + B.matrix().transpose() * y.matrix() + C.matrix().transpose();
-  // Eigen::MatrixXd distances = line_matrix.matrix() * point_marix.matrix().transpose();
-  // auto good_distances = (distances.array() <= 3.0);
-
   relation.clear();
   relation.reserve(lines.size());
   for(int i = 0, line_num = lines.size(); i < line_num; i++){
-    std::set<int> points_on_line;
+    std::map<int, double> points_on_line;
     for(int j = 0, point_num = points.cols(); j < point_num; j++){
       // if(!good_distances(i, j)) continue;
       // filter by x, y
@@ -179,27 +170,28 @@ void AssignPointsToLines(std::vector<Eigen::Vector4d>& lines, Eigen::Matrix<doub
       double side2 = std::pow((lx2 - px), 2) + std::pow((ly2 - py), 2);
       double line_side = std::pow(D(i), 2);
       if(side1 <= 9 || side2 <= 9 || ((side1 < line_side + side2) && (side2 < line_side + side1))){
-        points_on_line.insert(j);
+        points_on_line[j] = pl_distance;
       }
     }
     relation.push_back(points_on_line);
   }
 }
 
-void MatchLines(const std::vector<std::set<int>>& points_on_line0, const std::vector<std::set<int>>& points_on_line1, 
-    const std::vector<cv::DMatch>& point_matches, size_t point_num0, size_t point_num1, std::vector<int>& line_matches){
+void MatchLines(const std::vector<std::map<int, double>>& points_on_line0, 
+    const std::vector<std::map<int, double>>& points_on_line1, const std::vector<cv::DMatch>& point_matches, 
+    size_t point_num0, size_t point_num1, std::vector<int>& line_matches){
   std::vector<std::vector<int>> assigned_lines0, assigned_lines1;
   assigned_lines0.resize(point_num0);
   assigned_lines1.resize(point_num1);
   for(size_t i = 0; i < points_on_line0.size(); i++){
-    for(auto& point_idx : points_on_line0[i]){
-      assigned_lines0[point_idx].push_back(i);
+    for(auto& kv : points_on_line0[i]){
+      assigned_lines0[kv.first].push_back(i);
     }
   }
   
   for(size_t i = 0; i < points_on_line1.size(); i++){
-    for(auto& point_idx : points_on_line1[i]){
-      assigned_lines1[point_idx].push_back(i);
+    for(auto& kv : points_on_line1[i]){
+      assigned_lines1[kv.first].push_back(i);
     }
   }
 

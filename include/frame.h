@@ -8,6 +8,7 @@
 
 #include "utils.h"
 #include "mappoint.h"
+#include "mapline.h"
 #include "camera.h"
 
 #define FRAME_GRID_ROWS 48
@@ -27,6 +28,7 @@ public:
   void SetPose(Eigen::Matrix4d& pose);
   Eigen::Matrix4d& GetPose();
 
+  // point features
   bool FindGrid(double& x, double& y, int& grid_x, int& grid_y);
   void AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
       Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<Eigen::Vector4d>& lines_left, 
@@ -62,6 +64,13 @@ public:
   CameraPtr GetCamera();
   void FindNeighborKeypoints(Eigen::Vector3d& p2D, std::vector<int>& indices, double r, bool filter = true) const;
 
+  
+  // line features
+  size_t LineNum();
+  void SetLineTrackId(size_t idx, int line_track_id);
+  void InsertMapline(size_t idx, MaplinePtr mapline);
+  bool TriangleStereoLine(size_t idx, Vector6d& endpoints);
+
   // covisibility graph
   void AddConnection(std::shared_ptr<Frame> frame, int weight);
   void AddConnection(std::set<std::pair<int, std::shared_ptr<Frame>>> connections);
@@ -84,8 +93,8 @@ public:
 
   // debug
   std::vector<int> line_left_to_right_match;
-  std::vector<std::set<int>> relation_left;
-  std::vector<std::set<int>> relation_right;
+  std::vector<std::map<int, double>> relation_left;
+  std::vector<std::map<int, double>> relation_right;
 
 private:
   int _frame_id;
@@ -93,6 +102,7 @@ private:
   bool _pose_fixed;
   Eigen::Matrix4d _pose;
 
+  // point features
   Eigen::Matrix<double, 259, Eigen::Dynamic> _features;
   std::vector<cv::KeyPoint> _keypoints;
   std::vector<int> _feature_grid[FRAME_GRID_COLS][FRAME_GRID_ROWS];
@@ -103,10 +113,13 @@ private:
   std::vector<int> _track_ids;
   std::vector<MappointPtr> _mappoints;
 
+  // line features
   std::vector<Eigen::Vector4d> _lines;
   std::vector<Eigen::Vector4d> _lines_right;
   std::vector<bool> _lines_right_valid;
+  std::vector<std::map<int, double>> _points_on_lines;
   std::vector<int> _line_track_ids;
+  std::vector<MaplinePtr> _maplines;
 
   CameraPtr _camera;
 

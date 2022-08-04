@@ -78,6 +78,7 @@ void Frame::AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_lef
     std::vector<Eigen::Vector4d>& lines_right, std::vector<cv::DMatch>& stereo_matches){
   _features = features_left;
 
+  // fill in keypoints and assign features to grids
   size_t features_left_size = _features.cols();
   for(size_t i = 0; i < features_left_size; ++i){
     double score = _features(0, i);
@@ -85,17 +86,15 @@ void Frame::AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_lef
     double y = _features(2, i);
     _keypoints.emplace_back(x, y, 8, -1, score);
 
-    // assign to grid
     int grid_x, grid_y;
-    // assert(FindGrid(x, y, grid_x, grid_y));
     bool found = FindGrid(x, y, grid_x, grid_y);
     assert(found);
     _feature_grid[grid_x][grid_y].push_back(i);
   }
 
+  // triangle stereo points
   _u_right = std::vector<double>(features_left_size, -1);
   _depth = std::vector<double>(features_left_size, -1);
-
   for(cv::DMatch& match : stereo_matches){
     int idx_left = match.queryIdx;
     int idx_right = match.trainIdx;
@@ -105,18 +104,42 @@ void Frame::AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_lef
     _depth[idx_left] = _camera->BF() / (features_left(1, idx_left) - features_right(1, idx_right));
   }
 
+  // initialize track_ids and mappoints
   std::vector<int> track_ids(features_left_size, -1);
   SetTrackIds(track_ids);
   std::vector<MappointPtr> mappoints(features_left_size, nullptr);
   _mappoints = mappoints;
 
+  // assign points to lines
   _lines = lines_left;
-  std::vector<std::set<int>> points_on_line_left, points_on_line_right;
+  std::vector<std::map<int, double>> points_on_line_left, points_on_line_right;
   std::vector<int> line_matches;
   AssignPointsToLines(lines_left, features_left, points_on_line_left);
+  _points_on_lines = points_on_line_left
   AssignPointsToLines(lines_right, features_right, points_on_line_right);
+
+  // match stereo lines
+  size_t line_num = _lines.size();
+  _lines_right.resize(line_num);
+  _lines_right_valid.resize(line_num);
   MatchLines(points_on_line_left, points_on_line_right, stereo_matches, features_left.cols(), features_right.cols(), line_matches);
-  
+  for(size_t i = 0; i < line_num; i++){
+    if(line_matches[i] > 0){
+      _lines_right[i] = lines_right[i];
+      _lines_right_valid[i] = true;
+    }else{
+      _lines_right_valid[i] = false;
+    }
+  }
+
+  // initialize line track ids and maplines
+  std::vector<int> line_track_ids(line_num, -1);
+  _line_track_ids = line_track_ids;
+  std::vector<MappointPtr> maplines(line_num, nullptr);
+  _maplines = maplines;
+
+
+  // for debug
   line_left_to_right_match = line_matches;
   relation_left = points_on_line_left;
   relation_right = points_on_line_right;
@@ -242,19 +265,11 @@ void Frame::FindNeighborKeypoints(Eigen::Vector3d& p2D, std::vector<int>& indice
   const int max_grid_y = std::min((int)(FRAME_GRID_ROWS-1), (int)std::ceil((y+r)*_grid_height_inv));
   if(min_grid_x >= FRAME_GRID_COLS || max_grid_x < 0 || min_grid_y >= FRAME_GRID_ROWS || max_grid_y <0) return;
 
-  
-  // std::cout << "p2D = " << p2D.transpose() << std::endl;
-  // std::cout << "min_grid_x = " << min_grid_x << " max_grid_x = " << max_grid_x << " min_grid_y = " 
-  //           << min_grid_y << " max_grid_y=" << max_grid_y << std::endl; 
-  // Eigen::VectorXi debug_vec_frame = Eigen::VectorXi::Zero(6);
-
   for(int gx = min_grid_x; gx <= max_grid_x; gx++){
     for(int gy = min_grid_y; gy <= max_grid_y; gy++){
       if(_feature_grid[gx][gy].empty()) continue;
       for(auto& idx : _feature_grid[gx][gy]){
-        // debug_vec_frame(0) += 1;
         if(filter && _mappoints[idx] && !_mappoints[idx]->IsBad()) continue;
-        // debug_vec_frame(1) += 1;
 
         const double dx = _keypoints[idx].pt.x - x;
         const double dy = _keypoints[idx].pt.y - y;
@@ -262,15 +277,30 @@ void Frame::FindNeighborKeypoints(Eigen::Vector3d& p2D, std::vector<int>& indice
         if(std::abs(dx) < r && std::abs(dy) < r && std::abs(dxr) < r){
           indices.push_back(idx);
         }
-
-        // if(std::abs(dx) < r) debug_vec_frame(2) += 1;
-        // if(std::abs(dy) < r) debug_vec_frame(3) += 1;
-        // if(std::abs(dxr) < r) debug_vec_frame(4) += 1;
-
       }
     }
   }
-  // std::cout << "debug_vec_frame = " << debug_vec_frame.transpose() << std::endl;
+}
+
+size_t Frame::LineNum(){
+  return _lines.size();
+}
+
+void Frame::SetLineTrackId(size_t idx, int line_track_id){
+  if(idx < _lines.size()){
+    _line_track_ids[idx] = line_track_id;
+  }
+}
+
+void Frame::InsertMapline(size_t idx, MaplinePtr mapline){
+  if(idx < _lines.size()){
+    _maplines[idx] = mapline;
+  }
+}
+
+bool Frame::TriangleStereoLine(size_t idx, Vector6d& endpoints){
+  if(idx >= _lines.size() || !_lines_right_valid[idx]) return false;
+  return TriangleByStereo(_lines[idx], _lines_right[idx], _camera, endpoints);
 }
 
 void Frame::AddConnection(std::shared_ptr<Frame> frame, int weight){

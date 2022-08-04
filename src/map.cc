@@ -73,6 +73,11 @@ void Map::InsertMappoint(MappointPtr mappoint){
   _mappoints[mappoint_id] = mappoint;
 }
 
+void Map::InsertMapline(MaplinePtr mapline){
+  int mapline_id = mapline->GetId();
+  _maplines[mapline_id] = mapline;
+}
+
 FramePtr Map::GetFramePtr(int frame_id){
   if(_keyframes.count(frame_id) == 0){
     return nullptr;
@@ -85,6 +90,13 @@ MappointPtr Map::GetMappointPtr(int mappoint_id){
     return nullptr;
   }
   return _mappoints[mappoint_id];
+}
+
+MaplinePtr GetMaplinePtr(int mapline_id){
+  if(_maplines.count(mapline_id) == 0){
+    return nullptr;
+  }
+  return _maplines[mapline_id];
 }
 
 bool Map::TriangulateMappoint(MappointPtr mappoint){
@@ -135,6 +147,11 @@ bool Map::TriangulateMappoint(MappointPtr mappoint){
   Eigen::Vector3d p_G_P = qr.solve(Axtbx);
   mappoint->SetPosition(p_G_P);
   return true;
+}
+
+bool TriangulateMapline(MaplinePtr mapline){
+
+  
 }
 
 bool Map::UpdateMappointDescriptor(MappointPtr mappoint){

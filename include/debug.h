@@ -89,7 +89,7 @@ cv::Scalar GenerateColor(int id){
 }
 
 void SavePointLineRelation(cv::Mat& image, std::vector<Eigen::Vector4d>& lines, Eigen::Matrix2Xd& points, 
-    std::vector<std::set<int>>& relation,  std::string save_root, std::string idx){
+    std::vector<std::map<int, double>>& relation,  std::string save_root, std::string idx){
   cv::Mat img_color;
   cv::cvtColor(image, img_color, cv::COLOR_GRAY2RGB);
   std::string line_save_dir = ConcatenateFolderAndFileName(save_root, "point_line_relation");
@@ -109,9 +109,9 @@ void SavePointLineRelation(cv::Mat& image, std::vector<Eigen::Vector4d>& lines, 
     cv::line(img_color, cv::Point2i((int)(line(0)+0.5), (int)(line(1)+0.5)), 
         cv::Point2i((int)(line(2)+0.5), (int)(line(3)+0.5)), color, 1);
 
-    for(auto& point_id : relation[i]){
-      colors[point_id] = color;
-      radii[point_id] *= 2;
+    for(auto& kv : relation[i]){
+      colors[kv.first] = color;
+      radii[kv.first] *= 2;
     }
   }
 
@@ -126,7 +126,7 @@ void SavePointLineRelation(cv::Mat& image, std::vector<Eigen::Vector4d>& lines, 
 }
 
 cv::Mat DrawLinePointRelation(cv::Mat& image, Eigen::Matrix<double, 259, Eigen::Dynamic>& features,
-    std::vector<Eigen::Vector4d>& lines, std::vector<std::set<int>>& points_on_line, std::vector<int>& line_ids){
+    std::vector<Eigen::Vector4d>& lines, std::vector<std::map<int, double>>& points_on_line, std::vector<int>& line_ids){
   cv::Mat img_color;
   cv::cvtColor(image, img_color, cv::COLOR_GRAY2RGB);
 
@@ -145,9 +145,9 @@ cv::Mat DrawLinePointRelation(cv::Mat& image, Eigen::Matrix<double, 259, Eigen::
         cv::Point2i((int)(line(2)+0.5), (int)(line(3)+0.5)), color, 2);
 
     std::cout << points_on_line[i].size() << std::endl;
-    for(auto& point_id : points_on_line[i]){
-      colors[point_id] = color;
-      radii[point_id] *= 2;
+    for(auto& kv : points_on_line[i]){
+      colors[kv.first] = color;
+      radii[kv.first] *= 2;
     }
   }
 
@@ -165,7 +165,8 @@ void SaveStereoLineMatch(cv::Mat& image_left, cv::Mat& image_right,
     Eigen::Matrix<double, 259, Eigen::Dynamic>& feature_left,
     Eigen::Matrix<double, 259, Eigen::Dynamic>& feature_right,
     std::vector<Eigen::Vector4d>& lines_left, std::vector<Eigen::Vector4d>& lines_right,
-    std::vector<std::set<int>>& points_on_line_left, std::vector<std::set<int>>& points_on_line_right,
+    std::vector<std::map<int, double>>& points_on_line_left, 
+    std::vector<std::map<int, double>>& points_on_line_right,
     std::vector<int>& right_to_left_line_matches, std::string save_root, std::string idx){
   
   std::vector<int> line_ids_left(lines_left.size());

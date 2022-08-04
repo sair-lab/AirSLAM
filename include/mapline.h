@@ -15,34 +15,6 @@
 
 #include "utils.h"
 
-static constexpr int kMaxIntLine = std::numeric_limits<int>::max();
-
-struct LineObverser {
-  int frame_id;
-  int line_index;
-
-  inline LineObverser() : frame_id(kMaxIntLine), line_index(kMaxIntLine) {}
-  inline LineObverser(int& _frame_id, int _line_index)
-      : frame_id(_frame_id), line_index(_line_index) {}
-
-  inline bool operator==(const LineObverser& other) const {
-    return frame_id == other.frame_id && line_index == other.line_index;
-  }
-  inline bool operator!=(const LineObverser& other) const {
-    return frame_id != other.frame_id || line_index != other.line_index;
-  }
-  inline bool operator<(const LineObverser& other) const {
-    if (frame_id == other.frame_id) {
-      return line_index < other.line_index;
-    } else {
-      return frame_id < other.frame_id;
-    }
-  }
-  inline bool isValid() const {
-    return frame_id != kMaxIntLine && line_index != kMaxIntLine;
-  }
-};
-
 
 class Mapline{
 public:
