@@ -68,7 +68,13 @@ public:
   // line features
   size_t LineNum();
   void SetLineTrackId(size_t idx, int line_track_id);
+  int GetLineTrackId(size_t idx);
+  const std::vector<int>& GetAllLineTrackId();
+  bool GetLine(size_t idx, Eigen::Vector4d& line);
+  const std::vector<Eigen::Vector4d>& GatAllLines();
+  const std::vector<Eigen::Vector4d>& GatAllRightLines();
   void InsertMapline(size_t idx, MaplinePtr mapline);
+  const std::vector<MaplinePtr>& GetAllMaplines();
   const std::vector<std::map<int, double>>& GetPointsOnLines();
   bool TriangleStereoLine(size_t idx, Vector6d& endpoints);
 

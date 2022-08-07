@@ -38,15 +38,16 @@ public:
   void SetEndpoints(Vector6d& p);
   Vector6d& GetEndpoints();
   void SetEndpointsUpdateStatus(bool status);
-  bool ToEndpointsUpdate();
+  bool ToUpdateEndpoints();
   void SetLine3D(Line3D& line_3d);
+  void SetLine3DPtr(Line3DPtr& line_3d);
   ConstLine3DPtr GetLine3DPtr();
   Line3D GetLine3D();
 
   void AddObverser(const int& frame_id, const int& line_index);
   void RemoveObverser(const int& frame_id);
   int ObverserNum();
-  std::map<int, int>& GetAllObversers();
+  const std::map<int, int>& GetAllObversers();
   int GetLineIdx(int frame_id);
 
 public:

@@ -350,6 +350,7 @@ int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMa
   
   int num_inliers = FramePoseOptimization(frame1, matched_mappoints, inliers);
   // STOP_TIMER("FramePoseOptimization");
+
   // START_TIMER;
   // update track id
   int RM = 0;
@@ -372,8 +373,17 @@ int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMa
     std::cout << "remove " << RM << " matches" << std::endl;
   }
   // STOP_TIMER("Remove outliers");
-
   std::cout << "origin match number = " << num_match << std::endl;
+
+  // update line track id
+  for(size_t i = 0; i < features0.cols(); i++){
+    int j = line_matches[i];
+    if(j < 0) continue;
+    int line_track_id = frame0->GetLineTrackId(i);
+    if(line_track_id >= 0){
+      frame1->SetLineTrackId(j, line_track_id);
+    }
+  }
 
   return num_inliers;
 }
@@ -491,9 +501,17 @@ int MapBuilder::FramePoseOptimization(
 void MapBuilder::InsertKeyframe(FramePtr frame){
   // create new track id
   std::vector<int>& track_ids = frame->GetAllTrackIds();
-  for(int i = 0; i < track_ids.size(); i++){
+  for(size_t i = 0; i < track_ids.size(); i++){
     if(track_ids[i] < 0){
       frame->SetTrackId(i, _track_id++);
+    }
+  }
+
+  // create new line track id
+  const std::vector<int>& line_track_ids = frame->GetAllLineTrackId();
+  for(size_t i = 0; i < line_track_ids.size(); i++){
+    if(line_track_ids[i] < 0){
+      frame->SetLineTrackId(i, _line_track_id++);
     }
   }
 

@@ -7,6 +7,7 @@
 
 #include "map.h"
 #include "utils.h"
+#include "line_processor.h"
 #include "frame.h"
 #include "g2o_optimization/g2o_optimization.h"
 #include "timer.h"
@@ -36,7 +37,7 @@ void Map::InsertKeyframe(FramePtr frame){
   for(size_t i = 0; i < frame->FeatureNum(); i++){
     MappointPtr mpt = mappoints[i];
     if(mpt == nullptr){
-      if(track_ids[i] < 0) continue;
+      if(track_ids[i] < 0) continue;  // would not happen normally
       mpt = std::shared_ptr<Mappoint>(new Mappoint(track_ids[i]));
       Eigen::Matrix<double, 256, 1> descriptor;
       if(!frame->GetDescriptor(i, descriptor)) continue;
@@ -61,6 +62,49 @@ void Map::InsertKeyframe(FramePtr frame){
   }
   // STOP_TIMER("Insert to map Time");
 
+  // update mapline
+  std::vector<MaplinePtr> new_maplines;
+  const std::vector<int>& line_track_ids = frame->GetAllTrackIds();
+  const std::vector<Eigen::Vector4d>& lines = frame->GatAllLines();
+  const std::vector<Eigen::Vector4d>& lines_right = frame->GatAllRightLines();
+  const std::vector<bool>& lines_right_valid = frame->GetAllRightLineStatus()
+  std::vector<MaplinePtr>& maplines = frame->GetAllMappoints();
+  for(size_t i = 0; i < frame->LineNum(); i++){
+    MaplinePtr mpl = maplines[i];
+    if(mpl == nullptr){
+      if(line_track_ids[i] < 0) continue; // would not happen normally
+      mpl = std::shared_ptr<Mapline>(new Mapline(line_track_ids[i]));
+      if(lines_right_valid[i]){
+        Vector6d endpoints;
+        if(frame->TriangleStereoLine(i, endpoints)){
+          mpl->SetEndpoints(endpoints);
+        }
+        frame->InsertMapline(i, mpl);
+        new_maplines.push_back(mpl);
+      }
+    }
+    mpl->AddObverser(frame_id, i);
+    if(mpt->GetType() == Mappoint::Type::UnTriangulated && mpt->ObverserNum() > 2){
+      const std::map<int, int>& mpl_obversers = mpl->GetAllObversers();
+      int obverser_frame_id = mpl_obversers.begin->first;
+      int obverser_line_idx = mpl_obversers.begin->second;
+
+      FramePtr obverser_frame = GetFramePtr(obverser_frame_id);
+      if(!obverser_frame) continue;
+      Eigen::Vector4d obverser_line;
+      if(!GetLine(i, obverser_line)) continue;
+      Line3DPtr line_3d = std::shared_ptr<g2o::Line3D>(new g2o::Line3D());
+      Eigen::Matrix4d obverser_pose = obverser_frame->GetPose();
+      if(TriangleByTwoFrames(lines[i], Twf, obverser_line, obverser_pose, line_3d)) continue;
+      mpl->SetLine3DPtr(line_3d);
+    }
+  }
+
+  // add new maplines to map
+  for(MaplinePtr mpl:new_maplines){
+    InsertMapline(mpl);
+  }
+
   // optimization
   if(_keyframes.size() >= 2){
     // SlidingWindowOptimization(frame);
@@ -76,6 +120,14 @@ void Map::InsertMappoint(MappointPtr mappoint){
 void Map::InsertMapline(MaplinePtr mapline){
   int mapline_id = mapline->GetId();
   _maplines[mapline_id] = mapline;
+}
+
+void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
+  if(!mappline->ToUpdateEndpoints()) return;
+  ConstLine3DPtr line_3d = mapline->GetLine3DPtr();
+  Vector6 line_cart = line_3d->toCartesian();
+  Eigen::Vector3d lo = line_cart.head(3);
+  size_t md = 
 }
 
 FramePtr Map::GetFramePtr(int frame_id){

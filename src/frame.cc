@@ -292,10 +292,45 @@ void Frame::SetLineTrackId(size_t idx, int line_track_id){
   }
 }
 
+int Frame::GetLineTrackId(size_t idx){
+  if(idx < _lines.size()){
+    return _line_track_ids[idx];
+  }else{
+    return -1;
+  }
+}
+
+bool Frame::GetLine(size_t idx, Eigen::Vector4d& line){
+  if(idx >= _lines.size()) return false;
+
+  line = _lines[idx];
+  return true;
+}
+
+const std::vector<int>& Frame::GetAllLineTrackId(){
+  return _line_track_ids;
+}
+
+const std::vector<Eigen::Vector4d>& Frame::GatAllLines(){
+  return _lines;
+}
+
+const std::vector<Eigen::Vector4d>& Frame::GatAllRightLines(){
+  return _lines_right;
+}
+
+const std::vector<bool>& Frame::GetAllRightLineStatus(){
+  return _lines_right_valid;
+}
+
 void Frame::InsertMapline(size_t idx, MaplinePtr mapline){
   if(idx < _lines.size()){
     _maplines[idx] = mapline;
   }
+}
+
+const std::vector<MaplinePtr>& Frame::GetAllMaplines(){
+  return _maplines;
 }
 
 const std::vector<std::map<int, double>>& GetPointsOnLines(){
