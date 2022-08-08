@@ -291,8 +291,11 @@ bool MapBuilder::Init(FramePtr frame){
     frame->SetLineTrackId(i, _line_track_id);
     MaplinePtr mapline = std::shared_ptr<Mapline>(new Mapline(_line_track_id));
     Vector6d endpoints;
-    if(TriangleStereoLine(i, endpoints)){
+    if(frame->TriangleStereoLine(i, endpoints)){
       mapline->SetEndpoints(endpoints);
+      mapline->SetObverserEndpointStatus(frame_id, 1);
+    }else{
+      mapline->SetObverserEndpointStatus(frame_id, 0);
     }
     mapline->AddObverser(frame_id, i);
     frame->InsertMapline(i, mapline);

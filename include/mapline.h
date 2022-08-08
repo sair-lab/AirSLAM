@@ -37,6 +37,7 @@ public:
 
   void SetEndpoints(Vector6d& p);
   Vector6d& GetEndpoints();
+  bool EndpointsValid();
   void SetEndpointsUpdateStatus(bool status);
   bool ToUpdateEndpoints();
   void SetLine3D(Line3D& line_3d);
@@ -50,15 +51,19 @@ public:
   const std::map<int, int>& GetAllObversers();
   int GetLineIdx(int frame_id);
 
-public:
+  void SetObverserEndpointStatus(int frame_id, int status = 1);
+  int GetObverserEndpointStatus(int frame_id);
+  const std::map<int, int>& GetAllObverserEndpointStatus();
 
 private:
   int _id;
   Type _type;
   bool _to_update_endpoints;
+  bool _endpoints_valid;
   Vector6d _endpoints;
   Line3DPtr _line_3d;
   std::map<int, int> _obversers;  // frame_id - line_index 
+  std::map<int, int> _included_endpoints;
 };
 
 typedef std::shared_ptr<Mapline> MaplinePtr;

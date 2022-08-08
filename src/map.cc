@@ -78,6 +78,9 @@ void Map::InsertKeyframe(FramePtr frame){
         Vector6d endpoints;
         if(frame->TriangleStereoLine(i, endpoints)){
           mpl->SetEndpoints(endpoints);
+          mpl->SetObverserEndpointStatus(frame_id, 1);
+        }else{
+          mpl->SetObverserEndpointStatus(frame_id, 0);
         }
         frame->InsertMapline(i, mpl);
         new_maplines.push_back(mpl);
@@ -123,11 +126,22 @@ void Map::InsertMapline(MaplinePtr mapline){
 }
 
 void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
-  if(!mappline->ToUpdateEndpoints()) return;
+  if(!mapline || !mapline->IsValid || !mappline->ToUpdateEndpoints()) return;
   ConstLine3DPtr line_3d = mapline->GetLine3DPtr();
   Vector6 line_cart = line_3d->toCartesian();
   Eigen::Vector3d lo = line_cart.head(3);
-  size_t md = 
+  const std::map<int, int>& obversers = mapline->GetAllObversers();
+  const std::map<int, int>& included_endpoints = mapline->GetAllObverserEndpointStatus();
+
+  if(!mapline->EndpointsValid()){
+    // initilize endpoints
+    for(auto& kv : obversers){
+      int frame_id = kv->first;
+      FramePtr frame = GetFramePtr(frame_id);
+      if(!frame || included_endpoints[frame_id] <= 0) continue;
+      
+    }
+  }
 }
 
 FramePtr Map::GetFramePtr(int frame_id){
