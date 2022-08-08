@@ -128,18 +128,32 @@ void Map::InsertMapline(MaplinePtr mapline){
 void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
   if(!mapline || !mapline->IsValid || !mappline->ToUpdateEndpoints()) return;
   ConstLine3DPtr line_3d = mapline->GetLine3DPtr();
-  Vector6 line_cart = line_3d->toCartesian();
-  Eigen::Vector3d lo = line_cart.head(3);
   const std::map<int, int>& obversers = mapline->GetAllObversers();
   const std::map<int, int>& included_endpoints = mapline->GetAllObverserEndpointStatus();
 
   if(!mapline->EndpointsValid()){
     // initilize endpoints
+    Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
     for(auto& kv : obversers){
       int frame_id = kv->first;
       FramePtr frame = GetFramePtr(frame_id);
       if(!frame || included_endpoints[frame_id] <= 0) continue;
-      
+      const Eigen::Matrix4d& frame_pose = frame->GetPose();
+      Eigen::Matrix3d Rcw = frame_pose.block<3, 3>(0, 0).transpose();
+      Eigen::Vector3d tcw = - Rcw * frame_pose.block<3, 1>(0, 3);
+      T.rotate(Rcw);
+      T.pretranslate(tcw);
+      g2o::Line3D line_3d_c = T * (*line_3d);
+      Vector6 line_cart_c = line_3d->toCartesian();
+      Eigen::Vector3d line_direction = line_cart.tail(3);
+
+      Eigen::Vector3d init_point_3d1, init_point_3d1;
+      if(std::abs(line_direction(2)) < 1e-5){
+
+      }else{
+        
+      }
+
     }
   }
 }
