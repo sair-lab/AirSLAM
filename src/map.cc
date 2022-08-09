@@ -131,77 +131,90 @@ void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
   const std::map<int, int>& obversers = mapline->GetAllObversers();
   const std::map<int, int>& included_endpoints = mapline->GetAllObverserEndpointStatus();
 
-  if(!mapline->EndpointsValid()){
-    // initilize endpoints
-    Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
-    for(auto& kv : obversers){
-      int frame_id = kv->first;
-      FramePtr frame = GetFramePtr(frame_id);
-      if(!frame || included_endpoints[frame_id] < 0) continue;
-      Eigen::Vector4d line_measurement;
-      if(!frame->GetLine(kv.second, line_measurement)) continue;
-
-      const Eigen::Matrix4d& frame_pose = frame->GetPose();
-      Eigen::Matrix3d Rcw = frame_pose.block<3, 3>(0, 0).transpose();
-      Eigen::Vector3d tcw = - Rcw * frame_pose.block<3, 1>(0, 3);
-      T.rotate(Rcw);
-      T.pretranslate(tcw);
-      g2o::Line3D line_3d_c = T * (*line_3d);
-      line_3d_c.normalize();
-      Vector6 line_cart_c = line_3d->toCartesian();
-      Eigen::Vector3d line_direction = line_cart.tail(3);
-      Eigen::Vector3d anchor_point = line_cart.head(3);
-
-      Eigen::Vector3d init_point_3d1, init_point_3d1;
-      if(std::abs(line_direction(2)) < 1e-5){
-        Eigen::Index max_index;
-        line_direction.array().abs().maxCoeff(&max_index);
-        size_t md = max_index;  // main direction
-        assert(md < 2);
-        double op1 = -anchor_point(md) / line_direction(md)
-        init_point_3d1 = anchor_point + op1 * line_direction;
-        double p1p2 = 1.0 / line_direction(md);
-        init_point_3d2 = init_point_3d1 + p1p2 * line_direction;
-      }else{
-        double op1 = (1.0 - anchor_point(2)) / line_direction(2);
-        init_point_3d1 = anchor_point + op1 * line_direction;
-        double op2 = (2.0 - anchor_point(2)) / line_direction(2);
-        init_point_3d2 = anchor_point + op2 * line_direction;
-      }
-      assert(init_point_3d1(2) > 0);
-      assert(init_point_3d2(2) > 0);
-
-      CameraPtr camera = frame->GetCamera();
-      Eigen::Vector2d init_point_2d1, init_point_2d2;
-      camera->Project(init_point_2d1, init_point_3d1);
-      camera->Project(init_point_2d2, init_point_3d2);
-
-      Eigen::Vector3d endpoint1, endpoint2;
-      Point2DTo3D(init_point_3d1, init_point_3d2, init_point_2d1, init_point_2d2, 
-          line_measurement.head(2), endpoint1);
-      Point2DTo3D(init_point_3d1, init_point_3d2, init_point_2d1, init_point_2d2, 
-          line_measurement.tail(2), endpoint2);
-
-      // TODO
-      convert
-
-
-      Vector6d endpoints;
-      endpoints << endpoint1, endpoint2;
-      mapline->SetEndpoints(endpoints);
-      SetObverserEndpointStatus(frame_id, 1);
-      break;
-    }
+  std::vector<Eigen::Vector3d> point_3d_vector;
+  if(mapline->EndpointsValid()){
+    const Vector6d& endpoints = mapline->GetEndpoints();
+    Eigen::Vector3d endpoint1 = endpoints.head(3);
+    Eigen::Vector3d endpoint2 = endpoints.tail(3);
+    point_3d_vector.push_back(endpoint1);
+    point_3d_vector.push_back(endpoint2);
   }
-  const Vector6d& endpoints = mapline->GetEndpoints();
+
+  Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
   for(auto& kv : obversers){
     int frame_id = kv->first;
     FramePtr frame = GetFramePtr(frame_id);
-    if(!frame || included_endpoints[frame_id] != 0) continue;
+    if(!frame || included_endpoints[frame_id] < 0) continue;
     Eigen::Vector4d line_measurement;
     if(!frame->GetLine(kv.second, line_measurement)) continue;
+
+    const Eigen::Matrix4d& frame_pose = frame->GetPose();
+    Eigen::Matrix3d Rwc = frame_pose.block<3, 3>(0, 0);
+    Eigen::Vector3d twc = frame_pose.block<3, 1>(0, 3);
+    Eigen::Matrix3d Rcw = Rwc.transpose();
+    Eigen::Vector3d tcw = - Rcw * twc;
+    T.rotate(Rcw);
+    T.pretranslate(tcw);
+    g2o::Line3D line_3d_c = T * (*line_3d);
+    line_3d_c.normalize();
+    Vector6 line_cart_c = line_3d->toCartesian();
+    Eigen::Vector3d line_direction = line_cart.tail(3);
+    Eigen::Vector3d anchor_point = line_cart.head(3);
+
+    Eigen::Vector3d init_point_3d1, init_point_3d1;
+    if(std::abs(line_direction(2)) < 1e-5){
+      Eigen::Index max_index;
+      line_direction.array().abs().maxCoeff(&max_index);
+      size_t md = max_index;  // main direction
+      assert(md < 2);
+      double op1 = -anchor_point(md) / line_direction(md)
+      init_point_3d1 = anchor_point + op1 * line_direction;
+      double p1p2 = 1.0 / line_direction(md);
+      init_point_3d2 = init_point_3d1 + p1p2 * line_direction;
+    }else{
+      double op1 = (1.0 - anchor_point(2)) / line_direction(2);
+      init_point_3d1 = anchor_point + op1 * line_direction;
+      double op2 = (2.0 - anchor_point(2)) / line_direction(2);
+      init_point_3d2 = anchor_point + op2 * line_direction;
+    }
+    assert(init_point_3d1(2) > 0);
+    assert(init_point_3d2(2) > 0);
+
+    CameraPtr camera = frame->GetCamera();
+    Eigen::Vector2d init_point_2d1, init_point_2d2;
+    camera->Project(init_point_2d1, init_point_3d1);
+    camera->Project(init_point_2d2, init_point_3d2);
+
+    Eigen::Vector3d endpoint1, endpoint2;
+    Point2DTo3D(init_point_3d1, init_point_3d2, init_point_2d1, init_point_2d2, 
+        line_measurement.head(2), endpoint1);
+    Point2DTo3D(init_point_3d1, init_point_3d2, init_point_2d1, init_point_2d2, 
+        line_measurement.tail(2), endpoint2);
+
+    endpoint1 = Rwc * endpoint1 + twc;
+    endpoint2 = Rwc * endpoint2 + twc;
+    point_3d_vector.push_back(endpoint1);
+    point_3d_vector.push_back(endpoint2);
+    mapline->SetObverserEndpointStatus(frame_id, 1);
   }
 
+  Eigen::Vector3d line_d = line_3d->D();
+  Eigen::Index max_index;
+  line_3d.array().abs().maxCoeff(&max_index);
+  size_t md = max_index;  // main direction
+  size_t max_idx = 0;
+  size_t min_idx = 0;
+  double max_value = DBL_MIN;
+  double min_value = DBL_MAX;
+  for(size_t i = 0; i < point_3d_vector.size(); i++){
+    double value = point_3d_vector[i](md);
+    if(value > max_value) max_idx = i;
+    if(value < min_value) min_idx = i;
+  }
+
+  Vector6d endpoints;
+  endpoints << point_3d_vector[min_idx], point_3d_vector[max_idx];
+  mapline->SetEndpoints(endpoints);
   mapline->SetEndpointsUpdateStatus(false);
 }
 
