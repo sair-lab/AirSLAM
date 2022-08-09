@@ -38,8 +38,10 @@ bool ComputeLineFramePlanes(const Eigen::Vector4d& plane1, const Eigen::Vector4d
 // line_2d1, line_2d2 : line in normalized plane of camera
 bool TriangleByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d& pose1, 
     const Eigen::Vector4d& line_2d2, const Eigen::Matrix4d& pose2, Line3DPtr line_3d);
-
 bool ComputeLine3DFromEndpoints(const Eigen::Vector6d& endpoints, Line3DPtr line_3d);
+bool Point2DTo3D(const Eigen::Vector3d& anchor_point1, const Eigen::Vector3d& anchor_point2, 
+  	const Eigen::Vector2d& anchor_point_2d1, const Eigen::Vector2d& anchor_point_2d2, 
+  	const Eigen::Vector2d& p2D, Eigen::Vector3d& p3D);
 
 class LineDetector{
 public:

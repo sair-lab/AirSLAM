@@ -137,25 +137,72 @@ void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
     for(auto& kv : obversers){
       int frame_id = kv->first;
       FramePtr frame = GetFramePtr(frame_id);
-      if(!frame || included_endpoints[frame_id] <= 0) continue;
+      if(!frame || included_endpoints[frame_id] < 0) continue;
+      Eigen::Vector4d line_measurement;
+      if(!frame->GetLine(kv.second, line_measurement)) continue;
+
       const Eigen::Matrix4d& frame_pose = frame->GetPose();
       Eigen::Matrix3d Rcw = frame_pose.block<3, 3>(0, 0).transpose();
       Eigen::Vector3d tcw = - Rcw * frame_pose.block<3, 1>(0, 3);
       T.rotate(Rcw);
       T.pretranslate(tcw);
       g2o::Line3D line_3d_c = T * (*line_3d);
+      line_3d_c.normalize();
       Vector6 line_cart_c = line_3d->toCartesian();
       Eigen::Vector3d line_direction = line_cart.tail(3);
+      Eigen::Vector3d anchor_point = line_cart.head(3);
 
       Eigen::Vector3d init_point_3d1, init_point_3d1;
       if(std::abs(line_direction(2)) < 1e-5){
-
+        Eigen::Index max_index;
+        line_direction.array().abs().maxCoeff(&max_index);
+        size_t md = max_index;  // main direction
+        assert(md < 2);
+        double op1 = -anchor_point(md) / line_direction(md)
+        init_point_3d1 = anchor_point + op1 * line_direction;
+        double p1p2 = 1.0 / line_direction(md);
+        init_point_3d2 = init_point_3d1 + p1p2 * line_direction;
       }else{
-        
+        double op1 = (1.0 - anchor_point(2)) / line_direction(2);
+        init_point_3d1 = anchor_point + op1 * line_direction;
+        double op2 = (2.0 - anchor_point(2)) / line_direction(2);
+        init_point_3d2 = anchor_point + op2 * line_direction;
       }
+      assert(init_point_3d1(2) > 0);
+      assert(init_point_3d2(2) > 0);
 
+      CameraPtr camera = frame->GetCamera();
+      Eigen::Vector2d init_point_2d1, init_point_2d2;
+      camera->Project(init_point_2d1, init_point_3d1);
+      camera->Project(init_point_2d2, init_point_3d2);
+
+      Eigen::Vector3d endpoint1, endpoint2;
+      Point2DTo3D(init_point_3d1, init_point_3d2, init_point_2d1, init_point_2d2, 
+          line_measurement.head(2), endpoint1);
+      Point2DTo3D(init_point_3d1, init_point_3d2, init_point_2d1, init_point_2d2, 
+          line_measurement.tail(2), endpoint2);
+
+      // TODO
+      convert
+
+
+      Vector6d endpoints;
+      endpoints << endpoint1, endpoint2;
+      mapline->SetEndpoints(endpoints);
+      SetObverserEndpointStatus(frame_id, 1);
+      break;
     }
   }
+  const Vector6d& endpoints = mapline->GetEndpoints();
+  for(auto& kv : obversers){
+    int frame_id = kv->first;
+    FramePtr frame = GetFramePtr(frame_id);
+    if(!frame || included_endpoints[frame_id] != 0) continue;
+    Eigen::Vector4d line_measurement;
+    if(!frame->GetLine(kv.second, line_measurement)) continue;
+  }
+
+  mapline->SetEndpointsUpdateStatus(false);
 }
 
 FramePtr Map::GetFramePtr(int frame_id){

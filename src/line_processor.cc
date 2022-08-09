@@ -354,6 +354,18 @@ bool ComputeLine3DFromEndpoints(const Eigen::Vector6d& endpoints, Line3DPtr line
   return true;
 }
 
+bool Point2DTo3D(const Eigen::Vector3d& anchor_point_3d1, const Eigen::Vector3d& anchor_point_3d2, 
+  	const Eigen::Vector2d& anchor_point_2d1, const Eigen::Vector2d& anchor_point_2d2, 
+    const Eigen::Vector2d& p2D, Eigen::Vector3d& p3D){
+  Eigen::Vector2d anchor_line2d = anchor_point_2d2 - anchor_point_2d1;
+  anchor_line2d.normalize();
+  size_t md = std::abs(anchor_line2d(0)) > std::abs(anchor_line2d(1)) ? 0 : 1;
+
+  double rate = (p2D(md) - anchor_point_2d1(md)) / (anchor_point_2d2(md) - anchor_point_2d1(md));
+  p3D = anchor_point_3d1 + rate * (anchor_point_3d2 - anchor_point_3d1);
+  return true;
+}
+
 LineDetector::LineDetector(const LineDetectorConfig &line_detector_config): _line_detector_config(line_detector_config){
   fld = cv::ximgproc::createFastLineDetector(line_detector_config.length_threshold, line_detector_config.distance_threshold, 
       line_detector_config.canny_th1, line_detector_config.canny_th2, line_detector_config.canny_aperture_size, line_detector_config.do_merge);
