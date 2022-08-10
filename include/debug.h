@@ -131,7 +131,6 @@ cv::Mat DrawLinePointRelation(cv::Mat& image, Eigen::Matrix<double, 259, Eigen::
   // draw lines
   std::cout << points_on_line.size() << std::endl;
   for(size_t i = 0; i < lines.size(); i++){
-    std::cout << "i = " << i << "  line_id = " << line_ids[i] << std::endl;
     cv::Scalar color = GenerateColor(line_ids[i]);
     Eigen::Vector4d line = lines[i];
     cv::line(img_color, cv::Point2i((int)(line(0)+0.5), (int)(line(1)+0.5)), 

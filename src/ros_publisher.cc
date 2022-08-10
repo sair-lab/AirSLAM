@@ -128,7 +128,7 @@ RosPublisher::RosPublisher(const RosPublisherConfig& ros_publisher_config): _con
     _map_publisher.Start();   
 
     // for maplines
-    _ros_mapline_pub = nh.advertise<visualization_msgs::Marker> (_config.map_topic, 1);
+    _ros_mapline_pub = nh.advertise<visualization_msgs::Marker> (_config.mapline_topic, 1);
     _ros_maplines.header.stamp = ros::Time::now(); 
     _ros_maplines.header.frame_id = "map"; 
     _ros_maplines.pose.position.x = 0;
