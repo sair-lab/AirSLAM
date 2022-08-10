@@ -60,4 +60,6 @@ ros_publisher:
   path_topic: "/AirSLAM/odometry"
   map: 1
   map_topic: "/AirSLAM/map"
+  mapline: 1
+  mapline_topic: "/AirSLAM/mapline"
  

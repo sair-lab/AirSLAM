@@ -13,7 +13,9 @@
 #include <geometry_msgs/PoseArray.h>
 #include <nav_msgs/Path.h>
 #include <sensor_msgs/PointCloud.h>
+#include <visualization_msgs/Marker.h>
 
+#include "utils.h"
 #include "read_configs.h"
 #include "thread_publisher.h"
 
@@ -56,6 +58,18 @@ struct MapMessage{
 typedef std::shared_ptr<MapMessage> MapMessagePtr;
 typedef std::shared_ptr<const MapMessage> MapMessageConstPtr;
 
+struct MapLineMessage{
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  
+  double time;
+  bool reset;
+  std::vector<int> ids;
+  std::vector<Vector6d> lines;
+};
+typedef std::shared_ptr<MapLineMessage> MapLineMessagePtr;
+typedef std::shared_ptr<const MapLineMessage> MapLineMessageConstPtr;
+
+
 double GetCurrentTime();
 
 class RosPublisher{
@@ -66,6 +80,7 @@ public:
   void PublishFramePose(FramePoseMessagePtr frame_pose_message);
   void PublisheKeyframe(KeyframeMessagePtr keyframe_message);
   void PublishMap(MapMessagePtr map_message);
+  void PublishMapLine(MapLineMessagePtr mapline_message);
 
   void ShutDown();
 
@@ -94,6 +109,12 @@ private:
   std::unordered_map<int, int> _mappoint_id_to_index;
   sensor_msgs::PointCloud _ros_mappoints;
   ThreadPublisher<MapMessage> _map_publisher;
+
+  // for publishing maplines
+  ros::Publisher _ros_mapline_pub;
+  std::unordered_map<int, int> _mappoint_id_to_index;
+  visualization_msgs::Marker _ros_maplines;
+  ThreadPublisher<MapLineMessage> _mapline_publisher;
 };
 typedef std::shared_ptr<RosPublisher> RosPublisherPtr;
 

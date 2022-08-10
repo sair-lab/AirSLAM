@@ -705,6 +705,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
   // copy back to map
   KeyframeMessagePtr keyframe_message = std::shared_ptr<KeyframeMessage>(new KeyframeMessage);
   MapMessagePtr map_message = std::shared_ptr<MapMessage>(new MapMessage);
+  MapLineMessagePtr mapline_message = std::shared_ptr<MapLineMessage>(new MapLineMessage);
 
   for(auto& kv : poses){
     int frame_id = kv.first;
@@ -729,8 +730,19 @@ void Map::LocalMapOptimization(FramePtr new_frame){
     map_message->points.push_back(position.p);
   }
 
+  // maplines
+  const std::vector<MaplinePtr>& new_maplines = new_frame->GetAllMaplines();
+  for(auto& new_mapline : new_maplines){
+    if(!new_mapline->EndpointsValid()) continue;
+    int mpl_id = new_mapline->GetId();
+    const Vector6d& endpoints = new_mapline->GetEndpoints();
+    mapline_message->ids.push_back(mpt_id);
+    mapline_message->lines.push_back(endpoints); 
+  }
+
   _ros_publisher->PublisheKeyframe(keyframe_message);
   _ros_publisher->PublishMap(map_message);
+  _ros_publisher->PublishMapLine(mapline_message);  
   // STOP_TIMER("SlidingWindowOptimization Time3");
 }
 

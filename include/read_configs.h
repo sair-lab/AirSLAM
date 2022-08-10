@@ -56,6 +56,8 @@ struct RosPublisherConfig{
   std::string path_topic;
   int map;
   std::string map_topic;
+  int mapline;
+  std::string mapline_topic;
 };
 
 
@@ -151,6 +153,8 @@ struct Configs{
     ros_publisher_config.path_topic = ros_publisher_node["path_topic"].as<std::string>();
     ros_publisher_config.map = ros_publisher_node["map"].as<int>();
     ros_publisher_config.map_topic = ros_publisher_node["map_topic"].as<std::string>();
+    ros_publisher_config.mapline = ros_publisher_node["mapline"].as<int>();
+    ros_publisher_config.mapline_topic = ros_publisher_node["mapline_topic"].as<std::string>();
   }
 };
 
