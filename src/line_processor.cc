@@ -270,8 +270,8 @@ bool TriangleByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& l
   if(std::abs(dx2_left) <= 1e-5) return false; 
 
   std::vector<Eigen::Vector2d> points;
-  points.emplace_back(line_left.head(2));
-  points.emplace_back(line_left.tail(2));
+  points.emplace_back(x11, y11);
+  points.emplace_back(x12, y12);
   points.emplace_back(x21_left, y21);
   points.emplace_back(x22_left, y22);
   std::vector<size_t> order;
@@ -291,8 +291,8 @@ bool TriangleByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& l
   camera->BackProjectStereo(point_2d1, point_3d1);
   camera->BackProjectStereo(point_2d2, point_3d1);
 
-  line_3d.topRows(3) = point_3d1;
-  line_3d.bottomRows(3) = point_3d2;
+  line_3d << point_3d1, point_3d2;
+  return true;
 }
 
 bool CompoutePlaneFromPoints(const Eigen::Vector3d& point1, const Eigen::Vector3d& point2, 

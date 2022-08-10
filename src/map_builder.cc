@@ -267,7 +267,6 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
 bool MapBuilder::Init(FramePtr frame){
   int feature_num = frame->FeatureNum();
   if(feature_num < 150) return false;
-  std::cout << "Init 1" << std::endl;
 
   // construct mappoints
   std::vector<int> track_ids(feature_num, -1);
@@ -287,7 +286,6 @@ bool MapBuilder::Init(FramePtr frame){
       new_mappoints.push_back(mappoint);
     }
   }
-  std::cout << "Init 2" << std::endl;
 
   // construct maplines
   size_t line_num = frame->LineNum();
@@ -307,8 +305,6 @@ bool MapBuilder::Init(FramePtr frame){
     new_maplines.push_back(mapline);
     _line_track_id++;
   }
-  std::cout << "Init 3" << std::endl;
-
 
   // add frame and mappoints to map
   if(stereo_point_num < 100) return false;
@@ -323,8 +319,6 @@ bool MapBuilder::Init(FramePtr frame){
   for(MaplinePtr mapline : new_maplines){
     _map->InsertMapline(mapline);
   }
-  std::cout << "Init 4" << std::endl;
-
   _ref_keyframe = frame;
 
   return true;
