@@ -73,8 +73,10 @@ public:
   bool GetLine(size_t idx, Eigen::Vector4d& line);
   const std::vector<Eigen::Vector4d>& GatAllLines();
   const std::vector<Eigen::Vector4d>& GatAllRightLines();
+  const std::vector<bool>& GetAllRightLineStatus();
   void InsertMapline(size_t idx, MaplinePtr mapline);
-  const std::vector<MaplinePtr>& GetAllMaplines();
+  std::vector<MaplinePtr>& GetAllMaplines();
+  const std::vector<MaplinePtr>& GetConstAllMaplines();
   const std::vector<std::map<int, double>>& GetPointsOnLines();
   bool TriangleStereoLine(size_t idx, Vector6d& endpoints);
 

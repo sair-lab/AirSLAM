@@ -338,7 +338,7 @@ int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMa
   std::vector<std::map<int, double>> points_on_lines0 = frame0->GetPointsOnLines();
   std::vector<std::map<int, double>> points_on_lines1 = frame1->GetPointsOnLines();
   std::vector<int> line_matches;
-  MatchLines(points_on_line0, points_on_line1, matches, features0.cols(), features1.cols(), line_matches);
+  MatchLines(points_on_lines0, points_on_lines1, matches, features0.cols(), features1.cols(), line_matches);
 
   // START_TIMER;
   std::vector<int> inliers(frame1->FeatureNum(), -1);

@@ -25,7 +25,7 @@ public:
   };
 
   Mapline();
-  Mapline(int& mappoint_id);
+  Mapline(int mappoint_id);
   void SetId(int id);
   int GetId();
   void SetType(Type& type);
@@ -40,10 +40,10 @@ public:
   bool EndpointsValid();
   void SetEndpointsUpdateStatus(bool status);
   bool ToUpdateEndpoints();
-  void SetLine3D(Line3D& line_3d);
+  void SetLine3D(g2o::Line3D& line_3d);
   void SetLine3DPtr(Line3DPtr& line_3d);
   ConstLine3DPtr GetLine3DPtr();
-  Line3D GetLine3D();
+  g2o::Line3D GetLine3D();
 
   void AddObverser(const int& frame_id, const int& line_index);
   void RemoveObverser(const int& frame_id);

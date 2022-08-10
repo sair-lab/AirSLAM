@@ -115,7 +115,7 @@ void Frame::AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_lef
   std::vector<std::map<int, double>> points_on_line_left, points_on_line_right;
   std::vector<int> line_matches;
   AssignPointsToLines(lines_left, features_left, points_on_line_left);
-  _points_on_lines = points_on_line_left
+  _points_on_lines = points_on_line_left;
   AssignPointsToLines(lines_right, features_right, points_on_line_right);
 
   // match stereo lines
@@ -135,7 +135,7 @@ void Frame::AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_lef
   // initialize line track ids and maplines
   std::vector<int> line_track_ids(line_num, -1);
   _line_track_ids = line_track_ids;
-  std::vector<MappointPtr> maplines(line_num, nullptr);
+  std::vector<MaplinePtr> maplines(line_num, nullptr);
   _maplines = maplines;
 
 
@@ -329,11 +329,15 @@ void Frame::InsertMapline(size_t idx, MaplinePtr mapline){
   }
 }
 
-const std::vector<MaplinePtr>& Frame::GetAllMaplines(){
+std::vector<MaplinePtr>& Frame::GetAllMaplines(){
   return _maplines;
 }
 
-const std::vector<std::map<int, double>>& GetPointsOnLines(){
+const std::vector<MaplinePtr>& Frame::GetConstAllMaplines(){
+  return _maplines;
+}
+
+const std::vector<std::map<int, double>>& Frame::GetPointsOnLines(){
   return _points_on_lines;
 }
 

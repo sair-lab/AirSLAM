@@ -15,6 +15,7 @@
 
 #include "utils.h"
 #include "read_configs.h"
+#include "camera.h"
 
 void FilterShortLines(std::vector<Eigen::Vector4f>& lines, float length_thr);
 void FilterShortLines(std::vector<Eigen::Vector4d>& lines, float length_thr);
@@ -38,7 +39,7 @@ bool ComputeLineFramePlanes(const Eigen::Vector4d& plane1, const Eigen::Vector4d
 // line_2d1, line_2d2 : line in normalized plane of camera
 bool TriangleByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d& pose1, 
     const Eigen::Vector4d& line_2d2, const Eigen::Matrix4d& pose2, Line3DPtr line_3d);
-bool ComputeLine3DFromEndpoints(const Eigen::Vector6d& endpoints, Line3DPtr line_3d);
+bool ComputeLine3DFromEndpoints(const Vector6d& endpoints, Line3DPtr line_3d);
 bool Point2DTo3D(const Eigen::Vector3d& anchor_point1, const Eigen::Vector3d& anchor_point2, 
   	const Eigen::Vector2d& anchor_point_2d1, const Eigen::Vector2d& anchor_point_2d2, 
   	const Eigen::Vector2d& p2D, Eigen::Vector3d& p3D);

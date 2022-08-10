@@ -231,7 +231,7 @@ void MatchLines(const std::vector<std::map<int, double>>& points_on_line0,
   }
 }
 
-void SortPointsOnLine(std::vector<Eigen::Vector2d>& points, std::vector<size_t>& order, bool sort_by_x = true){
+void SortPointsOnLine(std::vector<Eigen::Vector2d>& points, std::vector<size_t>& order, bool sort_by_x){
   size_t num_points = points.size();
   if(num_points < 1) return;
 
@@ -258,14 +258,16 @@ bool TriangleByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& l
   double y22 = line_right(3);
 
   double dx_left = x12 - x11;
-  if(std::abs(dx_left) <= 1e-5) return false;
+  if(std::abs(dx_left) <= 1e-5) return false;       // parallax is too small
   double dy_left = y12 - y11;
-  double angle_left = std::atan(dy_left / dx_left);
-  if(std::abs(angle_left) < 0.087) return false;
+  double angle_left = std::atan(dy_left / dx_left); 
+  if(std::abs(angle_left) < 0.087) return false;    // horizontal line
 
   double k_inv = dx_left / dy_left;
   double x21_left = x11 + k_inv * (y21 - y11);
   double x22_left = x11 + k_inv * (y22 - y11);
+  double dx2_left = x22_left - x21_left;
+  if(std::abs(dx2_left) <= 1e-5) return false; 
 
   std::vector<Eigen::Vector2d> points;
   points.emplace_back(line_left.head(2));
@@ -275,9 +277,19 @@ bool TriangleByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& l
   std::vector<size_t> order;
   SortPointsOnLine(points, order);
 
+  size_t i1 = order[0];
+  size_t i2 = order[(order.size() - 1)];
+  Eigen::Vector3d point_2d1, point_2d2;
   Eigen::Vector3d point_3d1, point_3d2;
-  camera->BackProjectStereo(points[order[0]], point_3d1);
-  camera->BackProjectStereo(points[order[(order.size() - 1)]], point_3d1);
+
+  double rate = (x22 - x21) / dx2_left;
+  double xr1 = x21 + rate * (points[i1](0) - x21);
+  double xr2 = x21 + rate * (points[i2](0) - x21);
+  point_2d1 << points[i1], xr1;
+  point_2d2 << points[i2], xr2;
+
+  camera->BackProjectStereo(point_2d1, point_3d1);
+  camera->BackProjectStereo(point_2d2, point_3d1);
 
   line_3d.topRows(3) = point_3d1;
   line_3d.bottomRows(3) = point_3d2;
@@ -298,7 +310,8 @@ bool ComputeLineFramePlanes(const Eigen::Vector4d& plane1, const Eigen::Vector4d
   Eigen::Vector3d n1 = plane1.head(3);
   Eigen::Vector3d n2 = plane2.head(3);
 
-  double cos_theta = n1.transpose() * n2 / (n1.norm() * n2.norm())
+  double cos_theta = n1.transpose() * n2;
+  cos_theta /= (n1.norm() * n2.norm());
   // cos10 = cos170 = 0.9848
   if(std::abs(cos_theta) > 0.9848) return false;
 
@@ -325,7 +338,7 @@ bool TriangleByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d&
   point11 << line_2d1.head(2), 1.0;
   point12 << line_2d1.tail(2), 1.0;
   point13 << 0.0, 0.0, 0.0;
-  if(!ComputeLineFramePlanes(point11, point12, point13, plane1)) return false;
+  if(!CompoutePlaneFromPoints(point11, point12, point13, plane1)) return false;
 
   Eigen::Vector3d point21, point22;
   point21 << line_2d1.head(2), 1.0;
@@ -333,19 +346,19 @@ bool TriangleByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d&
 
   point21 = R12 * point21 + t12;
   point22 = R12 * point22 + t12;
-  if(!ComputeLineFramePlanes(point21, point22, t12, plane2)) return false;
+  if(!CompoutePlaneFromPoints(point21, point22, t12, plane2)) return false;
 
  return ComputeLineFramePlanes(plane1, plane2, line_3d);
 }
 
-bool ComputeLine3DFromEndpoints(const Eigen::Vector6d& endpoints, Line3DPtr line_3d){
+bool ComputeLine3DFromEndpoints(const Vector6d& endpoints, Line3DPtr line_3d){
   Eigen::Vector3d point3d1 = endpoints.head(3);
   Eigen::Vector3d point3d2 = endpoints.tail(3);
 
-  Eigen::Verctor3d l = point3d2 - point3d1;
+  Eigen::Vector3d l = point3d2 - point3d1;
   if(l.norm() < 0.01) return false;
 
-  Eigen::Vector6d line_cart;
+  Vector6d line_cart;
   line_cart << point3d1, l;
   g2o::Line3D line = g2o::Line3D::fromCartesian(line_cart);
 

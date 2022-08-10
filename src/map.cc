@@ -67,8 +67,8 @@ void Map::InsertKeyframe(FramePtr frame){
   const std::vector<int>& line_track_ids = frame->GetAllTrackIds();
   const std::vector<Eigen::Vector4d>& lines = frame->GatAllLines();
   const std::vector<Eigen::Vector4d>& lines_right = frame->GatAllRightLines();
-  const std::vector<bool>& lines_right_valid = frame->GetAllRightLineStatus()
-  std::vector<MaplinePtr>& maplines = frame->GetAllMappoints();
+  const std::vector<bool>& lines_right_valid = frame->GetAllRightLineStatus();
+  std::vector<MaplinePtr>& maplines = frame->GetAllMaplines();
   for(size_t i = 0; i < frame->LineNum(); i++){
     MaplinePtr mpl = maplines[i];
     if(mpl == nullptr){
@@ -87,15 +87,15 @@ void Map::InsertKeyframe(FramePtr frame){
       }
     }
     mpl->AddObverser(frame_id, i);
-    if(mpt->GetType() == Mappoint::Type::UnTriangulated && mpt->ObverserNum() > 2){
+    if(mpl->GetType() == Mapline::Type::UnTriangulated && mpl->ObverserNum() > 2){
       const std::map<int, int>& mpl_obversers = mpl->GetAllObversers();
-      int obverser_frame_id = mpl_obversers.begin->first;
-      int obverser_line_idx = mpl_obversers.begin->second;
+      int obverser_frame_id = mpl_obversers.begin()->first;
+      int obverser_line_idx = mpl_obversers.begin()->second;
 
       FramePtr obverser_frame = GetFramePtr(obverser_frame_id);
       if(!obverser_frame) continue;
       Eigen::Vector4d obverser_line;
-      if(!GetLine(i, obverser_line)) continue;
+      if(!frame->GetLine(i, obverser_line)) continue;
       Line3DPtr line_3d = std::shared_ptr<g2o::Line3D>(new g2o::Line3D());
       Eigen::Matrix4d obverser_pose = obverser_frame->GetPose();
       if(TriangleByTwoFrames(lines[i], Twf, obverser_line, obverser_pose, line_3d)) continue;
@@ -126,7 +126,7 @@ void Map::InsertMapline(MaplinePtr mapline){
 }
 
 void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
-  if(!mapline || !mapline->IsValid || !mappline->ToUpdateEndpoints()) return;
+  if(!mapline || !mapline->IsValid() || !mapline->ToUpdateEndpoints()) return;
   ConstLine3DPtr line_3d = mapline->GetLine3DPtr();
   const std::map<int, int>& obversers = mapline->GetAllObversers();
   const std::map<int, int>& included_endpoints = mapline->GetAllObverserEndpointStatus();
@@ -142,9 +142,9 @@ void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
 
   Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
   for(auto& kv : obversers){
-    int frame_id = kv->first;
+    int frame_id = kv.first;
     FramePtr frame = GetFramePtr(frame_id);
-    if(!frame || included_endpoints[frame_id] < 0) continue;
+    if(!frame || included_endpoints.at(frame_id) < 0) continue;
     Eigen::Vector4d line_measurement;
     if(!frame->GetLine(kv.second, line_measurement)) continue;
 
@@ -157,17 +157,17 @@ void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
     T.pretranslate(tcw);
     g2o::Line3D line_3d_c = T * (*line_3d);
     line_3d_c.normalize();
-    Vector6 line_cart_c = line_3d->toCartesian();
-    Eigen::Vector3d line_direction = line_cart.tail(3);
-    Eigen::Vector3d anchor_point = line_cart.head(3);
+    Vector6d line_cart_c = line_3d->toCartesian();
+    Eigen::Vector3d line_direction = line_direction.tail(3);
+    Eigen::Vector3d anchor_point = line_direction.head(3);
 
-    Eigen::Vector3d init_point_3d1, init_point_3d1;
+    Eigen::Vector3d init_point_3d1, init_point_3d2;
     if(std::abs(line_direction(2)) < 1e-5){
       Eigen::Index max_index;
       line_direction.array().abs().maxCoeff(&max_index);
       size_t md = max_index;  // main direction
       assert(md < 2);
-      double op1 = -anchor_point(md) / line_direction(md)
+      double op1 = -anchor_point(md) / line_direction(md);
       init_point_3d1 = anchor_point + op1 * line_direction;
       double p1p2 = 1.0 / line_direction(md);
       init_point_3d2 = init_point_3d1 + p1p2 * line_direction;
@@ -198,9 +198,9 @@ void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
     mapline->SetObverserEndpointStatus(frame_id, 1);
   }
 
-  Eigen::Vector3d line_d = line_3d->D();
+  Eigen::Vector3d line_d = line_3d->d();
   Eigen::Index max_index;
-  line_3d.array().abs().maxCoeff(&max_index);
+  line_d.array().abs().maxCoeff(&max_index);
   size_t md = max_index;  // main direction
   size_t max_idx = 0;
   size_t min_idx = 0;
@@ -232,7 +232,7 @@ MappointPtr Map::GetMappointPtr(int mappoint_id){
   return _mappoints[mappoint_id];
 }
 
-MaplinePtr GetMaplinePtr(int mapline_id){
+MaplinePtr Map::GetMaplinePtr(int mapline_id){
   if(_maplines.count(mapline_id) == 0){
     return nullptr;
   }
@@ -736,7 +736,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
     if(!new_mapline->EndpointsValid()) continue;
     int mpl_id = new_mapline->GetId();
     const Vector6d& endpoints = new_mapline->GetEndpoints();
-    mapline_message->ids.push_back(mpt_id);
+    mapline_message->ids.push_back(mpl_id);
     mapline_message->lines.push_back(endpoints); 
   }
 

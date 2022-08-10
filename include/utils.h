@@ -56,6 +56,8 @@ using AlignedUnorderedSet =
 
 void ConvertVectorToRt(Eigen::Matrix<double, 7, 1>& m, Eigen::Matrix3d& R, Eigen::Vector3d& t);
 double DescriptorDistance(const Eigen::Matrix<double, 256, 1>& f1, const Eigen::Matrix<double, 256, 1>& f2);
+cv::Scalar GenerateColor(int id);
+void GenerateColor(int id, Eigen::Vector3d color);
 
 // files
 void GetFileNames(std::string path, std::vector<std::string>& filenames);

@@ -60,6 +60,7 @@ add_library(${PROJECT_NAME}_lib SHARED
   src/frame.cc
   src/point_matching.cc
   src/mappoint.cc
+  src/mapline.cc
   src/thread_publisher.cc
   src/line_processor.cc
   src/ros_publisher.cc

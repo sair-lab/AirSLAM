@@ -112,7 +112,7 @@ private:
 
   // for publishing maplines
   ros::Publisher _ros_mapline_pub;
-  std::unordered_map<int, int> _mappoint_id_to_index;
+  std::unordered_map<int, int> _mapline_id_to_index;
   visualization_msgs::Marker _ros_maplines;
   ThreadPublisher<MapLineMessage> _mapline_publisher;
 };

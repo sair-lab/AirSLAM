@@ -8,6 +8,7 @@
 #include <iostream>
 #include <numeric>
 
+#include "utils.h"
 #include "line_processor.h"
 
 void SaveDetectorResult(
@@ -78,14 +79,6 @@ void SaveLineDetectionResult(cv::Mat& image, std::vector<Eigen::Vector4d>& lines
         cv::Point2i((int)(line(2)+0.5), (int)(line(3)+0.5)), cv::Scalar(0, 250, 0), 1);
   }
   cv::imwrite(save_image_path, img_color);
-}
-
-cv::Scalar GenerateColor(int id){
-  id++;
-  int red = (id * 23) % 255;
-  int green = (id * 53) % 255;
-  int blue = (id * 79) % 255;
-  return cv::Scalar(blue, green, red);
 }
 
 void SavePointLineRelation(cv::Mat& image, std::vector<Eigen::Vector4d>& lines, Eigen::Matrix2Xd& points, 
