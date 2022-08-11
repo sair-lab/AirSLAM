@@ -503,6 +503,7 @@ int MapBuilder::FramePoseOptimization(
 }
 
 void MapBuilder::InsertKeyframe(FramePtr frame){
+std::cout << "InsertKeyframe 1" << std::endl;
   // create new track id
   std::vector<int>& track_ids = frame->GetAllTrackIds();
   for(size_t i = 0; i < track_ids.size(); i++){
@@ -518,9 +519,11 @@ void MapBuilder::InsertKeyframe(FramePtr frame){
       frame->SetLineTrackId(i, _line_track_id++);
     }
   }
+std::cout << "InsertKeyframe 2" << std::endl;
 
   // insert keyframe to map
   _map->InsertKeyframe(frame);
+std::cout << "InsertKeyframe 3" << std::endl;
 
   // update last keyframe
   _last_keyframe = frame;

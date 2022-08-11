@@ -23,6 +23,7 @@ void Map::InsertKeyframe(FramePtr frame){
   _keyframes[frame_id] = frame;
   _keyframe_ids.push_back(frame_id);
   if(_keyframes.size() < 2) return;
+std::cout << "Map InsertKeyframe 1" << std::endl;
 
   // START_TIMER;
   // update mappoints
@@ -55,12 +56,14 @@ void Map::InsertKeyframe(FramePtr frame){
       TriangulateMappoint(mpt);
     }
   }
+std::cout << "Map InsertKeyframe 2" << std::endl;
 
   // add new mappoints to map
   for(MappointPtr mpt:new_mappoints){
     InsertMappoint(mpt);
   }
   // STOP_TIMER("Insert to map Time");
+std::cout << "Map InsertKeyframe 3" << std::endl;
 
   // update mapline
   std::vector<MaplinePtr> new_maplines;
@@ -102,17 +105,21 @@ void Map::InsertKeyframe(FramePtr frame){
       mpl->SetLine3DPtr(line_3d);
     }
   }
+std::cout << "Map InsertKeyframe 4" << std::endl;
 
   // add new maplines to map
   for(MaplinePtr mpl:new_maplines){
     InsertMapline(mpl);
   }
+std::cout << "Map InsertKeyframe 5" << std::endl;
 
   // optimization
   if(_keyframes.size() >= 2){
     // SlidingWindowOptimization(frame);
     LocalMapOptimization(frame);
   }
+std::cout << "Map InsertKeyframe 6" << std::endl;
+
 }
 
 void Map::InsertMappoint(MappointPtr mappoint){
@@ -562,6 +569,7 @@ void Map::AddFrameVertex(FramePtr frame, MapOfPoses& poses, bool fix_this_frame)
 void Map::LocalMapOptimization(FramePtr new_frame){
   UpdateFrameConnection(new_frame);
   int new_frame_id = new_frame->GetFrameId();  
+std::cout << "Map LocalMapOptimization 2" << std::endl;
 
   MapOfPoses poses;
   MapOfPoints3d points;
@@ -576,12 +584,14 @@ void Map::LocalMapOptimization(FramePtr new_frame){
   size_t fixed_frame_num = 0;
   std::vector<FramePtr> neighbor_frames;
   SearchNeighborFrames(new_frame, neighbor_frames);
+std::cout << "Map LocalMapOptimization 3" << std::endl;
 
   for(auto& kf : neighbor_frames){
     bool fix_this_frame = (kf->GetFrameId() == 0);
     fixed_frame_num = fix_this_frame ? (fixed_frame_num + 1) : fixed_frame_num;
     AddFrameVertex(kf, poses, fix_this_frame);
   }
+std::cout << "Map LocalMapOptimization 4" << std::endl;
 
   // select fixed frames and mappoints
   std::map<FramePtr, int> fixed_frames;
@@ -603,6 +613,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
       }
     }
   }
+std::cout << "Map LocalMapOptimization 5" << std::endl;
 
 
   const size_t max_fixed_frame_num = 1;
@@ -620,6 +631,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
     }
     fixed_frame_num += to_add_fixed_num;
   }
+std::cout << "Map LocalMapOptimization 6" << std::endl;
 
   std::cout << std::endl;
 
@@ -664,12 +676,14 @@ void Map::LocalMapOptimization(FramePtr new_frame){
       }
     }
   }
+std::cout << "Map LocalMapOptimization 7" << std::endl;
 
   // STOP_TIMER("SlidingWindowOptimization Time1");
   // START_TIMER;
   LocalmapOptimization(poses, points, camera_list, mono_point_constraints, stereo_point_constraints);
   // STOP_TIMER("SlidingWindowOptimization Time2");
   // START_TIMER;
+std::cout << "Map LocalMapOptimization 8" << std::endl;
 
   // erase outliers
   std::vector<std::pair<FramePtr, MappointPtr>> outliers;
@@ -682,6 +696,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
       }
     }
   }
+std::cout << "Map LocalMapOptimization 9" << std::endl;
 
   for(auto& stereo_point_constraint : stereo_point_constraints){
     if(!stereo_point_constraint->inlier){
@@ -700,6 +715,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
   // START_TIMER;
   // PrintConnection();
   // STOP_TIMER("PrintConnection Time2");
+std::cout << "Map LocalMapOptimization 10" << std::endl;
 
 
   // copy back to map
@@ -719,6 +735,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
     keyframe_message->ids.push_back(frame_id);
     keyframe_message->poses.push_back(pose_eigen);
   }
+std::cout << "Map LocalMapOptimization 11" << std::endl;
 
   for(auto& kv : points){
     int mpt_id = kv.first;
@@ -729,16 +746,18 @@ void Map::LocalMapOptimization(FramePtr new_frame){
     map_message->ids.push_back(mpt_id);
     map_message->points.push_back(position.p);
   }
+std::cout << "Map LocalMapOptimization 12" << std::endl;
 
   // maplines
   const std::vector<MaplinePtr>& new_maplines = new_frame->GetAllMaplines();
   for(auto& new_mapline : new_maplines){
-    if(!new_mapline->EndpointsValid()) continue;
+    if(!new_mapline || !new_mapline->EndpointsValid()) continue;
     int mpl_id = new_mapline->GetId();
     const Vector6d& endpoints = new_mapline->GetEndpoints();
     mapline_message->ids.push_back(mpl_id);
     mapline_message->lines.push_back(endpoints); 
   }
+std::cout << "Map LocalMapOptimization 13" << std::endl;
 
   _ros_publisher->PublisheKeyframe(keyframe_message);
   _ros_publisher->PublishMap(map_message);
