@@ -10,6 +10,7 @@
 
 #include "utils.h"
 #include "line_processor.h"
+#include "frame.h"
 
 void SaveDetectorResult(
     cv::Mat& image, std::vector<cv::KeyPoint>& keypoints, std::string save_path){
@@ -98,7 +99,6 @@ void SavePointLineRelation(cv::Mat& image, std::vector<Eigen::Vector4d>& lines, 
   for(size_t i = 0; i < lines.size(); i++){
     cv::Scalar color = GenerateColor(i);
     Eigen::Vector4d line = lines[i];
-    std::cout << "line = " << line.transpose() << std::endl;
     cv::line(img_color, cv::Point2i((int)(line(0)+0.5), (int)(line(1)+0.5)), 
         cv::Point2i((int)(line(2)+0.5), (int)(line(3)+0.5)), color, 1);
 
@@ -129,14 +129,12 @@ cv::Mat DrawLinePointRelation(cv::Mat& image, Eigen::Matrix<double, 259, Eigen::
   std::vector<int> radii(point_num, 2);
 
   // draw lines
-  std::cout << points_on_line.size() << std::endl;
   for(size_t i = 0; i < lines.size(); i++){
     cv::Scalar color = GenerateColor(line_ids[i]);
     Eigen::Vector4d line = lines[i];
     cv::line(img_color, cv::Point2i((int)(line(0)+0.5), (int)(line(1)+0.5)), 
         cv::Point2i((int)(line(2)+0.5), (int)(line(3)+0.5)), color, 2);
 
-    std::cout << points_on_line[i].size() << std::endl;
     for(auto& kv : points_on_line[i]){
       colors[kv.first] = color;
       radii[kv.first] *= 2;
@@ -164,7 +162,6 @@ void SaveStereoLineMatch(cv::Mat& image_left, cv::Mat& image_right,
   std::vector<int> line_ids_left(lines_left.size());
   std::vector<int> line_ids_right(lines_right.size(), -1);
   size_t line_id = 1;
-  std::cout << "lines_left.size() = " << lines_left.size() << std::endl;
   for(size_t i = 0; i < lines_left.size(); i++){
     line_ids_left[i] = line_id;
     int matched_right = right_to_left_line_matches[i];
@@ -180,9 +177,7 @@ void SaveStereoLineMatch(cv::Mat& image_left, cv::Mat& image_right,
     }
   }
 
-  std::cout << "Draw Left Line Point Relation" << std::endl;
   cv::Mat img_left_color = DrawLinePointRelation(image_left, feature_left, lines_left, points_on_line_left, line_ids_left);
-  std::cout << "Draw Right Line Point Relation" << std::endl;
   cv::Mat img_right_color = DrawLinePointRelation(image_right, feature_right, lines_right, points_on_line_right, line_ids_right);
 
   // save image
@@ -190,8 +185,6 @@ void SaveStereoLineMatch(cv::Mat& image_left, cv::Mat& image_right,
   MakeDir(stereo_line_matching_save_dir); 
   std::string line_save_image_name = "stereo_line_matching_" + idx + ".jpg";
   std::string save_image_path = ConcatenateFolderAndFileName(stereo_line_matching_save_dir, line_save_image_name);
-
-  std::cout << "save_image_path = " << save_image_path << std::endl;
 
   int save_rows = img_left_color.rows;
   int save_cols = img_left_color.cols + 10 + img_right_color.cols;
@@ -201,4 +194,60 @@ void SaveStereoLineMatch(cv::Mat& image_left, cv::Mat& image_right,
   img_left_color.copyTo(save_image(rect1));
   img_right_color.copyTo(save_image(rect2));
   cv::imwrite(save_image_path, save_image);
+}
+
+cv::Mat DrawLineWithText(cv::Mat& image, std::vector<Eigen::Vector4d>& lines, std::vector<int>& track_ids){
+  cv::Mat img_color;
+  cv::cvtColor(image, img_color, cv::COLOR_GRAY2RGB);
+
+  // draw lines
+  for(size_t i = 0; i < lines.size(); i++){
+    cv::Scalar color = GenerateColor(track_ids[i]);
+    Eigen::Vector4d line = lines[i];
+    std::cout << "line_id = " << track_ids[i] << " line = " << line.transpose() << std::endl;
+    cv::line(img_color, cv::Point2i((int)(line(0)+0.5), (int)(line(1)+0.5)), 
+        cv::Point2i((int)(line(2)+0.5), (int)(line(3)+0.5)), color, 2);
+
+    cv::putText(img_color, std::to_string(track_ids[i]), cv::Point((int)((line(0)+line(2))/2), (int)((line(1)+line(3))/2)), 
+        cv::FONT_HERSHEY_DUPLEX, 1.0, color, 2);
+  }
+  return img_color;
+}
+
+void DrawStereoLinePair(cv::Mat& image_left, cv::Mat& image_right, FramePtr frame,
+    std::string save_root, std::string idx){
+  const std::vector<Eigen::Vector4d>& lines_left = frame->GatAllLines();
+  const std::vector<Eigen::Vector4d>& lines_right = frame->GatAllRightLines();
+  const std::vector<int>& line_track_ids = frame->GetAllLineTrackId();
+  const std::vector<bool>& lines_right_valid = frame->GetAllRightLineStatus();
+
+  std::vector<int> good_track_ids;  
+  std::vector<Eigen::Vector4d> good_lines_left, good_lines_right;
+  for(size_t i = 0; i < lines_left.size(); i++){
+    if(!lines_right_valid[i]) continue;
+    good_lines_left.push_back(lines_left[i]);
+    good_lines_right.push_back(lines_right[i]);
+    good_track_ids.push_back(line_track_ids[i]);
+  }
+
+  std::cout << "left DrawLineWithText-----------------------" << std::endl;
+  cv::Mat img_left_color = DrawLineWithText(image_left, good_lines_left, good_track_ids);
+  std::cout << "right DrawLineWithText-----------------------" << std::endl;
+  cv::Mat img_right_color = DrawLineWithText(image_right, good_lines_right, good_track_ids);
+
+  // save image
+  std::string stereo_line_matching_save_dir = ConcatenateFolderAndFileName(save_root, "stereo_line_pair");
+  MakeDir(stereo_line_matching_save_dir); 
+  std::string line_save_image_name = "stereo_line_pair" + idx + ".jpg";
+  std::string save_image_path = ConcatenateFolderAndFileName(stereo_line_matching_save_dir, line_save_image_name);
+
+  int save_rows = img_left_color.rows;
+  int save_cols = img_left_color.cols + 10 + img_right_color.cols;
+  cv::Mat save_image = cv::Mat::zeros(save_rows, save_cols, img_left_color.type());
+  cv::Rect rect1(0, 0, img_left_color.cols, img_left_color.rows);
+  cv::Rect rect2( img_left_color.cols + 10, 0, img_right_color.cols, img_left_color.rows);
+  img_left_color.copyTo(save_image(rect1));
+  img_right_color.copyTo(save_image(rect2));
+  cv::imwrite(save_image_path, save_image);
+
 }

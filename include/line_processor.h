@@ -30,7 +30,7 @@ void MatchLines(const std::vector<std::map<int, double>>& points_on_line0,
 
 void SortPointsOnLine(std::vector<Eigen::Vector2d>& points, std::vector<size_t>& order, bool sort_by_x = true);
 bool TriangleByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& line_right, 
-    const CameraPtr& camera, Vector6d& line_3d);
+    const Eigen::Matrix4d& Twc, const CameraPtr& camera, Vector6d& line_3d);
 
 bool CompoutePlaneFromPoints(const Eigen::Vector3d& point1, const Eigen::Vector3d& point2, 
     const Eigen::Vector3d& point3, Eigen::Vector4d& plane);

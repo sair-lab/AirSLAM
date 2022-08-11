@@ -211,6 +211,7 @@ void MatchLines(const std::vector<std::map<int, double>>& points_on_line0,
   }
 
   // find good matches
+  int line_match_num = 0;
   line_matches.clear();
   line_matches.resize(line_num0);
   std::vector<int> row_max_value(line_num0), col_max_value(line_num1);
@@ -228,7 +229,9 @@ void MatchLines(const std::vector<std::map<int, double>>& points_on_line0,
     if(score < 0.8) continue;
 
     line_matches[col_max_location] = j;
+    line_match_num++;
   }
+  std::cout << "line_match_num = " << line_match_num << std::endl;
 }
 
 void SortPointsOnLine(std::vector<Eigen::Vector2d>& points, std::vector<size_t>& order, bool sort_by_x){
@@ -246,7 +249,10 @@ void SortPointsOnLine(std::vector<Eigen::Vector2d>& points, std::vector<size_t>&
 }
 
 bool TriangleByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& line_right, 
-    const CameraPtr& camera, Vector6d& line_3d){
+    const Eigen::Matrix4d& Twc, const CameraPtr& camera, Vector6d& line_3d){
+  std::cout << "--------------------  TriangleByStereo  ----------------" << std::endl;
+  std::cout << "line_left = " << line_left.transpose() << std::endl;
+  std::cout << "line_right = " << line_right.transpose() << std::endl;
   double x11 = line_left(0);
   double y11 = line_left(1);
   double x12 = line_left(2);
@@ -283,15 +289,38 @@ bool TriangleByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& l
   Eigen::Vector3d point_3d1, point_3d2;
 
   double rate = (x22 - x21) / dx2_left;
-  double xr1 = x21 + rate * (points[i1](0) - x21);
-  double xr2 = x21 + rate * (points[i2](0) - x21);
+  double xr1 = x21 + rate * (points[i1](0) - x21_left);
+  double xr2 = x21 + rate * (points[i2](0) - x21_left);
+
   point_2d1 << points[i1], xr1;
   point_2d2 << points[i2], xr2;
 
+  std::cout << "BackProjectStereo point_2d1 = " << point_2d1.transpose() << std::endl;
+  std::cout << "BackProjectStereo point_2d2 = " << point_2d2.transpose() << std::endl;
   camera->BackProjectStereo(point_2d1, point_3d1);
-  camera->BackProjectStereo(point_2d2, point_3d1);
+  camera->BackProjectStereo(point_2d2, point_3d2);
+  std::cout << "BackProjectStereo point_3d1 = " << point_3d1.transpose() << std::endl;
+  std::cout << "BackProjectStereo point_3d2 = " << point_3d2.transpose() << std::endl;
 
+  if(point_3d1(2) < 0 || point_3d2(2) < 0){
+    std::cout << "check error-----------------------------------" << std::endl;
+  }
+
+
+  // form camera to world
+  Eigen::Matrix3d Rwc = Twc.block<3, 3>(0, 0);
+  Eigen::Vector3d twc = Twc.block<3, 1>(0, 3);
+  point_3d1 = Rwc * point_3d1 + twc;
+  point_3d2 = Rwc * point_3d2 + twc;
   line_3d << point_3d1, point_3d2;
+
+
+  std::cout << "final Rwc = " << Rwc << std::endl;
+  std::cout << "final twc = " << twc.transpose() << std::endl;
+  std::cout << "final point_3d1 = " << point_3d1.transpose() << std::endl;
+  std::cout << "final point_3d2 = " << point_3d2.transpose() << std::endl;
+  std::cout << "--------------------  End TriangleByStereo  ----------------" << std::endl;
+
   return true;
 }
 

@@ -139,6 +139,9 @@ RosPublisher::RosPublisher(const RosPublisherConfig& ros_publisher_config): _con
     _ros_maplines.pose.orientation.z = 0;
     _ros_maplines.pose.orientation.w = 1.0;
     _ros_maplines.type = visualization_msgs::Marker::LINE_LIST;
+    _ros_maplines.scale.x = 0.1;  
+    _ros_maplines.color.b = 1.0;
+    _ros_maplines.color.a = 1.0;
 
     std::function<void(const MapLineMessageConstPtr&)> publish_mapline_function = 
         [&](const MapLineMessageConstPtr& mapline_message){
@@ -160,9 +163,13 @@ RosPublisher::RosPublisher(const RosPublisherConfig& ros_publisher_config): _con
           std_msgs::ColorRGBA color;
           Eigen::Vector3d color_vector;
           GenerateColor(mapline_id, color_vector);
-          color.r = color_vector(0);
-          color.g = color_vector(1);
-          color.b = color_vector(2);
+          // color.r = color_vector(0);
+          // color.g = color_vector(1);
+          // color.b = color_vector(2);
+          color.r = 0.0;
+          color.g = 0.0;
+          color.b = 1.0;   
+          color.a = 1.0;   
           _ros_maplines.colors.push_back(color);
           _ros_maplines.colors.push_back(color);
           _mapline_id_to_index[mapline_id] = _ros_maplines.points.size()-2;

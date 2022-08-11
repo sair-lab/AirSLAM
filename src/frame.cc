@@ -125,7 +125,7 @@ void Frame::AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_lef
   MatchLines(points_on_line_left, points_on_line_right, stereo_matches, features_left.cols(), features_right.cols(), line_matches);
   for(size_t i = 0; i < line_num; i++){
     if(line_matches[i] > 0){
-      _lines_right[i] = lines_right[i];
+      _lines_right[i] = lines_right[line_matches[i]];
       _lines_right_valid[i] = true;
     }else{
       _lines_right_valid[i] = false;
@@ -343,7 +343,7 @@ const std::vector<std::map<int, double>>& Frame::GetPointsOnLines(){
 
 bool Frame::TriangleStereoLine(size_t idx, Vector6d& endpoints){
   if(idx >= _lines.size() || !_lines_right_valid[idx]) return false;
-  return TriangleByStereo(_lines[idx], _lines_right[idx], _camera, endpoints);
+  return TriangleByStereo(_lines[idx], _lines_right[idx], _pose, _camera, endpoints);
 }
 
 void Frame::AddConnection(std::shared_ptr<Frame> frame, int weight){

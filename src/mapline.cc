@@ -63,7 +63,7 @@ void Mapline::RemoveObverser(const int& frame_id){
 int Mapline::ObverserNum(){
   int obverser_num = 0;
   for(auto& kv : _obversers){
-    if(kv.second > 0){
+    if(kv.second >= 0){
       obverser_num++;
     }
   }

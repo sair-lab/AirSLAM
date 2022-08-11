@@ -81,14 +81,14 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   // START_TIMER;;
 
 
-  // // // // for debug
-  // std::cout << "SaveStereoLineMatch" << std::endl;
-  // SaveStereoLineMatch(image_left_rect, image_right_rect, features_left, features_right, 
-  //     lines_left, lines_right, frame->relation_left, frame->relation_right, 
-  //     frame->line_left_to_right_match, _configs.saving_dir, std::to_string(frame_id));
-  // // // //////////////////////////
-  // // // STOP_TIMER("SaveStereoMatchResult");
-  // // // START_TIMER;;
+  // // // for debug
+  std::cout << "SaveStereoLineMatch" << std::endl;
+  SaveStereoLineMatch(image_left_rect, image_right_rect, features_left, features_right, 
+      lines_left, lines_right, frame->relation_left, frame->relation_right, 
+      frame->line_left_to_right_match, _configs.saving_dir, std::to_string(frame_id));
+  // // //////////////////////////
+  // // STOP_TIMER("SaveStereoMatchResult");
+  // // START_TIMER;;
 
 
   // message
@@ -98,13 +98,14 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   feature_message->keypoints = keypoints;
   FramePoseMessagePtr frame_pose_message = std::shared_ptr<FramePoseMessage>(new FramePoseMessage);
 
-  std::cout << "AddInput 1" << std::endl;
   // init
   if(!_init){
     if(stereo_matches.size() < 100) return;
     _init = Init(frame);
-  std::cout << "AddInput 1.2" << std::endl;
     if(_init){
+      // debug
+      DrawStereoLinePair(image_left_rect, image_right_rect, frame, _configs.saving_dir, std::to_string(frame_id));
+
       _last_frame = frame;
       _last_image = image_left_rect;
       _last_keyimage = image_left_rect;
@@ -123,7 +124,6 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     _ros_publisher->PublishFramePose(frame_pose_message);
     return;
   }
-  std::cout << "AddInput 2" << std::endl;
 
   // first track with last keyframe
   bool track_keyframe = true;
@@ -152,7 +152,7 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   }
   _last_frame_track_well = true;
   // STOP_TIMER("Tracking");
-  std::cout << "AddInput 3" << std::endl;
+    DrawStereoLinePair(image_left_rect, image_right_rect, frame, _configs.saving_dir, std::to_string(frame_id));
 
 
   // START_TIMER;
@@ -268,6 +268,14 @@ bool MapBuilder::Init(FramePtr frame){
   int feature_num = frame->FeatureNum();
   if(feature_num < 150) return false;
 
+  // Eigen::Matrix4d init_pose = Eigen::Matrix4d::Identity();
+  Eigen::Matrix4d init_pose;
+  init_pose << 1, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 1, 0, 0, 0, 1;
+  frame->SetPose(init_pose);
+  frame->SetPoseFixed(true);
+
+  Eigen::Matrix3d Rwc = init_pose.block<3, 3>(0, 0);
+  Eigen::Vector3d twc = init_pose.block<3, 1>(0, 3);
   // construct mappoints
   std::vector<int> track_ids(feature_num, -1);
   int stereo_point_num = 0;
@@ -276,6 +284,7 @@ bool MapBuilder::Init(FramePtr frame){
   std::vector<MappointPtr> new_mappoints;
   for(size_t i = 0; i < feature_num; i++){
     if(frame->BackProjectPoint(i, tmp_position)){
+      tmp_position = Rwc * tmp_position + twc;
       stereo_point_num++;
       track_ids[i] = _track_id++;
       Eigen::Matrix<double, 256, 1> descriptor;
@@ -286,6 +295,8 @@ bool MapBuilder::Init(FramePtr frame){
       new_mappoints.push_back(mappoint);
     }
   }
+  if(stereo_point_num < 100) return false;
+  frame->SetTrackIds(track_ids);
 
   // construct maplines
   size_t line_num = frame->LineNum();
@@ -307,11 +318,6 @@ bool MapBuilder::Init(FramePtr frame){
   }
 
   // add frame and mappoints to map
-  if(stereo_point_num < 100) return false;
-  Eigen::Matrix4d init_pose = Eigen::Matrix4d::Identity();
-  frame->SetPose(init_pose);
-  frame->SetPoseFixed(true);
-  frame->SetTrackIds(track_ids);
   InsertKeyframe(frame);
   for(MappointPtr mappoint : new_mappoints){
     _map->InsertMappoint(mappoint);
@@ -380,12 +386,15 @@ int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMa
   std::cout << "origin match number = " << num_match << std::endl;
 
   // update line track id
+  const std::vector<MaplinePtr>& frame0_maplines = frame0->GetConstAllMaplines();
   for(size_t i = 0; i < features0.cols(); i++){
     int j = line_matches[i];
     if(j < 0) continue;
     int line_track_id = frame0->GetLineTrackId(i);
+
     if(line_track_id >= 0){
       frame1->SetLineTrackId(j, line_track_id);
+      frame1->InsertMapline(j, frame0_maplines[i]);
     }
   }
 
@@ -503,7 +512,6 @@ int MapBuilder::FramePoseOptimization(
 }
 
 void MapBuilder::InsertKeyframe(FramePtr frame){
-std::cout << "InsertKeyframe 1" << std::endl;
   // create new track id
   std::vector<int>& track_ids = frame->GetAllTrackIds();
   for(size_t i = 0; i < track_ids.size(); i++){
@@ -519,11 +527,9 @@ std::cout << "InsertKeyframe 1" << std::endl;
       frame->SetLineTrackId(i, _line_track_id++);
     }
   }
-std::cout << "InsertKeyframe 2" << std::endl;
 
   // insert keyframe to map
   _map->InsertKeyframe(frame);
-std::cout << "InsertKeyframe 3" << std::endl;
 
   // update last keyframe
   _last_keyframe = frame;
