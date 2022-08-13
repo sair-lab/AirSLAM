@@ -79,27 +79,33 @@ void Map::InsertKeyframe(FramePtr frame){
         if(frame->TriangleStereoLine(i, endpoints)){
           mpl->SetEndpoints(endpoints);
           mpl->SetObverserEndpointStatus(frame_id, 1);
-        }else{
-          mpl->SetObverserEndpointStatus(frame_id, 0);
         }
         frame->InsertMapline(i, mpl);
         new_maplines.push_back(mpl);
       }
     }
     mpl->AddObverser(frame_id, i);
-    if(0){
-    // if(mpl->GetType() == Mapline::Type::UnTriangulated && mpl->ObverserNum() >= 2){
+    if(mpl->GetObverserEndpointStatus(frame_id) < 0){
+      mpl->SetObverserEndpointStatus(frame_id, 0);
+    }
+    // if(0){
+    std::cout << "Map::InsertKeyframe 1" << std::endl;
+    if(mpl->GetType() == Mapline::Type::UnTriangulated && mpl->ObverserNum() >= 2){
+      std::cout << "Map::InsertKeyframe 2" << std::endl;
       const std::map<int, int>& mpl_obversers = mpl->GetAllObversers();
       int obverser_frame_id = mpl_obversers.begin()->first;
       int obverser_line_idx = mpl_obversers.begin()->second;
 
       FramePtr obverser_frame = GetFramePtr(obverser_frame_id);
       if(!obverser_frame) continue;
+      std::cout << "Map::InsertKeyframe 3" << std::endl;
       Eigen::Vector4d obverser_line;
       if(!frame->GetLine(i, obverser_line)) continue;
+      std::cout << "Map::InsertKeyframe 4" << std::endl;
       Line3DPtr line_3d = std::shared_ptr<g2o::Line3D>(new g2o::Line3D());
       Eigen::Matrix4d obverser_pose = obverser_frame->GetPose();
       if(TriangleByTwoFrames(lines[i], Twf, obverser_line, obverser_pose, line_3d)) continue;
+      std::cout << "Map::InsertKeyframe 5" << std::endl;
       mpl->SetLine3DPtr(line_3d);
     }
   }
@@ -128,7 +134,9 @@ void Map::InsertMapline(MaplinePtr mapline){
 }
 
 void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
+  std::cout << "UpdateMaplineEndpoints 1" << std::endl;
   if(!mapline || !mapline->IsValid() || !mapline->ToUpdateEndpoints()) return;
+  std::cout << "UpdateMaplineEndpoints 2" << std::endl;
   ConstLine3DPtr line_3d = mapline->GetLine3DPtr();
   const std::map<int, int>& obversers = mapline->GetAllObversers();
   const std::map<int, int>& included_endpoints = mapline->GetAllObverserEndpointStatus();
@@ -142,6 +150,8 @@ void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
     point_3d_vector.push_back(endpoint2);
   }
 
+  std::cout << "UpdateMaplineEndpoints 4, point_3d_vector.size = " << point_3d_vector.size() << std::endl;
+
   Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
   for(auto& kv : obversers){
     int frame_id = kv.first;
@@ -150,16 +160,21 @@ void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
     Eigen::Vector4d line_measurement;
     if(!frame->GetLine(kv.second, line_measurement)) continue;
 
+    std::cout << "line_measurement = " << line_measurement.transpose() << std::endl;
     const Eigen::Matrix4d& frame_pose = frame->GetPose();
+    std::cout << "frame_pose = " << frame_pose << std::endl;
     Eigen::Matrix3d Rwc = frame_pose.block<3, 3>(0, 0);
     Eigen::Vector3d twc = frame_pose.block<3, 1>(0, 3);
     Eigen::Matrix3d Rcw = Rwc.transpose();
     Eigen::Vector3d tcw = - Rcw * twc;
     T.rotate(Rcw);
     T.pretranslate(tcw);
+    std::cout << "T = " << T.matrix() << std::endl;
+    std::cout << "line_3d = " << line_3d->toCartesian().transpose() << std::endl;
     g2o::Line3D line_3d_c = T * (*line_3d);
     line_3d_c.normalize();
-    Vector6d line_cart_c = line_3d->toCartesian();
+    Vector6d line_cart_c = line_3d_c.toCartesian();
+    std::cout << "line_cart_c = " << line_cart_c.transpose() << std::endl;
     Eigen::Vector3d line_direction = line_direction.tail(3);
     Eigen::Vector3d anchor_point = line_direction.head(3);
 
@@ -199,6 +214,7 @@ void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
     point_3d_vector.push_back(endpoint2);
     mapline->SetObverserEndpointStatus(frame_id, 1);
   }
+  std::cout << "UpdateMaplineEndpoints 5" << std::endl;
 
   Eigen::Vector3d line_d = line_3d->d();
   Eigen::Index max_index;
@@ -213,11 +229,13 @@ void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
     if(value > max_value) max_idx = i;
     if(value < min_value) min_idx = i;
   }
+  std::cout << "UpdateMaplineEndpoints 7" << std::endl;
 
   Vector6d endpoints;
   endpoints << point_3d_vector[min_idx], point_3d_vector[max_idx];
   mapline->SetEndpoints(endpoints);
   mapline->SetEndpointsUpdateStatus(false);
+  std::cout << "UpdateMaplineEndpoints 10, endpoints = " << endpoints.transpose() << std::endl;
 }
 
 FramePtr Map::GetFramePtr(int frame_id){
@@ -734,6 +752,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
   // maplines
   const std::vector<MaplinePtr>& new_maplines = new_frame->GetAllMaplines();
   for(auto& new_mapline : new_maplines){
+    UpdateMaplineEndpoints(new_mapline);
     if(!new_mapline || !new_mapline->EndpointsValid()) continue;
     int mpl_id = new_mapline->GetId();
     const Vector6d& endpoints = new_mapline->GetEndpoints();

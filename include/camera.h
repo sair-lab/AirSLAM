@@ -29,6 +29,8 @@ public:
   double Cy();
   double DepthLowerThr();
   double DepthUpperThr();
+  double MaxXDiff();
+  double MinXDiff();
   Eigen::Matrix4d& GetExtrinsics();
   void GetCamerMatrix(cv::Mat& camera_matrix);
   void GetDistCoeffs(cv::Mat& dist_coeffs);
@@ -80,6 +82,8 @@ private:
   double _bf;
   double _depth_lower_thr;
   double _depth_upper_thr;
+  double _min_x_diff;
+  double _max_x_diff;
 
   double _fx;
   double _fy;

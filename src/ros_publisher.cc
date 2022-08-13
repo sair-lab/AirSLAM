@@ -139,7 +139,7 @@ RosPublisher::RosPublisher(const RosPublisherConfig& ros_publisher_config): _con
     _ros_maplines.pose.orientation.z = 0;
     _ros_maplines.pose.orientation.w = 1.0;
     _ros_maplines.type = visualization_msgs::Marker::LINE_LIST;
-    _ros_maplines.scale.x = 0.1;  
+    _ros_maplines.scale.x = 0.02;  
     _ros_maplines.color.b = 1.0;
     _ros_maplines.color.a = 1.0;
 

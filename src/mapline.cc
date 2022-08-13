@@ -100,12 +100,18 @@ void Mapline::SetLine3D(g2o::Line3D& line_3d){
   _line_3d->setW(line_3d.w());
   _line_3d->setD(line_3d.d());
   _to_update_endpoints = true;
+  if(_type == Type::UnTriangulated){
+    _type = Type::Good;
+  }
 }
 
 void Mapline::SetLine3DPtr(Line3DPtr& line_3d){
   _line_3d->setW(line_3d->w());
   _line_3d->setD(line_3d->d());
   _to_update_endpoints = true;
+  if(_type == Type::UnTriangulated){
+    _type = Type::Good;
+  }
 }
 
 ConstLine3DPtr Mapline::GetLine3DPtr(){

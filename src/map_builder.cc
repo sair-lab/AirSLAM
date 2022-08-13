@@ -248,8 +248,8 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   std::vector<cv::DMatch> superglue_matches;
   _point_matching->MatchingPoints(features_left, features_right, superglue_matches);
 
-  double min_x_dif = _camera->BF() / _camera->DepthUpperThr();
-  double max_x_dif = _camera->BF() / _camera->DepthLowerThr();
+  double min_x_diff = _camera->MinXDiff();
+  double max_x_diff = _camera->MaxXDiff();
 
   for(cv::DMatch& match : superglue_matches){
     int idx_left = match.queryIdx;
@@ -258,7 +258,7 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     double dx = std::abs(features_left(1, idx_left) - features_right(1, idx_right));
     double dy = std::abs(features_left(2, idx_left) - features_right(2, idx_right));
 
-    if(dx > min_x_dif && dx < max_x_dif && dy <= MaxYDiff){
+    if(dx > min_x_diff && dx < max_x_diff && dy <= MaxYDiff){
       matches.emplace_back(match);
     }
   }

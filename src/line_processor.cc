@@ -250,9 +250,9 @@ void SortPointsOnLine(std::vector<Eigen::Vector2d>& points, std::vector<size_t>&
 
 bool TriangleByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& line_right, 
     const Eigen::Matrix4d& Twc, const CameraPtr& camera, Vector6d& line_3d){
-  std::cout << "--------------------  TriangleByStereo  ----------------" << std::endl;
-  std::cout << "line_left = " << line_left.transpose() << std::endl;
-  std::cout << "line_right = " << line_right.transpose() << std::endl;
+  // std::cout << "--------------------  TriangleByStereo  ----------------" << std::endl;
+  // std::cout << "line_left = " << line_left.transpose() << std::endl;
+  // std::cout << "line_right = " << line_right.transpose() << std::endl;
   double x11 = line_left(0);
   double y11 = line_left(1);
   double x12 = line_left(2);
@@ -295,17 +295,18 @@ bool TriangleByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& l
   point_2d1 << points[i1], xr1;
   point_2d2 << points[i2], xr2;
 
-  std::cout << "BackProjectStereo point_2d1 = " << point_2d1.transpose() << std::endl;
-  std::cout << "BackProjectStereo point_2d2 = " << point_2d2.transpose() << std::endl;
+  double dx1 = point_2d1(0) - point_2d1(2);
+  double dx2 = point_2d2(0) - point_2d2(2);
+  double min_x_diff = camera->MinXDiff();
+  double max_x_diff = camera->MaxXDiff();
+  if(dx1 < min_x_diff || dx1 > max_x_diff || dx2 < min_x_diff || dx2 > max_x_diff) return false;
+
+  // std::cout << "BackProjectStereo point_2d1 = " << point_2d1.transpose() << std::endl;
+  // std::cout << "BackProjectStereo point_2d2 = " << point_2d2.transpose() << std::endl;
   camera->BackProjectStereo(point_2d1, point_3d1);
   camera->BackProjectStereo(point_2d2, point_3d2);
-  std::cout << "BackProjectStereo point_3d1 = " << point_3d1.transpose() << std::endl;
-  std::cout << "BackProjectStereo point_3d2 = " << point_3d2.transpose() << std::endl;
-
-  if(point_3d1(2) < 0 || point_3d2(2) < 0){
-    std::cout << "check error-----------------------------------" << std::endl;
-  }
-
+  // std::cout << "BackProjectStereo point_3d1 = " << point_3d1.transpose() << std::endl;
+  // std::cout << "BackProjectStereo point_3d2 = " << point_3d2.transpose() << std::endl;
 
   // form camera to world
   Eigen::Matrix3d Rwc = Twc.block<3, 3>(0, 0);
@@ -315,11 +316,11 @@ bool TriangleByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& l
   line_3d << point_3d1, point_3d2;
 
 
-  std::cout << "final Rwc = " << Rwc << std::endl;
-  std::cout << "final twc = " << twc.transpose() << std::endl;
-  std::cout << "final point_3d1 = " << point_3d1.transpose() << std::endl;
-  std::cout << "final point_3d2 = " << point_3d2.transpose() << std::endl;
-  std::cout << "--------------------  End TriangleByStereo  ----------------" << std::endl;
+  // std::cout << "final Rwc = " << Rwc << std::endl;
+  // std::cout << "final twc = " << twc.transpose() << std::endl;
+  // std::cout << "final point_3d1 = " << point_3d1.transpose() << std::endl;
+  // std::cout << "final point_3d2 = " << point_3d2.transpose() << std::endl;
+  // std::cout << "--------------------  End TriangleByStereo  ----------------" << std::endl;
 
   return true;
 }
@@ -354,6 +355,7 @@ bool ComputeLineFramePlanes(const Eigen::Vector4d& plane1, const Eigen::Vector4d
 
 bool TriangleByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d& pose1, 
     const Eigen::Vector4d& line_2d2, const Eigen::Matrix4d& pose2, Line3DPtr line_3d){
+  std::cout << "----------------TriangleByTwoFrames-------------" << std::endl;
   Eigen::Matrix3d Rw1 = pose1.block<3, 3>(0, 0);
   Eigen::Vector3d tw1 = pose1.block<3, 1>(0, 3);
   Eigen::Matrix3d Rw2 = pose2.block<3, 3>(0, 0);
@@ -377,7 +379,14 @@ bool TriangleByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d&
   point22 = R12 * point22 + t12;
   if(!CompoutePlaneFromPoints(point21, point22, t12, plane2)) return false;
 
- return ComputeLineFramePlanes(plane1, plane2, line_3d);
+  bool success = ComputeLineFramePlanes(plane1, plane2, line_3d);
+
+  std::cout << "plane1 = " << plane1.transpose() << std::endl;
+  std::cout << "plane2 = " << plane2.transpose() << std::endl;
+  std::cout << "line_3d = " << line_3d->toCartesian().transpose() << std::endl;
+  std::cout << "----------------End TriangleByTwoFrames-------------" << std::endl;
+
+  return success;
 }
 
 bool ComputeLine3DFromEndpoints(const Vector6d& endpoints, Line3DPtr line_3d){

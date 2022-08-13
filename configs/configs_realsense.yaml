@@ -47,8 +47,8 @@ line_ddetector:
 
 keyframe:
   min_num_match: 15
-  # max_num_match: 80
-  max_num_match: 200
+  max_num_match: 80
+  # max_num_match: 200
   max_distance: 0.5
   max_angle: 0.52
 

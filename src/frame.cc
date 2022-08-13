@@ -342,6 +342,7 @@ const std::vector<std::map<int, double>>& Frame::GetPointsOnLines(){
 }
 
 bool Frame::TriangleStereoLine(size_t idx, Vector6d& endpoints){
+  return false;
   if(idx >= _lines.size() || !_lines_right_valid[idx]) return false;
   return TriangleByStereo(_lines[idx], _lines_right[idx], _pose, _camera, endpoints);
 }
