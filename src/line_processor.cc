@@ -329,10 +329,18 @@ bool CompoutePlaneFromPoints(const Eigen::Vector3d& point1, const Eigen::Vector3
     const Eigen::Vector3d& point3, Eigen::Vector4d& plane){
   Eigen::Vector3d line12 = point2 - point1;
   Eigen::Vector3d line13 = point3 - point1;
-
+  std::cout << "------- CompoutePlaneFromPoints ---------" << std::endl;
+  std::cout << "point1 = " << point1.transpose() << std::endl;
+  std::cout << "point2 = " << point2.transpose() << std::endl;
+  std::cout << "point3 = " << point3.transpose() << std::endl;
+  std::cout << "line12 = " << line12.transpose() << std::endl;
+  std::cout << "line13 = " << line13.transpose() << std::endl;
   Eigen::Vector3d n = line12.cross(line13);
+  std::cout << "n = " << n.transpose() << std::endl;
   plane.head(3) = n.normalized();
   plane(3) = - n.transpose() * point1;
+  std::cout << "plane = " << plane.transpose() << std::endl;
+  std::cout << "------- End CompoutePlaneFromPoints ---------" << std::endl;
   return true;
 }
 
@@ -342,11 +350,17 @@ bool ComputeLineFramePlanes(const Eigen::Vector4d& plane1, const Eigen::Vector4d
 
   double cos_theta = n1.transpose() * n2;
   cos_theta /= (n1.norm() * n2.norm());
+
+  std::cout << "n1 = " << n1.transpose() << std::endl;
+  std::cout << "n2 = " << n2.transpose() << std::endl;
+  std::cout << "cos_theta = " << cos_theta << std::endl;
   // cos10 = cos170 = 0.9848
-  if(std::abs(cos_theta) > 0.9848) return false;
+  // if(std::abs(cos_theta) > 0.9848) return false;
 
   Eigen::Vector3d d = n1.cross(n2);
   Eigen::Vector3d w = plane2(3) * n1 - plane1(3) * n2;
+  std::cout << "d = " << d.transpose() << std::endl;
+  std::cout << "w = " << w.transpose() << std::endl;
   line_3d->setD(d);
   line_3d->setW(w);
   line_3d->normalize();
@@ -354,7 +368,7 @@ bool ComputeLineFramePlanes(const Eigen::Vector4d& plane1, const Eigen::Vector4d
 }
 
 bool TriangleByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d& pose1, 
-    const Eigen::Vector4d& line_2d2, const Eigen::Matrix4d& pose2, Line3DPtr line_3d){
+    const Eigen::Vector4d& line_2d2, const Eigen::Matrix4d& pose2, const CameraPtr& camera, Line3DPtr line_3d){
   std::cout << "----------------TriangleByTwoFrames-------------" << std::endl;
   Eigen::Matrix3d Rw1 = pose1.block<3, 3>(0, 0);
   Eigen::Vector3d tw1 = pose1.block<3, 1>(0, 3);
@@ -366,14 +380,18 @@ bool TriangleByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d&
 
   Eigen::Vector4d plane1, plane2;
   Eigen::Vector3d point11, point12, point13;
-  point11 << line_2d1.head(2), 1.0;
-  point12 << line_2d1.tail(2), 1.0;
+  camera->BackProjectMono(line_2d1.head(2), point11);
+  camera->BackProjectMono(line_2d1.tail(2), point12);
+  // point11 << line_2d1.head(2), 1.0;
+  // point12 << line_2d1.tail(2), 1.0;
   point13 << 0.0, 0.0, 0.0;
   if(!CompoutePlaneFromPoints(point11, point12, point13, plane1)) return false;
 
   Eigen::Vector3d point21, point22;
-  point21 << line_2d1.head(2), 1.0;
-  point22 << line_2d1.tail(2), 1.0;
+  // point21 << line_2d2.head(2), 1.0;
+  // point22 << line_2d2.tail(2), 1.0;
+  camera->BackProjectMono(line_2d2.head(2), point21);
+  camera->BackProjectMono(line_2d2.tail(2), point22);
 
   point21 = R12 * point21 + t12;
   point22 = R12 * point22 + t12;
