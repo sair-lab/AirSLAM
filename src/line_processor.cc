@@ -399,8 +399,17 @@ bool TriangleByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d&
 
   bool success = ComputeLineFramePlanes(plane1, plane2, line_3d);
 
+  Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
+  T.rotate(Rw1);
+  T.pretranslate(tw1);
+  g2o::Line3D line_3d_w = T * (*line_3d);
+  line_3d_w.normalize();
+  line_3d->setW(line_3d_w.w());
+  line_3d->setD(line_3d_w.d());
+
   std::cout << "plane1 = " << plane1.transpose() << std::endl;
   std::cout << "plane2 = " << plane2.transpose() << std::endl;
+  std::cout << "success = " << success << std::endl;
   std::cout << "line_3d = " << line_3d->toCartesian().transpose() << std::endl;
   std::cout << "----------------End TriangleByTwoFrames-------------" << std::endl;
 

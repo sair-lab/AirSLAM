@@ -80,9 +80,9 @@ void Map::InsertKeyframe(FramePtr frame){
           mpl->SetEndpoints(endpoints);
           mpl->SetObverserEndpointStatus(frame_id, 1);
         }
-        frame->InsertMapline(i, mpl);
-        new_maplines.push_back(mpl);
       }
+      frame->InsertMapline(i, mpl);
+      new_maplines.push_back(mpl);
     }
     mpl->AddObverser(frame_id, i);
     if(mpl->GetObverserEndpointStatus(frame_id) < 0){
@@ -104,8 +104,9 @@ void Map::InsertKeyframe(FramePtr frame){
       std::cout << "Map::InsertKeyframe 4" << std::endl;
       Line3DPtr line_3d = std::shared_ptr<g2o::Line3D>(new g2o::Line3D());
       Eigen::Matrix4d obverser_pose = obverser_frame->GetPose();
-      if(TriangleByTwoFrames(lines[i], Twf, obverser_line, obverser_pose, _camera, line_3d)) continue;
+      if(!TriangleByTwoFrames(lines[i], Twf, obverser_line, obverser_pose, _camera, line_3d)) continue;
       std::cout << "Map::InsertKeyframe 5" << std::endl;
+    std::cout << "line_id = " << mpl->GetId() << std::endl;
       mpl->SetLine3DPtr(line_3d);
     }
   }
@@ -175,11 +176,12 @@ void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
     line_3d_c.normalize();
     Vector6d line_cart_c = line_3d_c.toCartesian();
     std::cout << "line_cart_c = " << line_cart_c.transpose() << std::endl;
-    Eigen::Vector3d line_direction = line_direction.tail(3);
-    Eigen::Vector3d anchor_point = line_direction.head(3);
+    Eigen::Vector3d line_direction = line_cart_c.tail(3);
+    Eigen::Vector3d anchor_point = line_cart_c.head(3);
 
     Eigen::Vector3d init_point_3d1, init_point_3d2;
-    if(std::abs(line_direction(2)) < 1e-5){
+    std::cout << "line_direction = " << line_direction.transpose() << std::endl;
+    if(std::abs(line_direction(2)) < 0.1){
       Eigen::Index max_index;
       line_direction.array().abs().maxCoeff(&max_index);
       size_t md = max_index;  // main direction
@@ -191,22 +193,31 @@ void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
     }else{
       double op1 = (1.0 - anchor_point(2)) / line_direction(2);
       init_point_3d1 = anchor_point + op1 * line_direction;
-      double op2 = (2.0 - anchor_point(2)) / line_direction(2);
+      double op2 = (1.1 - anchor_point(2)) / line_direction(2);
       init_point_3d2 = anchor_point + op2 * line_direction;
     }
     assert(init_point_3d1(2) > 0);
     assert(init_point_3d2(2) > 0);
+
+    std::cout << "init_point_3d1 = " << init_point_3d1.transpose() << std::endl;
+    std::cout << "init_point_3d2 = " << init_point_3d2.transpose() << std::endl;
 
     CameraPtr camera = frame->GetCamera();
     Eigen::Vector2d init_point_2d1, init_point_2d2;
     camera->Project(init_point_2d1, init_point_3d1);
     camera->Project(init_point_2d2, init_point_3d2);
 
+    std::cout << "init_point_2d1 = " << init_point_2d1.transpose() << std::endl;
+    std::cout << "init_point_2d2 = " << init_point_2d2.transpose() << std::endl;
+
     Eigen::Vector3d endpoint1, endpoint2;
     Point2DTo3D(init_point_3d1, init_point_3d2, init_point_2d1, init_point_2d2, 
         line_measurement.head(2), endpoint1);
     Point2DTo3D(init_point_3d1, init_point_3d2, init_point_2d1, init_point_2d2, 
         line_measurement.tail(2), endpoint2);
+
+    std::cout << "endpoint1 = " << endpoint1.transpose() << std::endl;
+    std::cout << "endpoint2 = " << endpoint2.transpose() << std::endl;
 
     endpoint1 = Rwc * endpoint1 + twc;
     endpoint2 = Rwc * endpoint2 + twc;
@@ -752,6 +763,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
   // maplines
   const std::vector<MaplinePtr>& new_maplines = new_frame->GetAllMaplines();
   for(auto& new_mapline : new_maplines){
+    std::cout << "line_id = " << new_mapline->GetId() << std::endl;
     UpdateMaplineEndpoints(new_mapline);
     if(!new_mapline || !new_mapline->EndpointsValid()) continue;
     int mpl_id = new_mapline->GetId();
