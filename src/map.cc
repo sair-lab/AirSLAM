@@ -5,6 +5,9 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
 
+#include <g2o/types/slam3d/types_slam3d.h>
+#include <g2o/types/slam3d_addons/types_slam3d_addons.h>
+
 #include "map.h"
 #include "utils.h"
 #include "line_processor.h"
@@ -91,23 +94,25 @@ void Map::InsertKeyframe(FramePtr frame){
     // if(0){
     std::cout << "Map::InsertKeyframe 1" << std::endl;
     if(mpl->GetType() == Mapline::Type::UnTriangulated && mpl->ObverserNum() >= 2){
-      std::cout << "Map::InsertKeyframe 2" << std::endl;
-      const std::map<int, int>& mpl_obversers = mpl->GetAllObversers();
-      int obverser_frame_id = mpl_obversers.begin()->first;
-      int obverser_line_idx = mpl_obversers.begin()->second;
+      TriangulateMaplineByMappoints(mpl);
 
-      FramePtr obverser_frame = GetFramePtr(obverser_frame_id);
-      if(!obverser_frame) continue;
-      std::cout << "Map::InsertKeyframe 3" << std::endl;
-      Eigen::Vector4d obverser_line;
-      if(!frame->GetLine(i, obverser_line)) continue;
-      std::cout << "Map::InsertKeyframe 4" << std::endl;
-      Line3DPtr line_3d = std::shared_ptr<g2o::Line3D>(new g2o::Line3D());
-      Eigen::Matrix4d obverser_pose = obverser_frame->GetPose();
-      if(!TriangleByTwoFrames(lines[i], Twf, obverser_line, obverser_pose, _camera, line_3d)) continue;
-      std::cout << "Map::InsertKeyframe 5" << std::endl;
-    std::cout << "line_id = " << mpl->GetId() << std::endl;
-      mpl->SetLine3DPtr(line_3d);
+    //   std::cout << "Map::InsertKeyframe 2" << std::endl;
+    //   const std::map<int, int>& mpl_obversers = mpl->GetAllObversers();
+    //   int obverser_frame_id = mpl_obversers.begin()->first;
+    //   int obverser_line_idx = mpl_obversers.begin()->second;
+
+    //   FramePtr obverser_frame = GetFramePtr(obverser_frame_id);
+    //   if(!obverser_frame) continue;
+    //   std::cout << "Map::InsertKeyframe 3" << std::endl;
+    //   Eigen::Vector4d obverser_line;
+    //   if(!frame->GetLine(i, obverser_line)) continue;
+    //   std::cout << "Map::InsertKeyframe 4" << std::endl;
+    //   Line3DPtr line_3d = std::shared_ptr<g2o::Line3D>(new g2o::Line3D());
+    //   Eigen::Matrix4d obverser_pose = obverser_frame->GetPose();
+    //   if(!TriangleByTwoFrames(lines[i], Twf, obverser_line, obverser_pose, _camera, line_3d)) continue;
+    //   std::cout << "Map::InsertKeyframe 5" << std::endl;
+    // std::cout << "line_id = " << mpl->GetId() << std::endl;
+    //   mpl->SetLine3DPtr(line_3d);
     }
   }
 
@@ -244,7 +249,7 @@ void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
 
   Vector6d endpoints;
   endpoints << point_3d_vector[min_idx], point_3d_vector[max_idx];
-  mapline->SetEndpoints(endpoints);
+  mapline->SetEndpoints(endpoints, false);
   mapline->SetEndpointsUpdateStatus(false);
   std::cout << "UpdateMaplineEndpoints 10, endpoints = " << endpoints.transpose() << std::endl;
 }
@@ -320,9 +325,76 @@ bool Map::TriangulateMappoint(MappointPtr mappoint){
   return true;
 }
 
-bool TriangulateMapline(MaplinePtr mapline){
-  
-  
+bool TriangulateMaplineByMappoints(MaplinePtr mapline){
+  if(mapline->IsValid()) return true;
+  const std::map<int, int>& obversers = mapline->GetAllObverserEndpointStatus();
+  if(obversers.size() < 2) return false;
+  std::vector<cv::Point3f> points;
+  for(const auto& kv : obversers){
+    FramePtr frame = GetFramePtr(kv.first);
+    if(!frame) continue;
+    MappointPtr mpt = GetMappoint(kv.second);
+    if(!mpt || !mpt->IsValid) continue;
+    Eigen::Matrix3d p = mpt->GetPosition();
+    points.emplace_back(p(0), p(1), p(2));
+  }
+  if(points.size() < 2) return false;
+
+  cv::Vec6f line;
+  for(size_t i = 0; i < 4; i++){
+    // fit line
+    cv::fitLine(points, line, cv::DIST_L2, 0, 5e-2, 1e-2);
+
+    // remove outlier
+    std::vector<float> dist;
+    CVPointLineDistance3D(points, line, dist);
+    size_t inlier_num = 0;
+    for(size_t j = 0; j < points.size(); j++){
+      if(dist[j] < 0.5){
+        points[inlier_num] = points[j];
+        inlier_num++;
+      }
+    }
+    points.resize(inlier_num);
+
+    // check
+    if(inlier_num == dist.size() || inlier_num < 3){
+      break;
+    }
+  }
+
+  if(points.size() < 2) return false;
+
+  // set line
+  Vector6d line_cart;
+  line_cart << line[3], line[4], line[5], line[0], line[1], line[2];
+  g2o::Line3D line_3d = g2o::fromCartesian(line_cart);
+  mapline->SetLine3D(line_3d);
+
+  // set endpoints
+  size_t md = 0;
+  float max_v = std::abs(line[0]);
+  for(size_t i = 1; i < 3; i++){
+    float v = std::abs(line[i]);
+    if(v > max_v){
+      md = i;
+      max_v = v;
+    }
+  }
+  std::vector<size_t> order;
+  order.resize(points.size());
+  std::iota(order.begin(), order.end(), 0);       
+  std::sort(order.begin(), order.end(), [&points](size_t i1, size_t i2) { return points[i1][md] < points[i2][md]; });
+  Vector6d endpoints;
+  size_t min_idx = order[0], max_idx = order[(order.size()-1)];
+  endpoints << points[min_idx][0], points[min_idx][1], points[min_idx][2], points[max_idx][0], points[max_idx][1], points[max_idx][2];
+  mapline->SetEndpoints(endpoints, false);
+  mapline->SetEndpointsUpdateStatus(false);
+  for(const auto& kv : obversers){
+    FramePtr frame = GetFramePtr(kv.first);
+    if(!frame) continue;
+    mapline->SetObverserEndpointStatus(kv.first, 1);
+  }
 }
 
 bool Map::UpdateMappointDescriptor(MappointPtr mappoint){
@@ -764,7 +836,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
   const std::vector<MaplinePtr>& new_maplines = new_frame->GetAllMaplines();
   for(auto& new_mapline : new_maplines){
     std::cout << "line_id = " << new_mapline->GetId() << std::endl;
-    UpdateMaplineEndpoints(new_mapline);
+    // UpdateMaplineEndpoints(new_mapline);
     if(!new_mapline || !new_mapline->EndpointsValid()) continue;
     int mpl_id = new_mapline->GetId();
     const Vector6d& endpoints = new_mapline->GetEndpoints();

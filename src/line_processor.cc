@@ -51,6 +51,30 @@ float PointLineDistance(Eigen::Vector4f line, Eigen::Vector2f point){
   return d;
 }
 
+double CVPointLineDistance3D(const std::vector<Point3f> points, const cv::Vec6f& line, std::vector<float> dist){
+  float px = line[3], py = line[4], pz = line[5];
+  float vx = line[0], vy = line[1], vz = line[2];
+  double sum_dist = 0.;
+
+  for(int j = 0; j < points.size(); j++){
+    float x, y, z;
+    double p1, p2, p3;
+
+    x = points[j].x - px;
+    y = points[j].y - py;
+    z = points[j].z - pz;
+
+    p1 = vy * z - vz * y;
+    p2 = vz * x - vx * z;
+    p3 = vx * y - vy * x;
+
+    dist[j] = (float) std::sqrt( p1*p1 + p2*p2 + p3*p3 );
+    sum_dist += dist[j];
+  }
+
+  return sum_dist;
+}
+
 float AngleDiff(float& angle1, float& angle2){
   float d_angle_case1 = std::abs(angle2 - angle1);
   float d_angle_case2 = M_PI + std::min(angle1, angle2) - std::max(angle1, angle2);

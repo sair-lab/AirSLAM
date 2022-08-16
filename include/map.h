@@ -26,7 +26,7 @@ public:
   MaplinePtr GetMaplinePtr(int mapline_id);
 
   bool TriangulateMappoint(MappointPtr mappoint);
-  bool TriangulateMapline(MaplinePtr mapline);
+  bool TriangulateMaplineByMappoints(MaplinePtr mapline);
   bool UpdateMappointDescriptor(MappointPtr mappoint);
   void SlidingWindowOptimization(FramePtr new_frame);
   void SearchNeighborFrames(FramePtr frame, std::vector<FramePtr>& neighbor_frames);

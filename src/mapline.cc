@@ -70,13 +70,14 @@ int Mapline::ObverserNum(){
   return obverser_num;
 }
 
-void Mapline::SetEndpoints(Vector6d& p){
-  if(!ComputeLine3DFromEndpoints(p, _line_3d)) return;
-
-  _endpoints = p;
-  if(_type == Type::UnTriangulated){
-    _type = Type::Good;
+void Mapline::SetEndpoints(Vector6d& p, bool compute_line3d){
+  if(compute_line3d){
+    if(!ComputeLine3DFromEndpoints(p, _line_3d)) return;
+    if(_type == Type::UnTriangulated){
+      _type = Type::Good;
+    }
   }
+  _endpoints = p;
   _endpoints_valid = true;
 }
 

@@ -35,7 +35,7 @@ public:
   void SetGood();
   bool IsValid();
 
-  void SetEndpoints(Vector6d& p);
+  void SetEndpoints(Vector6d& p, bool compute_line3d=true);
   Vector6d& GetEndpoints();
   bool EndpointsValid();
   void SetEndpointsUpdateStatus(bool status);
