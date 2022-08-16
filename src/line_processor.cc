@@ -51,7 +51,7 @@ float PointLineDistance(Eigen::Vector4f line, Eigen::Vector2f point){
   return d;
 }
 
-double CVPointLineDistance3D(const std::vector<Point3f> points, const cv::Vec6f& line, std::vector<float> dist){
+double CVPointLineDistance3D(const std::vector<cv::Point3f> points, const cv::Vec6f& line, std::vector<float> dist){
   float px = line[3], py = line[4], pz = line[5];
   float vx = line[0], vy = line[1], vz = line[2];
   double sum_dist = 0.;

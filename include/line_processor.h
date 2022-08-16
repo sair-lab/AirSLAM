@@ -20,7 +20,7 @@
 void FilterShortLines(std::vector<Eigen::Vector4f>& lines, float length_thr);
 void FilterShortLines(std::vector<Eigen::Vector4d>& lines, float length_thr);
 float PointLineDistance(Eigen::Vector4f line, Eigen::Vector2f point);
-double CVPointLineDistance3D(const std::vector<Point3f> points, const cv::Vec6f& line, std::vector<float> dist);
+double CVPointLineDistance3D(const std::vector<cv::Point3f> points, const cv::Vec6f& line, std::vector<float> dist);
 float AngleDiff(float& angle1, float& angle2);
 Eigen::Vector4f MergeTwoLines(const Eigen::Vector4f& line1, const Eigen::Vector4f& line2);
 void AssignPointsToLines(std::vector<Eigen::Vector4d>& lines, Eigen::Matrix<double, 259, Eigen::Dynamic>& points, 

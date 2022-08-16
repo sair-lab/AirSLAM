@@ -79,7 +79,7 @@ public:
   const std::vector<MaplinePtr>& GetConstAllMaplines();
   const std::vector<std::map<int, double>>& GetPointsOnLines();
   bool TriangleStereoLine(size_t idx, Vector6d& endpoints);
-  bool TriangleLineByPoints(size_t idx, Vector6d& endpoints);
+  // bool TriangleLineByPoints(size_t idx, Vector6d& endpoints);
 
   // covisibility graph
   void AddConnection(std::shared_ptr<Frame> frame, int weight);

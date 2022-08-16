@@ -1,4 +1,6 @@
 #include <cmath> 
+#include <math.h>
+#include <numeric>
 #include <Eigen/Dense>
 #include <Eigen/SparseCore>
 #include <opencv2/core/core.hpp>
@@ -325,29 +327,38 @@ bool Map::TriangulateMappoint(MappointPtr mappoint){
   return true;
 }
 
-bool TriangulateMaplineByMappoints(MaplinePtr mapline){
+bool Map::TriangulateMaplineByMappoints(MaplinePtr mapline){
+  std::cout << "Map::TriangulateMaplineByMappoints 1" << std::endl;
   if(mapline->IsValid()) return true;
+  std::cout << "Map::TriangulateMaplineByMappoints 2" << std::endl;
   const std::map<int, int>& obversers = mapline->GetAllObverserEndpointStatus();
+  std::cout << "Map::TriangulateMaplineByMappoints 3" << std::endl;
   if(obversers.size() < 2) return false;
+  std::cout << "Map::TriangulateMaplineByMappoints 4" << std::endl;
   std::vector<cv::Point3f> points;
   for(const auto& kv : obversers){
     FramePtr frame = GetFramePtr(kv.first);
     if(!frame) continue;
-    MappointPtr mpt = GetMappoint(kv.second);
-    if(!mpt || !mpt->IsValid) continue;
-    Eigen::Matrix3d p = mpt->GetPosition();
+    MappointPtr mpt = frame->GetMappoint(kv.second);
+    if(!mpt || !mpt->IsValid()) continue;
+    Eigen::Vector3d p = mpt->GetPosition();
     points.emplace_back(p(0), p(1), p(2));
   }
+  std::cout << "Map::TriangulateMaplineByMappoints 5" << std::endl;
   if(points.size() < 2) return false;
+  std::cout << "Map::TriangulateMaplineByMappoints 6" << std::endl;
 
   cv::Vec6f line;
   for(size_t i = 0; i < 4; i++){
+    std::cout << "i = " << i << ", Map::TriangulateMaplineByMappoints 6.1" << std::endl;
     // fit line
     cv::fitLine(points, line, cv::DIST_L2, 0, 5e-2, 1e-2);
+    std::cout << "i = " << i << ", Map::TriangulateMaplineByMappoints 6.2" << std::endl;
 
     // remove outlier
     std::vector<float> dist;
     CVPointLineDistance3D(points, line, dist);
+    std::cout << "i = " << i << ", Map::TriangulateMaplineByMappoints 6.3" << std::endl;
     size_t inlier_num = 0;
     for(size_t j = 0; j < points.size(); j++){
       if(dist[j] < 0.5){
@@ -356,19 +367,22 @@ bool TriangulateMaplineByMappoints(MaplinePtr mapline){
       }
     }
     points.resize(inlier_num);
+    std::cout << "i = " << i << ", Map::TriangulateMaplineByMappoints 6.4" << std::endl;
 
     // check
     if(inlier_num == dist.size() || inlier_num < 3){
       break;
     }
+      std::cout << "i = " << i << ", Map::TriangulateMaplineByMappoints 6.5" << std::endl;
   }
-
+  std::cout << "Map::TriangulateMaplineByMappoints 7" << std::endl;
   if(points.size() < 2) return false;
+  std::cout << "Map::TriangulateMaplineByMappoints 8" << std::endl;
 
   // set line
   Vector6d line_cart;
   line_cart << line[3], line[4], line[5], line[0], line[1], line[2];
-  g2o::Line3D line_3d = g2o::fromCartesian(line_cart);
+  g2o::Line3D line_3d = g2o::Line3D::fromCartesian(line_cart);
   mapline->SetLine3D(line_3d);
 
   // set endpoints
@@ -384,10 +398,14 @@ bool TriangulateMaplineByMappoints(MaplinePtr mapline){
   std::vector<size_t> order;
   order.resize(points.size());
   std::iota(order.begin(), order.end(), 0);       
-  std::sort(order.begin(), order.end(), [&points](size_t i1, size_t i2) { return points[i1][md] < points[i2][md]; });
+  std::sort(order.begin(), order.end(), [&points, &md](size_t i1, size_t i2) { 
+    if(md == 0) return points[i1].x < points[i2].x;
+    if(md == 1) return points[i1].y < points[i2].y;
+    if(md == 2) return points[i1].z < points[i2].z;
+  });
   Vector6d endpoints;
   size_t min_idx = order[0], max_idx = order[(order.size()-1)];
-  endpoints << points[min_idx][0], points[min_idx][1], points[min_idx][2], points[max_idx][0], points[max_idx][1], points[max_idx][2];
+  endpoints << points[min_idx].x, points[min_idx].y, points[min_idx].z, points[max_idx].x, points[max_idx].y, points[max_idx].z;
   mapline->SetEndpoints(endpoints, false);
   mapline->SetEndpointsUpdateStatus(false);
   for(const auto& kv : obversers){
