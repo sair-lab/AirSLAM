@@ -77,6 +77,7 @@ public:
   void InsertMapline(size_t idx, MaplinePtr mapline);
   std::vector<MaplinePtr>& GetAllMaplines();
   const std::vector<MaplinePtr>& GetConstAllMaplines();
+  std::map<int, double> GetPointsOnLine(size_t idx);
   const std::vector<std::map<int, double>>& GetPointsOnLines();
   bool TriangleStereoLine(size_t idx, Vector6d& endpoints);
   // bool TriangleLineByPoints(size_t idx, Vector6d& endpoints);

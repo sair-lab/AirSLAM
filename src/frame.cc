@@ -337,6 +337,14 @@ const std::vector<MaplinePtr>& Frame::GetConstAllMaplines(){
   return _maplines;
 }
 
+std::map<int, double> Frame::GetPointsOnLine(size_t idx){
+  if(idx >= _points_on_lines.size()){
+    std::map<int, double> null_map;
+    return null_map;
+  }
+  return _points_on_lines[idx];
+}
+
 const std::vector<std::map<int, double>>& Frame::GetPointsOnLines(){
   return _points_on_lines;
 }

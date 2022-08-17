@@ -51,26 +51,35 @@ float PointLineDistance(Eigen::Vector4f line, Eigen::Vector2f point){
   return d;
 }
 
-double CVPointLineDistance3D(const std::vector<cv::Point3f> points, const cv::Vec6f& line, std::vector<float> dist){
+double CVPointLineDistance3D(const std::vector<cv::Point3f> points, const cv::Vec6f& line, std::vector<float>& dist){
   float px = line[3], py = line[4], pz = line[5];
   float vx = line[0], vy = line[1], vz = line[2];
+  dist.resize(points.size());
   double sum_dist = 0.;
+  float x, y, z;
+  Eigen::Vector3f p;
+
+  std::cout << "-------------CVPointLineDistance3D---------------" << std::endl;
+  std::cout << "line = " << line << std::endl;
 
   for(int j = 0; j < points.size(); j++){
-    float x, y, z;
-    double p1, p2, p3;
-
     x = points[j].x - px;
     y = points[j].y - py;
     z = points[j].z - pz;
+    std::cout << "j = " << j << std::endl;
+    std::cout << "points[j] = " << points[j] << std::endl;
+    std::cout << "x = " << x << " y = " << y << " z = " << z << std::endl;
 
-    p1 = vy * z - vz * y;
-    p2 = vz * x - vx * z;
-    p3 = vx * y - vy * x;
+   // cross ?
+    p(0) = vy * z - vz * y;
+    p(1) = vz * x - vx * z;
+    p(2) = vx * y - vy * x;
+    std::cout << "p = " << p.transpose() << std::endl;
 
-    dist[j] = (float) std::sqrt( p1*p1 + p2*p2 + p3*p3 );
+    dist[j] = p.norm();
     sum_dist += dist[j];
   }
+  std::cout << "-------------End CVPointLineDistance3D---------------" << std::endl;
 
   return sum_dist;
 }
