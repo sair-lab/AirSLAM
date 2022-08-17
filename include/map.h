@@ -8,6 +8,7 @@
 
 #include "camera.h"
 #include "mappoint.h"
+#include "mapline.h"
 #include "frame.h"
 #include "g2o_optimization/types.h"
 #include "ros_publisher.h"
@@ -17,11 +18,15 @@ public:
   Map(CameraPtr camera, RosPublisherPtr ros_publisher);
   void InsertKeyframe(FramePtr frame);
   void InsertMappoint(MappointPtr mappoint);
+  void InsertMapline(MaplinePtr mapline);
+  void UpdateMaplineEndpoints(MaplinePtr mapline);
 
   FramePtr GetFramePtr(int frame_id);
   MappointPtr GetMappointPtr(int mappoint_id);
+  MaplinePtr GetMaplinePtr(int mapline_id);
 
   bool TriangulateMappoint(MappointPtr mappoint);
+  bool TriangulateMaplineByMappoints(MaplinePtr mapline);
   bool UpdateMappointDescriptor(MappointPtr mappoint);
   void SlidingWindowOptimization(FramePtr new_frame);
   void SearchNeighborFrames(FramePtr frame, std::vector<FramePtr>& neighbor_frames);
@@ -39,6 +44,7 @@ public:
 private:
   CameraPtr _camera;
   std::map<int, MappointPtr> _mappoints;
+  std::map<int, MaplinePtr> _maplines;
   std::map<int, FramePtr> _keyframes;
   std::vector<int> _keyframe_ids;
   RosPublisherPtr _ros_publisher;

@@ -97,6 +97,7 @@ RosPublisher::RosPublisher(const RosPublisherConfig& ros_publisher_config): _con
   }
 
   if(_config.map){
+    // for mappoints
     _ros_map_pub = nh.advertise<sensor_msgs::PointCloud> (_config.map_topic, 1);
     _ros_mappoints.header.stamp = ros::Time::now(); 
     _ros_mappoints.header.frame_id = "map"; 
@@ -125,6 +126,67 @@ RosPublisher::RosPublisher(const RosPublisherConfig& ros_publisher_config): _con
     };
     _map_publisher.Register(publish_map_function); 
     _map_publisher.Start();   
+
+    // for maplines
+    _ros_mapline_pub = nh.advertise<visualization_msgs::Marker> (_config.mapline_topic, 1);
+    _ros_maplines.header.stamp = ros::Time::now(); 
+    _ros_maplines.header.frame_id = "map"; 
+    _ros_maplines.pose.position.x = 0;
+    _ros_maplines.pose.position.y = 0;
+    _ros_maplines.pose.position.z = 0;
+    _ros_maplines.pose.orientation.x = 0;
+    _ros_maplines.pose.orientation.y = 0;
+    _ros_maplines.pose.orientation.z = 0;
+    _ros_maplines.pose.orientation.w = 1.0;
+    _ros_maplines.type = visualization_msgs::Marker::LINE_LIST;
+    _ros_maplines.scale.x = 0.02;  
+    _ros_maplines.color.b = 1.0;
+    _ros_maplines.color.a = 1.0;
+
+    std::function<void(const MapLineMessageConstPtr&)> publish_mapline_function = 
+        [&](const MapLineMessageConstPtr& mapline_message){
+      std::unordered_map<int, int>::iterator it;
+      for(int i = 0; i < mapline_message->ids.size(); i++){
+        int mapline_id = mapline_message->ids[i];
+        it = _mapline_id_to_index.find(mapline_id);
+        if(it == _mapline_id_to_index.end()){
+          geometry_msgs::Point point1, point2;
+          point1.x = mapline_message->lines[i](0);
+          point1.y = mapline_message->lines[i](1);
+          point1.z = mapline_message->lines[i](2);
+          point2.x = mapline_message->lines[i](3);
+          point2.y = mapline_message->lines[i](4);
+          point2.z = mapline_message->lines[i](5);
+          _ros_maplines.points.push_back(point1);
+          _ros_maplines.points.push_back(point2);
+
+          std_msgs::ColorRGBA color;
+          Eigen::Vector3d color_vector;
+          GenerateColor(mapline_id, color_vector);
+          // color.r = color_vector(0);
+          // color.g = color_vector(1);
+          // color.b = color_vector(2);
+          color.r = 0.0;
+          color.g = 0.0;
+          color.b = 1.0;   
+          color.a = 1.0;   
+          _ros_maplines.colors.push_back(color);
+          _ros_maplines.colors.push_back(color);
+          _mapline_id_to_index[mapline_id] = _ros_maplines.points.size()-2;
+        }else{
+          int idx = it->second;
+          _ros_maplines.points[idx].x = mapline_message->lines[i](0);
+          _ros_maplines.points[idx].y = mapline_message->lines[i](1);
+          _ros_maplines.points[idx].z = mapline_message->lines[i](2);
+          _ros_maplines.points[idx+1].x = mapline_message->lines[i](3);
+          _ros_maplines.points[idx+1].y = mapline_message->lines[i](4);
+          _ros_maplines.points[idx+1].z = mapline_message->lines[i](5);
+        }
+      }
+      _ros_mapline_pub.publish(_ros_maplines);
+    };
+    _mapline_publisher.Register(publish_mapline_function); 
+    _mapline_publisher.Start();  
   }
 }
 
@@ -144,9 +206,14 @@ void RosPublisher::PublishMap(MapMessagePtr map_message){
   _map_publisher.Publish(map_message);
 }
 
+void RosPublisher::PublishMapLine(MapLineMessagePtr mapline_message){
+  _mapline_publisher.Publish(mapline_message);
+} 
+
 void RosPublisher::ShutDown(){
   _frame_pose_publisher.ShutDown();
   _keyframe_publisher.ShutDown();
   _keyframe_publisher.ShutDown();
   _map_publisher.ShutDown();
+  _mapline_publisher.ShutDown();
 }

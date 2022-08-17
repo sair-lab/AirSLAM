@@ -18,6 +18,8 @@ Camera::Camera(const std::string& camera_file){
   _bf = camera_configs["bf"];
   _depth_lower_thr = camera_configs["depth_lower_thr"];
   _depth_upper_thr = camera_configs["depth_upper_thr"];
+  _max_x_diff = _bf / _depth_lower_thr;
+  _min_x_diff = _bf / _depth_upper_thr;
 
   cv::Mat K_l, K_r, P_l, P_r, R_l, R_r, D_l, D_r;
   camera_configs["LEFT.K"] >> K_l;
@@ -58,6 +60,8 @@ Camera& Camera::operator=(const Camera& camera){
   _bf = camera._bf;
   _depth_lower_thr = camera._depth_lower_thr;
   _depth_upper_thr = camera._depth_upper_thr;
+  _max_x_diff = _bf / _depth_lower_thr;
+  _min_x_diff = _bf / _depth_upper_thr;
   _fx = camera._fx;
   _fy = camera._fy;
   _cx = camera._cx;
@@ -111,6 +115,14 @@ double Camera::DepthLowerThr(){
 
 double Camera::DepthUpperThr(){
   return _depth_upper_thr;
+}
+
+double Camera::MaxXDiff(){
+  return _max_x_diff;
+}
+
+double Camera::MinXDiff(){
+  return _min_x_diff;
 }
 
 void Camera::GetCamerMatrix(cv::Mat& camera_matrix){

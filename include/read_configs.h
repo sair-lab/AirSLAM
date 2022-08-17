@@ -27,6 +27,18 @@ struct SuperGlueConfig {
   std::string engine_file;
 };
 
+struct LineDetectorConfig{
+  int length_threshold;
+  float distance_threshold;
+  double canny_th1;
+  double canny_th2;
+  int canny_aperture_size;
+  int do_merge;
+  float angle_thr;
+  float distance_thr;
+  float ep_thr;
+};
+
 struct KeyframeConfig {
   int min_num_match;
   int max_num_match;
@@ -44,7 +56,10 @@ struct RosPublisherConfig{
   std::string path_topic;
   int map;
   std::string map_topic;
+  int mapline;
+  std::string mapline_topic;
 };
+
 
 struct Configs{
   std::string dataroot;
@@ -54,6 +69,7 @@ struct Configs{
 
   SuperPointConfig superpoint_config;
   SuperGlueConfig superglue_config;
+  LineDetectorConfig line_detector_config;
   KeyframeConfig keyframe_config;
   RosPublisherConfig ros_publisher_config;
 
@@ -110,6 +126,17 @@ struct Configs{
     superglue_config.onnx_file = ConcatenateFolderAndFileName(model_dir, superglue_onnx_file);
     superglue_config.engine_file = ConcatenateFolderAndFileName(model_dir, superglue_engine_file); 
 
+    YAML::Node line_detector_node = file_node["line_ddetector"];
+    line_detector_config.length_threshold = line_detector_node["length_threshold"].as<int>();
+    line_detector_config.distance_threshold = line_detector_node["distance_threshold"].as<float>();
+    line_detector_config.canny_th1 = line_detector_node["canny_th1"].as<double>();
+    line_detector_config.canny_th2 = line_detector_node["canny_th2"].as<double>();
+    line_detector_config.canny_aperture_size = line_detector_node["canny_aperture_size"].as<int>();
+    line_detector_config.do_merge = line_detector_node["do_merge"].as<int>();
+    line_detector_config.angle_thr = line_detector_node["angle_thr"].as<float>();
+    line_detector_config.distance_thr = line_detector_node["distance_thr"].as<float>();
+    line_detector_config.ep_thr = line_detector_node["ep_thr"].as<float>();
+
     YAML::Node keyframe_node = file_node["keyframe"];
     keyframe_config.min_num_match = keyframe_node["min_num_match"].as<int>();
     keyframe_config.max_num_match = keyframe_node["max_num_match"].as<int>();
@@ -126,6 +153,8 @@ struct Configs{
     ros_publisher_config.path_topic = ros_publisher_node["path_topic"].as<std::string>();
     ros_publisher_config.map = ros_publisher_node["map"].as<int>();
     ros_publisher_config.map_topic = ros_publisher_node["map_topic"].as<std::string>();
+    ros_publisher_config.mapline = ros_publisher_node["mapline"].as<int>();
+    ros_publisher_config.mapline_topic = ros_publisher_node["mapline_topic"].as<std::string>();
   }
 };
 

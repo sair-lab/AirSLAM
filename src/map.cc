@@ -1,12 +1,18 @@
 #include <cmath> 
+#include <math.h>
+#include <numeric>
 #include <Eigen/Dense>
 #include <Eigen/SparseCore>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
 
+#include <g2o/types/slam3d/types_slam3d.h>
+#include <g2o/types/slam3d_addons/types_slam3d_addons.h>
+
 #include "map.h"
 #include "utils.h"
+#include "line_processor.h"
 #include "frame.h"
 #include "g2o_optimization/g2o_optimization.h"
 #include "timer.h"
@@ -36,7 +42,7 @@ void Map::InsertKeyframe(FramePtr frame){
   for(size_t i = 0; i < frame->FeatureNum(); i++){
     MappointPtr mpt = mappoints[i];
     if(mpt == nullptr){
-      if(track_ids[i] < 0) continue;
+      if(track_ids[i] < 0) continue;  // would not happen normally
       mpt = std::shared_ptr<Mappoint>(new Mappoint(track_ids[i]));
       Eigen::Matrix<double, 256, 1> descriptor;
       if(!frame->GetDescriptor(i, descriptor)) continue;
@@ -61,16 +67,171 @@ void Map::InsertKeyframe(FramePtr frame){
   }
   // STOP_TIMER("Insert to map Time");
 
+  // update mapline
+  std::vector<MaplinePtr> new_maplines;
+  const std::vector<int>& line_track_ids = frame->GetAllTrackIds();
+  const std::vector<Eigen::Vector4d>& lines = frame->GatAllLines();
+  const std::vector<Eigen::Vector4d>& lines_right = frame->GatAllRightLines();
+  const std::vector<bool>& lines_right_valid = frame->GetAllRightLineStatus();
+  std::vector<MaplinePtr>& maplines = frame->GetAllMaplines();
+  for(size_t i = 0; i < frame->LineNum(); i++){
+    MaplinePtr mpl = maplines[i];
+    if(mpl == nullptr){
+      if(line_track_ids[i] < 0) continue; // would not happen normally
+      mpl = std::shared_ptr<Mapline>(new Mapline(line_track_ids[i]));
+      if(lines_right_valid[i]){
+        Vector6d endpoints;
+        if(frame->TriangleStereoLine(i, endpoints)){
+          mpl->SetEndpoints(endpoints);
+          mpl->SetObverserEndpointStatus(frame_id, 1);
+        }
+      }
+      frame->InsertMapline(i, mpl);
+      new_maplines.push_back(mpl);
+    }
+    mpl->AddObverser(frame_id, i);
+    if(mpl->GetObverserEndpointStatus(frame_id) < 0){
+      mpl->SetObverserEndpointStatus(frame_id, 0);
+    }
+    // if(0){
+    if(mpl->GetType() == Mapline::Type::UnTriangulated && mpl->ObverserNum() >= 2){
+      TriangulateMaplineByMappoints(mpl);
+
+    //   std::cout << "Map::InsertKeyframe 2" << std::endl;
+    //   const std::map<int, int>& mpl_obversers = mpl->GetAllObversers();
+    //   int obverser_frame_id = mpl_obversers.begin()->first;
+    //   int obverser_line_idx = mpl_obversers.begin()->second;
+
+    //   FramePtr obverser_frame = GetFramePtr(obverser_frame_id);
+    //   if(!obverser_frame) continue;
+    //   std::cout << "Map::InsertKeyframe 3" << std::endl;
+    //   Eigen::Vector4d obverser_line;
+    //   if(!frame->GetLine(i, obverser_line)) continue;
+    //   std::cout << "Map::InsertKeyframe 4" << std::endl;
+    //   Line3DPtr line_3d = std::shared_ptr<g2o::Line3D>(new g2o::Line3D());
+    //   Eigen::Matrix4d obverser_pose = obverser_frame->GetPose();
+    //   if(!TriangleByTwoFrames(lines[i], Twf, obverser_line, obverser_pose, _camera, line_3d)) continue;
+    //   std::cout << "Map::InsertKeyframe 5" << std::endl;
+    // std::cout << "line_id = " << mpl->GetId() << std::endl;
+    //   mpl->SetLine3DPtr(line_3d);
+    }
+    std::cout << "i = " << i << ", Map::InsertKeyframe 10" << std::endl;
+
+  }
+
+  // add new maplines to map
+  for(MaplinePtr mpl:new_maplines){
+    InsertMapline(mpl);
+  }
+
   // optimization
   if(_keyframes.size() >= 2){
     // SlidingWindowOptimization(frame);
     LocalMapOptimization(frame);
   }
+
 }
 
 void Map::InsertMappoint(MappointPtr mappoint){
   int mappoint_id = mappoint->GetId();
   _mappoints[mappoint_id] = mappoint;
+}
+
+void Map::InsertMapline(MaplinePtr mapline){
+  int mapline_id = mapline->GetId();
+  _maplines[mapline_id] = mapline;
+}
+
+void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
+  if(!mapline || !mapline->IsValid() || !mapline->ToUpdateEndpoints()) return;
+  ConstLine3DPtr line_3d = mapline->GetLine3DPtr();
+  const std::map<int, int>& obversers = mapline->GetAllObversers();
+  const std::map<int, int>& included_endpoints = mapline->GetAllObverserEndpointStatus();
+
+  std::vector<Eigen::Vector3d> point_3d_vector;
+  if(mapline->EndpointsValid()){
+    const Vector6d& endpoints = mapline->GetEndpoints();
+    Eigen::Vector3d endpoint1 = endpoints.head(3);
+    Eigen::Vector3d endpoint2 = endpoints.tail(3);
+    point_3d_vector.push_back(endpoint1);
+    point_3d_vector.push_back(endpoint2);
+  }
+
+  Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
+  for(auto& kv : obversers){
+    int frame_id = kv.first;
+    FramePtr frame = GetFramePtr(frame_id);
+    if(!frame || included_endpoints.at(frame_id) < 0) continue;
+    Eigen::Vector4d line_measurement;
+    if(!frame->GetLine(kv.second, line_measurement)) continue;
+    const Eigen::Matrix4d& frame_pose = frame->GetPose();
+    Eigen::Matrix3d Rwc = frame_pose.block<3, 3>(0, 0);
+    Eigen::Vector3d twc = frame_pose.block<3, 1>(0, 3);
+    Eigen::Matrix3d Rcw = Rwc.transpose();
+    Eigen::Vector3d tcw = - Rcw * twc;
+    T.rotate(Rcw);
+    T.pretranslate(tcw);
+    g2o::Line3D line_3d_c = T * (*line_3d);
+    line_3d_c.normalize();
+    Vector6d line_cart_c = line_3d_c.toCartesian();
+    Eigen::Vector3d line_direction = line_cart_c.tail(3);
+    Eigen::Vector3d anchor_point = line_cart_c.head(3);
+
+    Eigen::Vector3d init_point_3d1, init_point_3d2;
+    if(std::abs(line_direction(2)) < 0.1){
+      Eigen::Index max_index;
+      line_direction.array().abs().maxCoeff(&max_index);
+      size_t md = max_index;  // main direction
+      assert(md < 2);
+      double op1 = -anchor_point(md) / line_direction(md);
+      init_point_3d1 = anchor_point + op1 * line_direction;
+      double p1p2 = 1.0 / line_direction(md);
+      init_point_3d2 = init_point_3d1 + p1p2 * line_direction;
+    }else{
+      double op1 = (1.0 - anchor_point(2)) / line_direction(2);
+      init_point_3d1 = anchor_point + op1 * line_direction;
+      double op2 = (1.1 - anchor_point(2)) / line_direction(2);
+      init_point_3d2 = anchor_point + op2 * line_direction;
+    }
+    assert(init_point_3d1(2) > 0);
+    assert(init_point_3d2(2) > 0);
+
+    CameraPtr camera = frame->GetCamera();
+    Eigen::Vector2d init_point_2d1, init_point_2d2;
+    camera->Project(init_point_2d1, init_point_3d1);
+    camera->Project(init_point_2d2, init_point_3d2);
+
+    Eigen::Vector3d endpoint1, endpoint2;
+    Point2DTo3D(init_point_3d1, init_point_3d2, init_point_2d1, init_point_2d2, 
+        line_measurement.head(2), endpoint1);
+    Point2DTo3D(init_point_3d1, init_point_3d2, init_point_2d1, init_point_2d2, 
+        line_measurement.tail(2), endpoint2);
+
+    endpoint1 = Rwc * endpoint1 + twc;
+    endpoint2 = Rwc * endpoint2 + twc;
+    point_3d_vector.push_back(endpoint1);
+    point_3d_vector.push_back(endpoint2);
+    mapline->SetObverserEndpointStatus(frame_id, 1);
+  }
+
+  Eigen::Vector3d line_d = line_3d->d();
+  Eigen::Index max_index;
+  line_d.array().abs().maxCoeff(&max_index);
+  size_t md = max_index;  // main direction
+  size_t max_idx = 0;
+  size_t min_idx = 0;
+  double max_value = DBL_MIN;
+  double min_value = DBL_MAX;
+  for(size_t i = 0; i < point_3d_vector.size(); i++){
+    double value = point_3d_vector[i](md);
+    if(value > max_value) max_idx = i;
+    if(value < min_value) min_idx = i;
+  }
+
+  Vector6d endpoints;
+  endpoints << point_3d_vector[min_idx], point_3d_vector[max_idx];
+  mapline->SetEndpoints(endpoints, false);
+  mapline->SetEndpointsUpdateStatus(false);
 }
 
 FramePtr Map::GetFramePtr(int frame_id){
@@ -85,6 +246,13 @@ MappointPtr Map::GetMappointPtr(int mappoint_id){
     return nullptr;
   }
   return _mappoints[mappoint_id];
+}
+
+MaplinePtr Map::GetMaplinePtr(int mapline_id){
+  if(_maplines.count(mapline_id) == 0){
+    return nullptr;
+  }
+  return _maplines[mapline_id];
 }
 
 bool Map::TriangulateMappoint(MappointPtr mappoint){
@@ -113,7 +281,6 @@ bool Map::TriangulateMappoint(MappointPtr mappoint){
     G_bearing_vectors.col(num_valid_obversers) = frame_R * backprojected_pos;
     num_valid_obversers++;
   }
-  // std::cout << "num_valid_obversers = " << num_valid_obversers << std::endl;
   if(num_valid_obversers < 2) return false;
 
   Eigen::Matrix3Xd t_G_bv = G_bearing_vectors.leftCols(num_valid_obversers);
@@ -134,6 +301,86 @@ bool Map::TriangulateMappoint(MappointPtr mappoint){
   
   Eigen::Vector3d p_G_P = qr.solve(Axtbx);
   mappoint->SetPosition(p_G_P);
+  return true;
+}
+
+bool Map::TriangulateMaplineByMappoints(MaplinePtr mapline){
+  if(mapline->IsValid()) return true;
+  const std::map<int, int>& obversers = mapline->GetAllObversers();
+  if(obversers.size() < 2) return false;
+  std::vector<cv::Point3f> points;
+  for(const auto& kv : obversers){
+    FramePtr frame = GetFramePtr(kv.first);
+    if(!frame) continue;
+    std::map<int, double> points_on_line = frame->GetPointsOnLine(kv.second);
+    for(auto& pkv : points_on_line){
+      MappointPtr mpt = frame->GetMappoint(pkv.first);
+      if(!mpt || !mpt->IsValid()) continue;
+      Eigen::Vector3d p = mpt->GetPosition();
+      points.emplace_back(p(0), p(1), p(2));
+    }
+  }
+  if(points.size() < 2) return false;
+
+  cv::Vec6f line;
+  for(size_t i = 0; i < 4; i++){
+    // fit line
+    cv::fitLine(points, line, cv::DIST_L2, 0, 5e-2, 1e-2);
+
+    // remove outlier
+    std::vector<float> dist;
+    CVPointLineDistance3D(points, line, dist);
+    size_t inlier_num = 0;
+    for(size_t j = 0; j < points.size(); j++){
+      if(dist[j] < 0.2){
+        points[inlier_num] = points[j];
+        inlier_num++;
+      }
+    }
+    points.resize(inlier_num);
+
+    // check
+    if(inlier_num == dist.size() || inlier_num < 3){
+      break;
+    }
+  }
+  if(points.size() < 2) return false;
+
+  // set line
+  Vector6d line_cart;
+  line_cart << line[3], line[4], line[5], line[0], line[1], line[2];
+  g2o::Line3D line_3d = g2o::Line3D::fromCartesian(line_cart);
+  mapline->SetLine3D(line_3d);
+
+  // set endpoints
+  size_t md = 0;
+  float max_v = std::abs(line[0]);
+  for(size_t i = 1; i < 3; i++){
+    float v = std::abs(line[i]);
+    if(v > max_v){
+      md = i;
+      max_v = v;
+    }
+  }
+
+  std::vector<size_t> order;
+  order.resize(points.size());
+  std::iota(order.begin(), order.end(), 0);       
+  std::sort(order.begin(), order.end(), [&points, &md](size_t i1, size_t i2) { 
+    if(md == 0) return points[i1].x < points[i2].x;
+    if(md == 1) return points[i1].y < points[i2].y;
+    if(md == 2) return points[i1].z < points[i2].z;
+  });
+  Vector6d endpoints;
+  size_t min_idx = order[0], max_idx = order[(order.size()-1)];
+  endpoints << points[min_idx].x, points[min_idx].y, points[min_idx].z, points[max_idx].x, points[max_idx].y, points[max_idx].z;
+  mapline->SetEndpoints(endpoints, false);
+  mapline->SetEndpointsUpdateStatus(false);
+  for(const auto& kv : obversers){
+    FramePtr frame = GetFramePtr(kv.first);
+    if(!frame) continue;
+    mapline->SetObverserEndpointStatus(kv.first, 1);
+  }
   return true;
 }
 
@@ -447,7 +694,6 @@ void Map::LocalMapOptimization(FramePtr new_frame){
     }
   }
 
-
   const size_t max_fixed_frame_num = 1;
   if(fixed_frames.size() > 0 && max_fixed_frame_num > fixed_frame_num){
     std::set<std::pair<int, FramePtr>> ordered_fixed_frames;
@@ -459,12 +705,10 @@ void Map::LocalMapOptimization(FramePtr new_frame){
     for(std::set<std::pair<int, FramePtr>>::reverse_iterator rit = ordered_fixed_frames.rbegin(); to_add_fixed_num > 0; to_add_fixed_num--, rit++){
       rit->second->local_map_optimization_fix_frame_id = new_frame_id;
       AddFrameVertex(rit->second, poses, true);
-      std::cout << rit->second->GetFrameId() << " ";
     }
     fixed_frame_num += to_add_fixed_num;
   }
 
-  std::cout << std::endl;
 
   // add point constraint
   for(auto& mpt : mappoints){
@@ -548,6 +792,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
   // copy back to map
   KeyframeMessagePtr keyframe_message = std::shared_ptr<KeyframeMessage>(new KeyframeMessage);
   MapMessagePtr map_message = std::shared_ptr<MapMessage>(new MapMessage);
+  MapLineMessagePtr mapline_message = std::shared_ptr<MapLineMessage>(new MapLineMessage);
 
   for(auto& kv : poses){
     int frame_id = kv.first;
@@ -572,8 +817,20 @@ void Map::LocalMapOptimization(FramePtr new_frame){
     map_message->points.push_back(position.p);
   }
 
+  // maplines
+  const std::vector<MaplinePtr>& new_maplines = new_frame->GetAllMaplines();
+  for(auto& new_mapline : new_maplines){
+    // UpdateMaplineEndpoints(new_mapline);
+    if(!new_mapline || !new_mapline->EndpointsValid()) continue;
+    int mpl_id = new_mapline->GetId();
+    const Vector6d& endpoints = new_mapline->GetEndpoints();
+    mapline_message->ids.push_back(mpl_id);
+    mapline_message->lines.push_back(endpoints); 
+  }
+
   _ros_publisher->PublisheKeyframe(keyframe_message);
   _ros_publisher->PublishMap(map_message);
+  _ros_publisher->PublishMapLine(mapline_message);  
   // STOP_TIMER("SlidingWindowOptimization Time3");
 }
 
@@ -712,7 +969,6 @@ void Map::SearchByProjection(FramePtr frame, std::vector<MappointPtr>& mappoints
     // find neighbor features 
     std::vector<int> candidate_ids;
     frame->FindNeighborKeypoints(p2D, candidate_ids, r, true);
-    // std::cout << "candidate_ids.size() = " << candidate_ids.size() << std::endl;
     if(candidate_ids.empty()) continue;
     debug_vec(2) += 1;
 

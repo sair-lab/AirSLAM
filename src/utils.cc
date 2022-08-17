@@ -15,6 +15,23 @@ double DescriptorDistance(const Eigen::Matrix<double, 256, 1>& f1, const Eigen::
   return 2 * (1.0 - f1.transpose() * f2);
 }
 
+cv::Scalar GenerateColor(int id){
+  id++;
+  int red = (id * 23) % 255;
+  int green = (id * 53) % 255;
+  int blue = (id * 79) % 255;
+  return cv::Scalar(blue, green, red);
+}
+
+void GenerateColor(int id, Eigen::Vector3d color){
+  id++;
+  int red = (id * 23) % 255;
+  int green = (id * 53) % 255;
+  int blue = (id * 79) % 255;
+  color << red, green, blue;
+  color *= (1.0 / 255.0);
+}
+
 void GetFileNames(std::string path, std::vector<std::string>& filenames){
   DIR *pDir;
   struct dirent* ptr;
