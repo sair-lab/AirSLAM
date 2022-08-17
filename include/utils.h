@@ -22,7 +22,15 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/eigen.hpp>
 
+#include <g2o/types/slam3d/types_slam3d.h>
+#include <g2o/types/slam3d_addons/types_slam3d_addons.h>
+
+typedef std::shared_ptr<g2o::Line3D> Line3DPtr;
+typedef std::shared_ptr<const g2o::Line3D> ConstLine3DPtr;
+
 // Eigen type
+typedef Eigen::Matrix<double, 6, 1> Vector6d;
+
 template <template <typename, typename> class Container, typename Type>
 using Aligned = Container<Type, Eigen::aligned_allocator<Type>>;
 
@@ -48,6 +56,8 @@ using AlignedUnorderedSet =
 
 void ConvertVectorToRt(Eigen::Matrix<double, 7, 1>& m, Eigen::Matrix3d& R, Eigen::Vector3d& t);
 double DescriptorDistance(const Eigen::Matrix<double, 256, 1>& f1, const Eigen::Matrix<double, 256, 1>& f2);
+cv::Scalar GenerateColor(int id);
+void GenerateColor(int id, Eigen::Vector3d color);
 
 // files
 void GetFileNames(std::string path, std::vector<std::string>& filenames);

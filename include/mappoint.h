@@ -10,33 +10,6 @@
 #include <Eigen/Dense>
 #include <Eigen/SparseCore>
 
-static constexpr int kMaxInt = std::numeric_limits<int>::max();
-
-struct Obverser {
-  int frame_id;
-  int keypoint_index;
-
-  inline Obverser() : frame_id(kMaxInt), keypoint_index(kMaxInt) {}
-  inline Obverser(int& _frame_id, int _keypoint_index)
-      : frame_id(_frame_id), keypoint_index(_keypoint_index) {}
-
-  inline bool operator==(const Obverser& other) const {
-    return frame_id == other.frame_id && keypoint_index == other.keypoint_index;
-  }
-  inline bool operator!=(const Obverser& other) const {
-    return frame_id != other.frame_id || keypoint_index != other.keypoint_index;
-  }
-  inline bool operator<(const Obverser& other) const {
-    if (frame_id == other.frame_id) {
-      return keypoint_index < other.keypoint_index;
-    } else {
-      return frame_id < other.frame_id;
-    }
-  }
-  inline bool isValid() const {
-    return frame_id != kMaxInt && keypoint_index != kMaxInt;
-  }
-};
 
 class Mappoint{
 public:
