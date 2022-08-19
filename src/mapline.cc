@@ -2,12 +2,13 @@
 #include "utils.h"
 #include "line_processor.h"
 
-Mapline::Mapline(): _type(Type::UnTriangulated), _to_update_endpoints(false), 
-    _endpoints_valid(false), _line_3d(std::shared_ptr<g2o::Line3D>(new g2o::Line3D())){
+Mapline::Mapline():local_map_optimization_frame_id(-1), _type(Type::UnTriangulated), 
+    _to_update_endpoints(false), _endpoints_valid(false), 
+    _line_3d(std::shared_ptr<g2o::Line3D>(new g2o::Line3D())){
 }
 
-Mapline::Mapline(int mappoint_id): _id(mappoint_id), _type(Type::UnTriangulated), 
-    _to_update_endpoints(false), _endpoints_valid(false), 
+Mapline::Mapline(int mappoint_id):local_map_optimization_frame_id(-1),  _id(mappoint_id),
+     _type(Type::UnTriangulated), _to_update_endpoints(false), _endpoints_valid(false), 
     _line_3d(std::shared_ptr<g2o::Line3D>(new g2o::Line3D())){
 }
 

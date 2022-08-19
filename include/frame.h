@@ -71,6 +71,7 @@ public:
   int GetLineTrackId(size_t idx);
   const std::vector<int>& GetAllLineTrackId();
   bool GetLine(size_t idx, Eigen::Vector4d& line);
+  bool GetLineRight(size_t idx, Eigen::Vector4d& line);
   const std::vector<Eigen::Vector4d>& GatAllLines();
   const std::vector<Eigen::Vector4d>& GatAllRightLines();
   const std::vector<bool>& GetAllRightLineStatus();

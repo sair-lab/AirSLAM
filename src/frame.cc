@@ -307,6 +307,13 @@ bool Frame::GetLine(size_t idx, Eigen::Vector4d& line){
   return true;
 }
 
+bool GetLineRight(size_t idx, Eigen::Vector4d& line){
+  if(idx >= _lines.size() || !_lines_right_valid[idx]) return false;
+  
+  line = _lines_right[idx];
+  return true;
+}
+
 const std::vector<int>& Frame::GetAllLineTrackId(){
   return _line_track_ids;
 }
