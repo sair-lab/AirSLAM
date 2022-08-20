@@ -1,7 +1,7 @@
 #include "g2o_optimization/edge_project_line.h"
 
 EdgeSE3ProjectLine::EdgeSE3ProjectLine()
-    : BaseBinaryEdge<2, Vector2, VertexPointXYZ, VertexSE3Expmap>() {}
+    : BaseBinaryEdge<2, Vector2, g2o::VertexLine3D, g2o::VertexSE3Expmap>() {}
 
 bool EdgeSE3ProjectLine::read(std::istream &is) {
   internal::readVector(is, _measurement);

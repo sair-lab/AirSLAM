@@ -2,7 +2,7 @@
 #include "utils.h"
 
 EdgeStereoSE3ProjectLine::EdgeStereoSE3ProjectLine()
-    : BaseBinaryEdge<4, Vector8d, VertexLine3D, VertexSE3Expmap>() {}
+    : BaseBinaryEdge<4, Vector8d, g2o::VertexLine3D, g2o::VertexSE3Expmap>() {}
 
 bool EdgeStereoSE3ProjectLine::read(std::istream &is) {
   internal::readVector(is, _measurement);

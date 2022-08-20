@@ -14,7 +14,7 @@
 
 
 class EdgeStereoSE3ProjectLine
-    : public BaseBinaryEdge<4, Vector8d, VertexLine3D, VertexSE3Expmap> {
+    : public g2o::BaseBinaryEdge<4, Vector8d, g2o::VertexLine3D, g2o::VertexSE3Expmap> {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 

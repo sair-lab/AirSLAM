@@ -11,7 +11,7 @@
 #include <g2o/types/slam3d_addons/line3d.h>
 
 class EdgeSE3ProjectLine
-    : public BaseBinaryEdge<2, Eigen::Vector4d, VertexLine3D, VertexSE3Expmap> {
+    : public Bg2o::aseBinaryEdge<2, Eigen::Vector4d, VertexLine3D, VertexSE3Expmap> {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 

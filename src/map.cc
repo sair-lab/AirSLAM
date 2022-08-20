@@ -824,7 +824,6 @@ void Map::LocalMapOptimization(FramePtr new_frame){
   }
 
 
-
   // STOP_TIMER("SlidingWindowOptimization Time1");
   // START_TIMER;
   LocalmapOptimization(poses, points, camera_list, mono_point_constraints, stereo_point_constraints);

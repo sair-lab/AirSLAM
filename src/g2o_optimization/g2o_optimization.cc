@@ -14,9 +14,13 @@
 #include <g2o/solvers/dense/linear_solver_dense.h>
 #include <g2o/types/sim3/types_seven_dof_expmap.h>
 
+#include "g2o_optimization/edge_project_line.h"
+#include "g2o_optimization/edge_project_stereo_line.h"
 
-void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, std::vector<CameraPtr>& camera_list, 
-    VectorOfMonoPointConstraints& mono_point_constraints, VectorOfStereoPointConstraints& stereo_point_constraints){
+
+void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d& lines, std::vector<CameraPtr>& camera_list, 
+    VectorOfMonoPointConstraints& mono_point_constraints, VectorOfStereoPointConstraints& stereo_point_constraints, 
+    VectorOfMonoLineConstraints& mono_line_constraints, VectorOfStereoLineConstraints& stereo_line_constraints){
   // Setup optimizer
   g2o::SparseOptimizer optimizer;
   optimizer.setVerbose(false);
@@ -39,22 +43,36 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, std::vector<
   max_frame_id++;
 
   // point vertex
+  int max_point_id = 0;
   for(auto& kv : points){
     g2o::VertexPointXYZ* point_vertex = new g2o::VertexPointXYZ();
     point_vertex->setEstimate(kv.second.p);
-    point_vertex->setId((kv.first+max_frame_id));
+    int point_id = kv.first+max_frame_id;
+    point_vertex->setId((point_id));
+    max_point_id = std::max(max_point_id, point_id);
     point_vertex->setMarginalized(true);
     optimizer.addVertex(point_vertex);
   }
+  max_point_id++;
 
+  // line vertex
+  for(auto& kv : lines){
+    g2o::VertexLine3D* line_vertex = new g2o::VertexLine3D();
+    line_vertex->setEstimateData(kv.secod.line_3d);
+    line_vertex->setId((max_point_id + kv.first));
+    line_vertex->setMarginalized(true);
+    optimizer.addVertex(line_vertex);
+  }
+
+  
+  // point edges
   std::vector<g2o::EdgeSE3ProjectXYZ*> mono_edges; 
   mono_edges.reserve(mono_point_constraints.size());
   std::vector<g2o::EdgeStereoSE3ProjectXYZ*> stereo_edges;
   stereo_edges.reserve(stereo_point_constraints.size());
   const float thHuberMono = sqrt(5.991);
   const float thHuberStereo = sqrt(7.815);
-
-  // mono edges
+  // mono point edges
   for(MonoPointConstraintPtr& mpc : mono_point_constraints){
     g2o::EdgeSE3ProjectXYZ* e = new g2o::EdgeSE3ProjectXYZ();
     e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex((mpc->id_point+max_frame_id))));
@@ -73,7 +91,7 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, std::vector<
     mono_edges.push_back(e);
   }
 
-  // stereo edges
+  // stereo point edges
   for(StereoPointConstraintPtr& spc : stereo_point_constraints){
     g2o::EdgeStereoSE3ProjectXYZ* e = new g2o::EdgeStereoSE3ProjectXYZ();
 
@@ -93,6 +111,58 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, std::vector<
     optimizer.addEdge(e);
     stereo_edges.push_back(e);
   }
+
+  // line edges
+  std::vector<g2o::EdgeSE3ProjectLine*> mono_line_edges; 
+  mono_line_edges.reserve(mono_line_constraints.size());
+  std::vector<g2o::EdgeStereoSE3ProjectLine*> stereo_line_edges;
+  stereo_line_edges.reserve(stereo_line_constraints.size());
+  const float thHuberMonoLine = sqrt(5.991);
+  const float thHuberStereoLine = sqrt(7.815);
+  // mono line edges
+  for(MonoLineConstraintPtr& mlc : mono_line_constraints){
+    EdgeSE3ProjectLine* e = new EdgeSE3ProjectLine();
+    e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex((mlc->id_line+max_point_id))));
+    e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(mlc->id_pose)));
+    e->setMeasurement(mlc->line_2d);
+    e->setInformation(Eigen::Matrix4d::Identity());
+    g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
+    e->setRobustKernel(rk);
+    rk->setDelta(thHuberMonoLine);
+    double fx = camera_list[mpc->id_camera]->Fx();
+    double fy = camera_list[mpc->id_camera]->Fy()
+    double cx = camera_list[mpc->id_camera]->Cx();
+    double cy = camera_list[mpc->id_camera]->Cy();
+    e->fx = fx;
+    e->fy = fy;
+    e->Kv << -fy * cx, -fx * cy, fx * fy;
+    optimizer.addEdge(e);
+    mono_line_edges.push_back(e);
+  }
+
+  // stereo line edges
+  for(StereoLineConstraintPtr& slc : stereo_point_constraints){
+    EdgeStereoSE3ProjectLine* e = new EdgeStereoSE3ProjectLine();
+    e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex((slc->id_line+max_point_id))));
+    e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(slc->id_pose)));
+    e->setMeasurement(slc->line_2d);
+    e->setInformation(Matrix8d::Identity());
+    g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
+    e->setRobustKernel(rk);
+    rk->setDelta(thHuberStereoLine);
+    double fx = camera_list[mpc->id_camera]->Fx();
+    double fy = camera_list[mpc->id_camera]->Fy()
+    double cx = camera_list[mpc->id_camera]->Cx();
+    double cy = camera_list[mpc->id_camera]->Cy();
+    double bf = camera_list[spc->id_camera]->BF();
+    e->fx = fx;
+    e->fy = fy;
+    e->b = bf / fx;
+    e->Kv << -fy * cx, -fx * cy, fx * fy;
+    optimizer.addEdge(e);
+    stereo_line_edges.push_back(e);
+  }
+
 
   // solve 
   optimizer.initializeOptimization();
@@ -115,6 +185,23 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, std::vector<
     e->setRobustKernel(0);
   }
 
+  for(size_t i=0; i < mono_line_edges.size(); i++){
+    EdgeSE3ProjectLine* e = mono_edges[i];
+    if(e->chi2() > 5.991){
+      e->setLevel(1);
+    }
+    e->setRobustKernel(0);
+  }
+
+  for(size_t i=0; i < stereo_line_edges.size(); i++){    
+    EdgeStereoSE3ProjectLine* e = stereo_edges[i];
+    if(e->chi2() > 7.815){
+        e->setLevel(1);
+    }
+    e->setRobustKernel(0);
+  }
+
+
   // optimize again without the outliers
   optimizer.initializeOptimization(0);
   optimizer.optimize(10);
@@ -131,6 +218,16 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, std::vector<
     stereo_point_constraints[i]->inlier = (e->chi2() <= 7.815 && e->isDepthPositive());
   }
 
+  for(size_t i = 0; i < mono_line_edges.size(); i++){
+    EdgeSE3ProjectLine* e = mono_line_edges[i];
+    mono_line_constraints[i]->inlier = (e->chi2() <= 5.991);
+  }
+
+  for(size_t i = 0; i < stereo_edges.size(); i++){    
+    EdgeStereoSE3ProjectLine* e = stereo_edges[i];
+    stereo_line_constraints[i]->inlier = (e->chi2() <= 7.815);
+  }
+
   // Recover optimized data
   // Keyframes
   for(MapOfPoses::iterator it = poses.begin(); it!=poses.end(); ++it){
@@ -142,8 +239,15 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, std::vector<
   // Points
   for(MapOfPoints3d::iterator it = points.begin(); it!=points.end(); ++it){
     g2o::VertexPointXYZ* point_vertex = static_cast<g2o::VertexPointXYZ*>(optimizer.vertex(it->first+max_frame_id));
-    it->second.p = point_vertex->estimate();;
+    it->second.p = point_vertex->estimate();
   }
+  // Lines
+    g2o::VertexLine3D* line_vertex = new g2o::VertexLine3D();
+
+  for(MapOfLine3d::iterator it = lines.begin(); it!=lines.end(); ++it){
+    g2o::VertexLine3D* line_vertex = static_cast<g2o::VertexLine3D*>(optimizer.vertex(it->first+max_point_id));
+    it->second.line_3d = point_vertex->estimate();
+  } 
 }
 
 

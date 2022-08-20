@@ -31,6 +31,7 @@ typedef std::shared_ptr<const g2o::Line3D> ConstLine3DPtr;
 // Eigen type
 typedef Eigen::Matrix<double, 6, 1> Vector6d;
 typedef Eigen::Matrix<double, 8, 1> Vector8d;
+typedef Eigen::Matrix<double, 8, 8> Matrix8d;
 
 template <template <typename, typename> class Container, typename Type>
 using Aligned = Container<Type, Eigen::aligned_allocator<Type>>;
