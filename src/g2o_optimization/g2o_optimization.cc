@@ -242,11 +242,9 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
     it->second.p = point_vertex->estimate();
   }
   // Lines
-    g2o::VertexLine3D* line_vertex = new g2o::VertexLine3D();
-
   for(MapOfLine3d::iterator it = lines.begin(); it!=lines.end(); ++it){
     g2o::VertexLine3D* line_vertex = static_cast<g2o::VertexLine3D*>(optimizer.vertex(it->first+max_point_id));
-    it->second.line_3d = point_vertex->estimate();
+    it->second.line_3d = line_vertex->estimate();
   } 
 }
 

@@ -141,6 +141,31 @@ void Map::InsertMapline(MaplinePtr mapline){
   _maplines[mapline_id] = mapline;
 }
 
+void Map::UppdateMapline(MaplinePtr mapline){
+  if(!mapline || !mapline->IsValid()) return;
+
+  // get associated mappoints
+  std::vector<Eigen::Vector3d> points;
+  const std::map<int, int>& obversers = mapline->GetAllObverserEndpointStatus();
+  if(obversers.size()) return;
+  for(auto& kv : obversers){
+    int frame_id = kv.first;
+    FramePtr frame = GetFramePtr(frame_id);
+    if(!frame) continue;
+    std::map<int, double> points_on_line = frame->GetPointsOnLine(kv.second);
+    for(auto& point : points_on_line){
+      MappointPtr mpt = frame->GetMappoint(point.first);
+      if(mpt && mpt->IsValid()){
+        points.push_back(mpt->GetPosition());
+      }
+    }
+  }
+
+  // filter by distance
+  EigenPointLineDistance3D(points, )
+
+}
+
 void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
   if(!mapline || !mapline->IsValid() || !mapline->ToUpdateEndpoints()) return;
   ConstLine3DPtr line_3d = mapline->GetLine3DPtr();
@@ -437,151 +462,151 @@ bool Map::UpdateMappointDescriptor(MappointPtr mappoint){
   return true;
 }
 
-void Map::SlidingWindowOptimization(FramePtr new_frame){
-  const size_t WindowSize = 10;
-  int new_frame_id = new_frame->GetFrameId();
-  // START_TIMER;
-  MapOfPoses poses;
-  MapOfPoints3d points;
-  std::vector<CameraPtr> camera_list;
-  VectorOfMonoPointConstraints mono_point_constraints;
-  VectorOfStereoPointConstraints stereo_point_constraints;
+// void Map::SlidingWindowOptimization(FramePtr new_frame){
+//   const size_t WindowSize = 10;
+//   int new_frame_id = new_frame->GetFrameId();
+//   // START_TIMER;
+//   MapOfPoses poses;
+//   MapOfPoints3d points;
+//   std::vector<CameraPtr> camera_list;
+//   VectorOfMonoPointConstraints mono_point_constraints;
+//   VectorOfStereoPointConstraints stereo_point_constraints;
 
-  // camera
-  camera_list.emplace_back(_camera);
+//   // camera
+//   camera_list.emplace_back(_camera);
 
-  // select frames to optimize
-  std::vector<FramePtr> frames;
-  size_t frame_num = std::min(WindowSize, _keyframe_ids.size());
-  for(size_t i = _keyframe_ids.size() - frame_num; i < _keyframe_ids.size(); i++){
-    frames.push_back(_keyframes[_keyframe_ids[i]]);
-  }
+//   // select frames to optimize
+//   std::vector<FramePtr> frames;
+//   size_t frame_num = std::min(WindowSize, _keyframe_ids.size());
+//   for(size_t i = _keyframe_ids.size() - frame_num; i < _keyframe_ids.size(); i++){
+//     frames.push_back(_keyframes[_keyframe_ids[i]]);
+//   }
 
-  std::cout << "--------------SlidingWindowOptimization Begin------------------------" << std::endl;
-  std::cout << "before optimization : " << std::endl;
+//   std::cout << "--------------SlidingWindowOptimization Begin------------------------" << std::endl;
+//   std::cout << "before optimization : " << std::endl;
 
-  // point constrainnts
-  for(size_t i = 0; i < frames.size(); i++){
-    FramePtr frame = frames[i];
-    bool fix_this_frame = ((i==0) || frame->PoseFixed());
-    int frame_id = frame->GetFrameId();
-    Eigen::Matrix4d& frame_pose = frame->GetPose();
-    Pose3d pose;
-    pose.q = frame_pose.block<3, 3>(0, 0);
-    pose.p = frame_pose.block<3, 1>(0, 3);
-    pose.fixed = fix_this_frame;
-    poses.insert(std::pair<int, Pose3d>(frame_id, pose));  
+//   // point constrainnts
+//   for(size_t i = 0; i < frames.size(); i++){
+//     FramePtr frame = frames[i];
+//     bool fix_this_frame = ((i==0) || frame->PoseFixed());
+//     int frame_id = frame->GetFrameId();
+//     Eigen::Matrix4d& frame_pose = frame->GetPose();
+//     Pose3d pose;
+//     pose.q = frame_pose.block<3, 3>(0, 0);
+//     pose.p = frame_pose.block<3, 1>(0, 3);
+//     pose.fixed = fix_this_frame;
+//     poses.insert(std::pair<int, Pose3d>(frame_id, pose));  
     
-    std::vector<MappointPtr>& mappoints = frame->GetAllMappoints();
-    for(size_t j = 0; j < mappoints.size(); j++){
-      // points
-      MappointPtr mpt = mappoints[j];
-      if(!mpt || !mpt->IsValid()) continue;
-      Eigen::Vector3d keypoint; 
-      if(!frame->GetKeypointPosition(j, keypoint)) continue;
-      int mpt_id = mpt->GetId();
+//     std::vector<MappointPtr>& mappoints = frame->GetAllMappoints();
+//     for(size_t j = 0; j < mappoints.size(); j++){
+//       // points
+//       MappointPtr mpt = mappoints[j];
+//       if(!mpt || !mpt->IsValid()) continue;
+//       Eigen::Vector3d keypoint; 
+//       if(!frame->GetKeypointPosition(j, keypoint)) continue;
+//       int mpt_id = mpt->GetId();
 
-      if(mpt->local_map_optimization_frame_id != new_frame_id){
-        Position3d point;
-        point.p = mpt->GetPosition();
-        point.fixed = false;
-        points.insert(std::pair<int, Position3d>(mpt_id, point));
-        mpt->local_map_optimization_frame_id = new_frame_id;
-      }
+//       if(mpt->local_map_optimization_frame_id != new_frame_id){
+//         Position3d point;
+//         point.p = mpt->GetPosition();
+//         point.fixed = false;
+//         points.insert(std::pair<int, Position3d>(mpt_id, point));
+//         mpt->local_map_optimization_frame_id = new_frame_id;
+//       }
 
-      // visual constraint
-      if(keypoint(2) > 0){
-        StereoPointConstraintPtr stereo_constraint = std::shared_ptr<StereoPointConstraint>(new StereoPointConstraint()); 
-        stereo_constraint->id_pose = frame_id;
-        stereo_constraint->id_point = mpt_id;
-        stereo_constraint->id_camera = 0;
-        stereo_constraint->inlier = true;
-        stereo_constraint->keypoint = keypoint;
-        stereo_constraint->pixel_sigma = 0.8;
-        stereo_point_constraints.push_back(stereo_constraint);
-      }else{
-        MonoPointConstraintPtr mono_constraint = std::shared_ptr<MonoPointConstraint>(new MonoPointConstraint()); 
-        mono_constraint->id_pose = frame_id;
-        mono_constraint->id_point = mpt_id;
-        mono_constraint->id_camera = 0;
-        mono_constraint->inlier = true;
-        mono_constraint->keypoint = keypoint.head(2);
-        mono_constraint->pixel_sigma = 0.8;
-        mono_point_constraints.push_back(mono_constraint);
-      }
-    }
-  }
-  // STOP_TIMER("SlidingWindowOptimization Time1");
-  // START_TIMER;
-  LocalmapOptimization(poses, points, camera_list, mono_point_constraints, stereo_point_constraints);
-  // STOP_TIMER("SlidingWindowOptimization Time2");
-  // START_TIMER;
+//       // visual constraint
+//       if(keypoint(2) > 0){
+//         StereoPointConstraintPtr stereo_constraint = std::shared_ptr<StereoPointConstraint>(new StereoPointConstraint()); 
+//         stereo_constraint->id_pose = frame_id;
+//         stereo_constraint->id_point = mpt_id;
+//         stereo_constraint->id_camera = 0;
+//         stereo_constraint->inlier = true;
+//         stereo_constraint->keypoint = keypoint;
+//         stereo_constraint->pixel_sigma = 0.8;
+//         stereo_point_constraints.push_back(stereo_constraint);
+//       }else{
+//         MonoPointConstraintPtr mono_constraint = std::shared_ptr<MonoPointConstraint>(new MonoPointConstraint()); 
+//         mono_constraint->id_pose = frame_id;
+//         mono_constraint->id_point = mpt_id;
+//         mono_constraint->id_camera = 0;
+//         mono_constraint->inlier = true;
+//         mono_constraint->keypoint = keypoint.head(2);
+//         mono_constraint->pixel_sigma = 0.8;
+//         mono_point_constraints.push_back(mono_constraint);
+//       }
+//     }
+//   }
+//   // STOP_TIMER("SlidingWindowOptimization Time1");
+//   // START_TIMER;
+//   LocalmapOptimization(poses, points, camera_list, mono_point_constraints, stereo_point_constraints);
+//   // STOP_TIMER("SlidingWindowOptimization Time2");
+//   // START_TIMER;
 
-  // erase outliers
-  std::vector<std::pair<FramePtr, MappointPtr>> outliers;
-  for(auto& mono_point_constraint : mono_point_constraints){
-    if(!mono_point_constraint->inlier){
-      std::map<int, FramePtr>::iterator frame_it = _keyframes.find(mono_point_constraint->id_pose);
-      std::map<int, MappointPtr>::iterator mpt_it = _mappoints.find(mono_point_constraint->id_point);
-      if(frame_it != _keyframes.end() && mpt_it != _mappoints.end() && frame_it->second && mpt_it->second){
-        outliers.emplace_back(frame_it->second, mpt_it->second);
-      }
-    }
-  }
+//   // erase outliers
+//   std::vector<std::pair<FramePtr, MappointPtr>> outliers;
+//   for(auto& mono_point_constraint : mono_point_constraints){
+//     if(!mono_point_constraint->inlier){
+//       std::map<int, FramePtr>::iterator frame_it = _keyframes.find(mono_point_constraint->id_pose);
+//       std::map<int, MappointPtr>::iterator mpt_it = _mappoints.find(mono_point_constraint->id_point);
+//       if(frame_it != _keyframes.end() && mpt_it != _mappoints.end() && frame_it->second && mpt_it->second){
+//         outliers.emplace_back(frame_it->second, mpt_it->second);
+//       }
+//     }
+//   }
 
-  for(auto& stereo_point_constraint : stereo_point_constraints){
-    if(!stereo_point_constraint->inlier){
-      std::map<int, FramePtr>::iterator frame_it = _keyframes.find(stereo_point_constraint->id_pose);
-      std::map<int, MappointPtr>::iterator mpt_it = _mappoints.find(stereo_point_constraint->id_point);
-      if(frame_it != _keyframes.end() && mpt_it != _mappoints.end() && frame_it->second && mpt_it->second){
-        outliers.emplace_back(frame_it->second, mpt_it->second);
-      }
-    }
-  }
-  RemoveOutliers(outliers);
-  // STOP_TIMER("RemoveOutliers Time2");
-  // START_TIMER;
-  UpdateFrameConnection(frames.back());
-  // STOP_TIMER("UpdateFrameConnection Time2");
-  // START_TIMER;
-  // PrintConnection();
-  // STOP_TIMER("PrintConnection Time2");
+//   for(auto& stereo_point_constraint : stereo_point_constraints){
+//     if(!stereo_point_constraint->inlier){
+//       std::map<int, FramePtr>::iterator frame_it = _keyframes.find(stereo_point_constraint->id_pose);
+//       std::map<int, MappointPtr>::iterator mpt_it = _mappoints.find(stereo_point_constraint->id_point);
+//       if(frame_it != _keyframes.end() && mpt_it != _mappoints.end() && frame_it->second && mpt_it->second){
+//         outliers.emplace_back(frame_it->second, mpt_it->second);
+//       }
+//     }
+//   }
+//   RemoveOutliers(outliers);
+//   // STOP_TIMER("RemoveOutliers Time2");
+//   // START_TIMER;
+//   UpdateFrameConnection(frames.back());
+//   // STOP_TIMER("UpdateFrameConnection Time2");
+//   // START_TIMER;
+//   // PrintConnection();
+//   // STOP_TIMER("PrintConnection Time2");
 
-  std::cout << "after optimization : " << std::endl;
+//   std::cout << "after optimization : " << std::endl;
 
-  // copy back to map
-  KeyframeMessagePtr keyframe_message = std::shared_ptr<KeyframeMessage>(new KeyframeMessage);
-  MapMessagePtr map_message = std::shared_ptr<MapMessage>(new MapMessage);
+//   // copy back to map
+//   KeyframeMessagePtr keyframe_message = std::shared_ptr<KeyframeMessage>(new KeyframeMessage);
+//   MapMessagePtr map_message = std::shared_ptr<MapMessage>(new MapMessage);
 
-  for(auto& kv : poses){
-    int frame_id = kv.first;
-    Pose3d pose = kv.second;
-    if(_keyframes.count(frame_id) == 0) continue;
-    Eigen::Matrix4d pose_eigen;
-    pose_eigen.block<3, 3>(0, 0) = pose.q.matrix();
-    pose_eigen.block<3, 1>(0, 3) = pose.p;
-    _keyframes[frame_id]->SetPose(pose_eigen);
+//   for(auto& kv : poses){
+//     int frame_id = kv.first;
+//     Pose3d pose = kv.second;
+//     if(_keyframes.count(frame_id) == 0) continue;
+//     Eigen::Matrix4d pose_eigen;
+//     pose_eigen.block<3, 3>(0, 0) = pose.q.matrix();
+//     pose_eigen.block<3, 1>(0, 3) = pose.p;
+//     _keyframes[frame_id]->SetPose(pose_eigen);
 
-    keyframe_message->ids.push_back(frame_id);
-    keyframe_message->poses.push_back(pose_eigen);
-  }
+//     keyframe_message->ids.push_back(frame_id);
+//     keyframe_message->poses.push_back(pose_eigen);
+//   }
 
-  for(auto& kv : points){
-    int mpt_id = kv.first;
-    Position3d position = kv.second;
-    if(_mappoints.count(mpt_id) == 0) continue;
-    _mappoints[mpt_id]->SetPosition(position.p);
+//   for(auto& kv : points){
+//     int mpt_id = kv.first;
+//     Position3d position = kv.second;
+//     if(_mappoints.count(mpt_id) == 0) continue;
+//     _mappoints[mpt_id]->SetPosition(position.p);
 
-    map_message->ids.push_back(mpt_id);
-    map_message->points.push_back(position.p);
-  }
+//     map_message->ids.push_back(mpt_id);
+//     map_message->points.push_back(position.p);
+//   }
 
-  _ros_publisher->PublisheKeyframe(keyframe_message);
-  _ros_publisher->PublishMap(map_message);
-  std::cout << "--------------SlidingWindowOptimization Finish------------------------" << std::endl;
-  // STOP_TIMER("SlidingWindowOptimization Time3");
+//   _ros_publisher->PublisheKeyframe(keyframe_message);
+//   _ros_publisher->PublishMap(map_message);
+//   std::cout << "--------------SlidingWindowOptimization Finish------------------------" << std::endl;
+//   // STOP_TIMER("SlidingWindowOptimization Time3");
 
-}
+// }
 
 void Map::SearchNeighborFrames(FramePtr frame, std::vector<FramePtr>& neighbor_frames){
   const int target_num = 9;
@@ -830,7 +855,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
   // STOP_TIMER("SlidingWindowOptimization Time2");
   // START_TIMER;
 
-  // erase outliers
+  // erase point outliers
   std::vector<std::pair<FramePtr, MappointPtr>> outliers;
   for(auto& mono_point_constraint : mono_point_constraints){
     if(!mono_point_constraint->inlier){
@@ -852,6 +877,30 @@ void Map::LocalMapOptimization(FramePtr new_frame){
     }
   }
   RemoveOutliers(outliers);
+
+  // erase line outliers
+  std::vector<std::pair<FramePtr, MaplinePtr>> line_outliers;
+  for(auto& mono_line_constraint : mono_line_constraints){
+    if(!mono_line_constraint->inlier){
+      std::map<int, FramePtr>::iterator frame_it = _keyframes.find(mono_line_constraint->id_pose);
+      std::map<int, MaplinePtr>::iterator mpl_it = _maplines.find(mono_line_constraint->id_line);
+      if(frame_it != _keyframes.end() && mpl_it != _maplines.end() && frame_it->second && mpl_it->second){
+        line_outliers.emplace_back(frame_it->second, mpl_it->second);
+      }
+    }
+  }
+
+  for(auto& stereo_line_constraint : stereo_line_constraints){
+    if(!stereo_line_constraint->inlier){
+      std::map<int, FramePtr>::iterator frame_it = _keyframes.find(stereo_line_constraint->id_pose);
+      std::map<int, MaplinePtr>::iterator mpl_it = _maplines.find(stereo_line_constraint->id_line);
+      if(frame_it != _keyframes.end() && mpl_it != _maplines.end() && frame_it->second && mpl_it->second){
+        line_outliers.emplace_back(frame_it->second, mpl_it->second);
+      }
+    }
+  }
+  RemoveLineOutliers(line_outliers);
+
   // STOP_TIMER("RemoveOutliers Time2");
   // START_TIMER;
   UpdateFrameConnection(new_frame);
@@ -887,6 +936,16 @@ void Map::LocalMapOptimization(FramePtr new_frame){
 
     map_message->ids.push_back(mpt_id);
     map_message->points.push_back(position.p);
+  }
+
+  for(auto& kv : lines){
+    int mpl_id = kv.first;
+    Line3d line = kv.second; 
+    if(_maplines.count(mpl_id) == 0) continue;
+    _maplines[mpl_id]->SetLine3D(line.Line3d);
+
+    mapline_message->ids.push_back(mpl_id);
+    mapline_message->lines.push_back(endpoints); 
   }
 
   // maplines
@@ -932,13 +991,20 @@ void Map::RemoveOutliers(const std::vector<std::pair<FramePtr, MappointPtr>>& ou
     }
 
     if(mpt->ObverserNum() < 2 && !mpt->IsBad()){
+      // delete mappoint if it has only a mono obversor
+      bool delete_mappoint = true;
       if(mpt->ObverserNum() > 0){
         std::map<int, FramePtr>::iterator obverser_it = _keyframes.find(obversers.begin()->first);
         if(obverser_it != _keyframes.end()){
-          obverser_it->second->RemoveMappoint(obversers.begin()->second);
+          int ktp_idx = mpt->GetKeypointIdx(obverser_it->first);
+          if(obverser_it->second->GetRightPosition(ktp_idx) < 0){
+            obverser_it->second->RemoveMappoint(obversers.begin()->second);
+          }else{
+            delete_mappoint = false;
+          }
         }
       }
-      mpt->SetBad();
+      if(delete_mappoint) mpt->SetBad();
     }
 
     // remove connection in frame
@@ -951,6 +1017,36 @@ void Map::RemoveOutliers(const std::vector<std::pair<FramePtr, MappointPtr>>& ou
     FramePtr frame1 = bad_connection.first.second;
     frame0->DecreaseWeight(frame1, bad_connection.second);
     frame1->DecreaseWeight(frame0, bad_connection.second);
+  }
+}
+
+void Map::RemoveLineOutliers(const std::vector<std::pair<FramePtr, MaplinePtr>>& line_outliers){
+  for(auto& kv : line_outliers){
+    FramePtr frame = kv.first;
+    MaplinePtr mpl = kv.second;
+    if(!frame || !mpl || mpl->IsBad()) continue;
+
+    // remove connection in mappoint
+    mpl->RemoveObverser(frame->GetFrameId());
+    std::map<int, int> obversers = mpl->GetAllObversers();
+    if(mpl->ObverserNum() < 2 && !mpl->IsBad()){
+      // delete mapline if it has only a mono obversor
+      bool delete_mapline = true;
+      if(mpl->ObverserNum() > 0){
+        std::map<int, FramePtr>::iterator obverser_it = _keyframes.find(obversers.begin()->first);
+        if(obverser_it != _keyframes.end()){
+          int line_idx = mpl->GetLineIdx(obverser_it->first);
+          if(!obverser_it->second->GetRightLineStatus(line_idx)){
+            obverser_it->second->RemoveMapline(obversers.begin()->second);
+          }else{
+            delete_mapline = false;
+          }
+        }
+      }
+      if(delete_mapline) mpl->SetBad();
+    }
+
+    frame->RemoveMapline(mpl);
   }
 }
 
