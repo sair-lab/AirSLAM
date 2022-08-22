@@ -78,7 +78,17 @@ double CVPointLineDistance3D(const std::vector<cv::Point3f> points, const cv::Ve
 
 void EigenPointLineDistance3D(
     const std::vector<Eigen::Vector3d>& points, const Vector6d& line, std::vector<double>& dist){
-  
+  Eigen::Vector3d pl = line.head(3);
+  Eigen::Vector3d v = line.tail(3);
+  Eigen::Vector3d dp;
+  Eigen::Vector3d p;
+  size_t point_num = points.size();
+  dist.resize(point_num);
+  for(size_t i = 0; i < point_num; i++){
+    dp = points[i] - pl;
+    p = v.cross(dp);
+    dist[i] = p.norm();
+  }
 }
 
 float AngleDiff(float& angle1, float& angle2){

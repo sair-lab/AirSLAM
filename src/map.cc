@@ -161,9 +161,41 @@ void Map::UppdateMapline(MaplinePtr mapline){
     }
   }
 
-  // filter by distance
-  EigenPointLineDistance3D(points, )
+  // find endpoints
+  std::vector<double> dist;
+  Eigen::Vector6d line_cart = mapline->GetLine3D().toCartesian();
+  EigenPointLineDistance3D(points, line_cart, dist);
+  assert(dist.size() == points.size());
+  Eigen::Vector3d line_point = line.head(3);
+  Eigen::Vector3d line_direction = line.tail(3);
+  Eigen::Index max_index;
+  line_direction.array().abs().maxCoeff(&max_index);
+  size_t md = max_index;  // main direction
+  double max_point_d = DBL_MIN, min_point_d = DBL_MAX;
+  bool find_max = false, find_min = false;
+  for(size_t i = 0; i < points.size(); i++){
+    if(dist[i] > 0.2) continue;
+    double di = points[i](md);
+    if(di > max_point_d){
+      max_point_d = di;
+      find_max = true;
+    }
 
+    if(di < min_point_d){
+      min_point_d = di;
+      find_min = true;
+    }
+  }
+
+  if(!find_max || !find_min) return;
+
+  double r1 = (max_point_d - line_point(md)) / line_direction(md);
+  double r2 = (min_point_d - line_point(md)) / line_direction(md);
+  Vector6d endpoints;
+  endpoints.head(3) = line_point + r1 * line_direction;
+  endpoints.tail(3) = line_point + r2 * line_direction;
+  mapline->SetEndpoints(endpoints, false);
+  mapline->SetEndpointsUpdateStatus(false);
 }
 
 void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
@@ -942,8 +974,11 @@ void Map::LocalMapOptimization(FramePtr new_frame){
     int mpl_id = kv.first;
     Line3d line = kv.second; 
     if(_maplines.count(mpl_id) == 0) continue;
-    _maplines[mpl_id]->SetLine3D(line.Line3d);
-
+    MaplinePtr mpl = _maplines[mpl_id];
+    mpl->SetLine3D(line.Line3d);
+    UppdateMapline(mpl);
+    if(!mpl->EndpointsValid()) continue;
+    const Vector6d& endpoints = mpl->GetEndpoints();
     mapline_message->ids.push_back(mpl_id);
     mapline_message->lines.push_back(endpoints); 
   }
