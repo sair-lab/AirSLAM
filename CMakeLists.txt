@@ -51,6 +51,9 @@ include_directories(
 )
 
 add_library(${PROJECT_NAME}_lib SHARED
+  src/g2o_optimization/vertex_line3d.cc
+  src/g2o_optimization/edge_project_line.cc
+  src/g2o_optimization/edge_project_stereo_line.cc
   src/g2o_optimization/g2o_optimization.cc
   src/super_point.cpp
   src/super_glue.cpp

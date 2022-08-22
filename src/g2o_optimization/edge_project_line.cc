@@ -1,33 +1,47 @@
+#include <Eigen/Core> 
+#include <Eigen/Geometry> 
+#include <opencv2/core/eigen.hpp>
+#include <g2o/types/slam3d/isometry3d_mappings.h>
+
 #include "g2o_optimization/edge_project_line.h"
 
 EdgeSE3ProjectLine::EdgeSE3ProjectLine()
-    : BaseBinaryEdge<2, Vector2, g2o::VertexLine3D, g2o::VertexSE3Expmap>() {}
+    : g2o::BaseBinaryEdge<2, Eigen::Vector4d, VertexLine3D, g2o::VertexSE3Expmap>() {}
 
 bool EdgeSE3ProjectLine::read(std::istream &is) {
-  internal::readVector(is, _measurement);
+  g2o::internal::readVector(is, _measurement);
   return readInformationMatrix(is);
 }
 
 bool EdgeSE3ProjectLine::write(std::ostream &os) const {
-  internal::writeVector(os, measurement());
+  g2o::internal::writeVector(os, measurement());
   return writeInformationMatrix(os);
 }
 
 void EdgeSE3ProjectLine::computeError() {
-  const VertexSE3Expmap *v1 =
-      static_cast<const VertexSE3Expmap *>(_vertices[1]);
+  std::cout << "EdgeSE3ProjectLine::computeError 0" << std::endl; 
+  const g2o::VertexSE3Expmap *v1 =
+      static_cast<const g2o::VertexSE3Expmap *>(_vertices[1]);
   const VertexLine3D *v2 = static_cast<const VertexLine3D *>(_vertices[0]);
   Eigen::Vector4d obs(_measurement);
-  Eigen::Vector3d line_2d = cam_project(v1->estimate().Isometry3() *v2->estimate());
+  std::cout << "EdgeSE3ProjectLine::computeError 1" << std::endl; 
+
+  Eigen::Vector3d line_2d = cam_project(g2o::internal::fromSE3Quat(v1->estimate()) * v2->estimate());
+  std::cout << "EdgeSE3ProjectLine::computeError 2" << std::endl; 
+
   double line_2d_norm = line_2d.head(2).norm();
   Eigen::Vector2d error;
   error(0) = obs(0) * line_2d(0) + obs(1) * line_2d(1) + line_2d(2);
   error(1) = obs(2) * line_2d(0) + obs(3) * line_2d(1) + line_2d(2);
   _error = error / line_2d_norm;
+  std::cout << "error = " << _error.transpose() << std::endl;
+  std::cout << "v1 = " << v1->estimate().translation().transpose() << std::endl;
+  std::cout << "v2 = " << v2->estimate().toCartesian().transpose() << std::endl;
+  std::cout << "EdgeSE3ProjectLine::computeError 3" << std::endl; 
 }
 
 Eigen::Vector3d EdgeSE3ProjectLine::cam_project(const g2o::Line3D& line) const {
-  Eigen::vector3d w = line.w();
+  Eigen::Vector3d w = line.w();
   Eigen::Vector3d line_2d;
   line_2d(0) = fy * w(0);
   line_2d(1) = fx * w(1);

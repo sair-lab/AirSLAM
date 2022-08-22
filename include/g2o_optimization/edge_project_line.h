@@ -10,8 +10,11 @@
 #include <g2o/types/sba/vertex_se3_expmap.h>
 #include <g2o/types/slam3d_addons/line3d.h>
 
+#include "utils.h"
+#include "g2o_optimization/vertex_line3d.h"
+
 class EdgeSE3ProjectLine
-    : public Bg2o::aseBinaryEdge<2, Eigen::Vector4d, VertexLine3D, VertexSE3Expmap> {
+    : public g2o::BaseBinaryEdge<2, Eigen::Vector4d, VertexLine3D, g2o::VertexSE3Expmap> {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 

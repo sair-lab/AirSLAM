@@ -114,20 +114,22 @@ void Map::InsertKeyframe(FramePtr frame){
     // std::cout << "line_id = " << mpl->GetId() << std::endl;
     //   mpl->SetLine3DPtr(line_3d);
     }
-    std::cout << "i = " << i << ", Map::InsertKeyframe 10" << std::endl;
 
   }
+  std::cout << "Map::InsertKeyframe 5" << std::endl;
 
   // add new maplines to map
   for(MaplinePtr mpl:new_maplines){
     InsertMapline(mpl);
   }
+  std::cout << "Map::InsertKeyframe 6" << std::endl;
 
   // optimization
   if(_keyframes.size() >= 2){
     // SlidingWindowOptimization(frame);
     LocalMapOptimization(frame);
   }
+  std::cout << "Map::InsertKeyframe 7" << std::endl;
 
 }
 
@@ -163,11 +165,11 @@ void Map::UppdateMapline(MaplinePtr mapline){
 
   // find endpoints
   std::vector<double> dist;
-  Eigen::Vector6d line_cart = mapline->GetLine3D().toCartesian();
+  Vector6d line_cart = mapline->GetLine3D().toCartesian();
   EigenPointLineDistance3D(points, line_cart, dist);
   assert(dist.size() == points.size());
-  Eigen::Vector3d line_point = line.head(3);
-  Eigen::Vector3d line_direction = line.tail(3);
+  Eigen::Vector3d line_point = line_cart.head(3);
+  Eigen::Vector3d line_direction = line_cart.tail(3);
   Eigen::Index max_index;
   line_direction.array().abs().maxCoeff(&max_index);
   size_t md = max_index;  // main direction
@@ -706,8 +708,11 @@ void Map::AddFrameVertex(FramePtr frame, MapOfPoses& poses, bool fix_this_frame)
 }
 
 void Map::LocalMapOptimization(FramePtr new_frame){
+  std::cout << "Map::LocalMapOptimization 0" << std::endl;
+
   UpdateFrameConnection(new_frame);
   int new_frame_id = new_frame->GetFrameId();  
+  std::cout << "Map::LocalMapOptimization 1" << std::endl;
 
   MapOfPoses poses;
   MapOfPoints3d points;
@@ -752,6 +757,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
         }
       }
     }
+  std::cout << "Map::LocalMapOptimization 2" << std::endl;
 
     const std::vector<MaplinePtr>& neighbor_maplines = neighbor_frame->GetConstAllMaplines();
     for(const MaplinePtr& mpl : neighbor_maplines){
@@ -760,6 +766,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
       maplines.push_back(mpl);
     }
   }
+  std::cout << "Map::LocalMapOptimization 3" << std::endl;
 
   const size_t max_fixed_frame_num = 1;
   if(fixed_frames.size() > 0 && max_fixed_frame_num > fixed_frame_num){
@@ -830,6 +837,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
           tmp_stereo_point_constraints.begin(), tmp_stereo_point_constraints.end());
     }
   }
+  std::cout << "Map::LocalMapOptimization 4" << std::endl;
 
   // add line constraint
   for(auto& mpl : maplines){
@@ -838,12 +846,12 @@ void Map::LocalMapOptimization(FramePtr new_frame){
     // vertex
     int mpl_id = mpl->GetId();
     Line3d line_3d;
-    line_3d.Line3d = mpl->GetLine3D();
+    line_3d.line_3d = mpl->GetLine3D();
     line_3d.fixed = false;
 
     // constraints
-    VectorOfMonoPointConstraints tmp_mono_line_constraints;
-    VectorOfStereoPointConstraints tmp_stereo_line_constraints;
+    VectorOfMonoLineConstraints tmp_mono_line_constraints;
+    VectorOfStereoLineConstraints tmp_stereo_line_constraints;
     const std::map<int, int> obversers = mpl->GetAllObversers();
     for(auto& kv : obversers){
       FramePtr kf = GetFramePtr(kv.first);
@@ -852,7 +860,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
       Eigen::Vector4d line_left, line_right;
       if(!kf->GetLine(kv.second, line_left)) continue;
       if(kf->GetLineRight(kv.second, line_right)){
-        StereoLineConstraint stereo_line_constraint = = std::shared_ptr<StereoLineConstraint>(new StereoLineConstraint()); 
+        StereoLineConstraintPtr stereo_line_constraint = std::shared_ptr<StereoLineConstraint>(new StereoLineConstraint()); 
         stereo_line_constraint->id_pose = kv.first;
         stereo_line_constraint->id_line = mpl_id;
         stereo_line_constraint->id_camera = 0;
@@ -861,7 +869,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
         stereo_line_constraint->pixel_sigma = 0.8;
         tmp_stereo_line_constraints.push_back(stereo_line_constraint);
       }else{
-        MonoLineConstraint mono_line_constraint = = std::shared_ptr<MonoLineConstraint>(new MonoLineConstraint()); 
+        MonoLineConstraintPtr mono_line_constraint = std::shared_ptr<MonoLineConstraint>(new MonoLineConstraint()); 
         mono_line_constraint->id_pose = kv.first;
         mono_line_constraint->id_line = mpl_id;
         mono_line_constraint->id_camera = 0;
@@ -879,13 +887,17 @@ void Map::LocalMapOptimization(FramePtr new_frame){
           tmp_stereo_line_constraints.begin(), tmp_stereo_line_constraints.end());
     }
   }
+  std::cout << "Map::LocalMapOptimization 5" << std::endl;
 
 
   // STOP_TIMER("SlidingWindowOptimization Time1");
   // START_TIMER;
-  LocalmapOptimization(poses, points, camera_list, mono_point_constraints, stereo_point_constraints);
+  // LocalmapOptimization(poses, points, camera_list, mono_point_constraints, stereo_point_constraints);
+  LocalmapOptimization(poses, points, lines, camera_list, mono_point_constraints, 
+      stereo_point_constraints, mono_line_constraints, stereo_line_constraints);
   // STOP_TIMER("SlidingWindowOptimization Time2");
   // START_TIMER;
+  std::cout << "Map::LocalMapOptimization 6" << std::endl;
 
   // erase point outliers
   std::vector<std::pair<FramePtr, MappointPtr>> outliers;
@@ -909,6 +921,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
     }
   }
   RemoveOutliers(outliers);
+  std::cout << "Map::LocalMapOptimization 7" << std::endl;
 
   // erase line outliers
   std::vector<std::pair<FramePtr, MaplinePtr>> line_outliers;
@@ -931,7 +944,10 @@ void Map::LocalMapOptimization(FramePtr new_frame){
       }
     }
   }
+  std::cout << "Map::LocalMapOptimization 8" << std::endl;
+
   RemoveLineOutliers(line_outliers);
+  std::cout << "Map::LocalMapOptimization 9" << std::endl;
 
   // STOP_TIMER("RemoveOutliers Time2");
   // START_TIMER;
@@ -969,34 +985,39 @@ void Map::LocalMapOptimization(FramePtr new_frame){
     map_message->ids.push_back(mpt_id);
     map_message->points.push_back(position.p);
   }
+  std::cout << "Map::LocalMapOptimization 10" << std::endl;
 
   for(auto& kv : lines){
     int mpl_id = kv.first;
     Line3d line = kv.second; 
     if(_maplines.count(mpl_id) == 0) continue;
     MaplinePtr mpl = _maplines[mpl_id];
-    mpl->SetLine3D(line.Line3d);
+    mpl->SetLine3D(line.line_3d);
     UppdateMapline(mpl);
     if(!mpl->EndpointsValid()) continue;
     const Vector6d& endpoints = mpl->GetEndpoints();
     mapline_message->ids.push_back(mpl_id);
     mapline_message->lines.push_back(endpoints); 
   }
+  std::cout << "Map::LocalMapOptimization 11" << std::endl;
 
-  // maplines
-  const std::vector<MaplinePtr>& new_maplines = new_frame->GetAllMaplines();
-  for(auto& new_mapline : new_maplines){
-    // UpdateMaplineEndpoints(new_mapline);
-    if(!new_mapline || !new_mapline->EndpointsValid()) continue;
-    int mpl_id = new_mapline->GetId();
-    const Vector6d& endpoints = new_mapline->GetEndpoints();
-    mapline_message->ids.push_back(mpl_id);
-    mapline_message->lines.push_back(endpoints); 
-  }
+  // // maplines
+  // const std::vector<MaplinePtr>& new_maplines = new_frame->GetAllMaplines();
+  // for(auto& new_mapline : new_maplines){
+  //   // UpdateMaplineEndpoints(new_mapline);
+  //   if(!new_mapline || !new_mapline->EndpointsValid()) continue;
+  //   int mpl_id = new_mapline->GetId();
+  //   const Vector6d& endpoints = new_mapline->GetEndpoints();
+  //   mapline_message->ids.push_back(mpl_id);
+  //   mapline_message->lines.push_back(endpoints); 
+  // }
 
   _ros_publisher->PublisheKeyframe(keyframe_message);
   _ros_publisher->PublishMap(map_message);
   _ros_publisher->PublishMapLine(mapline_message);  
+
+  std::cout << "Map::LocalMapOptimization 12" << std::endl;
+
   // STOP_TIMER("SlidingWindowOptimization Time3");
 }
 

@@ -11,10 +11,10 @@
 #include <g2o/types/slam3d_addons/line3d.h>
 
 #include "utils.h"
-
+#include "g2o_optimization/vertex_line3d.h"
 
 class EdgeStereoSE3ProjectLine
-    : public g2o::BaseBinaryEdge<4, Vector8d, g2o::VertexLine3D, g2o::VertexSE3Expmap> {
+    : public g2o::BaseBinaryEdge<4, Vector8d, VertexLine3D, g2o::VertexSE3Expmap> {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -24,7 +24,7 @@ class EdgeStereoSE3ProjectLine
   bool write(std::ostream &os) const;
   void computeError();
 
-  Eigen::Vector6d cam_project(const g2o::Line3D &line) const;
+  Eigen::Vector3d cam_project(const g2o::Line3D &line) const;
 
   double fx, fy, b;
   Eigen::Vector3d Kv; // [-cx*fy, -fx*cy, fx*fy]
