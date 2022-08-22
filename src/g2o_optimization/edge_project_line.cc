@@ -19,25 +19,21 @@ bool EdgeSE3ProjectLine::write(std::ostream &os) const {
 }
 
 void EdgeSE3ProjectLine::computeError() {
-  std::cout << "EdgeSE3ProjectLine::computeError 0" << std::endl; 
   const g2o::VertexSE3Expmap *v1 =
       static_cast<const g2o::VertexSE3Expmap *>(_vertices[1]);
   const VertexLine3D *v2 = static_cast<const VertexLine3D *>(_vertices[0]);
   Eigen::Vector4d obs(_measurement);
-  std::cout << "EdgeSE3ProjectLine::computeError 1" << std::endl; 
-
   Eigen::Vector3d line_2d = cam_project(g2o::internal::fromSE3Quat(v1->estimate()) * v2->estimate());
-  std::cout << "EdgeSE3ProjectLine::computeError 2" << std::endl; 
 
   double line_2d_norm = line_2d.head(2).norm();
   Eigen::Vector2d error;
   error(0) = obs(0) * line_2d(0) + obs(1) * line_2d(1) + line_2d(2);
   error(1) = obs(2) * line_2d(0) + obs(3) * line_2d(1) + line_2d(2);
   _error = error / line_2d_norm;
-  std::cout << "error = " << _error.transpose() << std::endl;
-  std::cout << "v1 = " << v1->estimate().translation().transpose() << std::endl;
-  std::cout << "v2 = " << v2->estimate().toCartesian().transpose() << std::endl;
-  std::cout << "EdgeSE3ProjectLine::computeError 3" << std::endl; 
+  // std::cout << "error = " << _error.transpose() << std::endl;
+  // std::cout << "v1 = " << v1->estimate().translation().transpose() << std::endl;
+  // std::cout << "v2 = " << v2->estimate().toCartesian().transpose() << std::endl;
+  // std::cout << "EdgeSE3ProjectLine::computeError 3" << std::endl; 
 }
 
 Eigen::Vector3d EdgeSE3ProjectLine::cam_project(const g2o::Line3D& line) const {
