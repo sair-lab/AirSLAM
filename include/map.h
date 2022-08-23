@@ -19,6 +19,7 @@ public:
   void InsertKeyframe(FramePtr frame);
   void InsertMappoint(MappointPtr mappoint);
   void InsertMapline(MaplinePtr mapline);
+  void UppdateMapline(MaplinePtr mapline);
   void UpdateMaplineEndpoints(MaplinePtr mapline);
 
   FramePtr GetFramePtr(int frame_id);
@@ -28,13 +29,14 @@ public:
   bool TriangulateMappoint(MappointPtr mappoint);
   bool TriangulateMaplineByMappoints(MaplinePtr mapline);
   bool UpdateMappointDescriptor(MappointPtr mappoint);
-  void SlidingWindowOptimization(FramePtr new_frame);
+  // void SlidingWindowOptimization(FramePtr new_frame);
   void SearchNeighborFrames(FramePtr frame, std::vector<FramePtr>& neighbor_frames);
   void AddFrameVertex(FramePtr frame, MapOfPoses& poses, bool fix_this_frame);
   void LocalMapOptimization(FramePtr new_frame);
   void SaveMap(const std::string& map_root);
   std::pair<FramePtr, FramePtr> MakeFramePair(FramePtr frame0, FramePtr frame1);
   void RemoveOutliers(const std::vector<std::pair<FramePtr, MappointPtr>>& outliers);
+  void RemoveLineOutliers(const std::vector<std::pair<FramePtr, MaplinePtr>>& line_outliers);
   void UpdateFrameConnection(FramePtr frame);
   void PrintConnection();
   void SearchByProjection(FramePtr frame, std::vector<MappointPtr>& mappoints, 

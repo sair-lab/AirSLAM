@@ -55,6 +55,9 @@ public:
   int GetObverserEndpointStatus(int frame_id);
   const std::map<int, int>& GetAllObverserEndpointStatus();
 
+public:
+  int local_map_optimization_frame_id;
+
 private:
   int _id;
   Type _type;

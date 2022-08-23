@@ -59,29 +59,36 @@ double CVPointLineDistance3D(const std::vector<cv::Point3f> points, const cv::Ve
   float x, y, z;
   Eigen::Vector3f p;
 
-  std::cout << "-------------CVPointLineDistance3D---------------" << std::endl;
-  std::cout << "line = " << line << std::endl;
-
   for(int j = 0; j < points.size(); j++){
     x = points[j].x - px;
     y = points[j].y - py;
     z = points[j].z - pz;
-    std::cout << "j = " << j << std::endl;
-    std::cout << "points[j] = " << points[j] << std::endl;
-    std::cout << "x = " << x << " y = " << y << " z = " << z << std::endl;
 
    // cross ?
     p(0) = vy * z - vz * y;
     p(1) = vz * x - vx * z;
     p(2) = vx * y - vy * x;
-    std::cout << "p = " << p.transpose() << std::endl;
 
     dist[j] = p.norm();
     sum_dist += dist[j];
   }
-  std::cout << "-------------End CVPointLineDistance3D---------------" << std::endl;
 
   return sum_dist;
+}
+
+void EigenPointLineDistance3D(
+    const std::vector<Eigen::Vector3d>& points, const Vector6d& line, std::vector<double>& dist){
+  Eigen::Vector3d pl = line.head(3);
+  Eigen::Vector3d v = line.tail(3);
+  Eigen::Vector3d dp;
+  Eigen::Vector3d p;
+  size_t point_num = points.size();
+  dist.resize(point_num);
+  for(size_t i = 0; i < point_num; i++){
+    dp = points[i] - pl;
+    p = v.cross(dp);
+    dist[i] = p.norm();
+  }
 }
 
 float AngleDiff(float& angle1, float& angle2){

@@ -204,7 +204,7 @@ cv::Mat DrawLineWithText(cv::Mat& image, std::vector<Eigen::Vector4d>& lines, st
   for(size_t i = 0; i < lines.size(); i++){
     cv::Scalar color = GenerateColor(track_ids[i]);
     Eigen::Vector4d line = lines[i];
-    std::cout << "line_id = " << track_ids[i] << " line = " << line.transpose() << std::endl;
+    // std::cout << "line_id = " << track_ids[i] << " line = " << line.transpose() << std::endl;
     cv::line(img_color, cv::Point2i((int)(line(0)+0.5), (int)(line(1)+0.5)), 
         cv::Point2i((int)(line(2)+0.5), (int)(line(3)+0.5)), color, 2);
 
@@ -230,9 +230,9 @@ void DrawStereoLinePair(cv::Mat& image_left, cv::Mat& image_right, FramePtr fram
     good_track_ids.push_back(line_track_ids[i]);
   }
 
-  std::cout << "left DrawLineWithText-----------------------" << std::endl;
+  // std::cout << "left DrawLineWithText-----------------------" << std::endl;
   cv::Mat img_left_color = DrawLineWithText(image_left, good_lines_left, good_track_ids);
-  std::cout << "right DrawLineWithText-----------------------" << std::endl;
+  // std::cout << "right DrawLineWithText-----------------------" << std::endl;
   cv::Mat img_right_color = DrawLineWithText(image_right, good_lines_right, good_track_ids);
 
   // save image

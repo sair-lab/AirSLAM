@@ -307,6 +307,13 @@ bool Frame::GetLine(size_t idx, Eigen::Vector4d& line){
   return true;
 }
 
+bool Frame::GetLineRight(size_t idx, Eigen::Vector4d& line){
+  if(idx >= _lines.size() || !_lines_right_valid[idx]) return false;
+  
+  line = _lines_right[idx];
+  return true;
+}
+
 const std::vector<int>& Frame::GetAllLineTrackId(){
   return _line_track_ids;
 }
@@ -317,6 +324,13 @@ const std::vector<Eigen::Vector4d>& Frame::GatAllLines(){
 
 const std::vector<Eigen::Vector4d>& Frame::GatAllRightLines(){
   return _lines_right;
+}
+
+bool Frame::GetRightLineStatus(size_t idx){
+  if(idx >=0 && idx < _lines_right_valid.size()){
+    return _lines_right_valid[idx];
+  }
+  return false;
 }
 
 const std::vector<bool>& Frame::GetAllRightLineStatus(){
@@ -382,6 +396,16 @@ bool Frame::TriangleStereoLine(size_t idx, Vector6d& endpoints){
 
 //   }
 // }
+
+void Frame::RemoveMapline(MaplinePtr mapline){
+  RemoveMapline(mapline->GetLineIdx(_frame_id));
+}
+
+void Frame::RemoveMapline(int idx){
+  if(idx < _maplines.size() && idx >=0){
+    _maplines[idx] = nullptr;
+  }
+}
 
 void Frame::AddConnection(std::shared_ptr<Frame> frame, int weight){
   std::map<std::shared_ptr<Frame>, int>::iterator it = _connections.find(frame);
