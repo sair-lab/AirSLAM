@@ -30,10 +30,6 @@ void EdgeSE3ProjectLine::computeError() {
   error(0) = obs(0) * line_2d(0) + obs(1) * line_2d(1) + line_2d(2);
   error(1) = obs(2) * line_2d(0) + obs(3) * line_2d(1) + line_2d(2);
   _error = error / line_2d_norm;
-  // std::cout << "error = " << _error.transpose() << std::endl;
-  // std::cout << "v1 = " << v1->estimate().translation().transpose() << std::endl;
-  // std::cout << "v2 = " << v2->estimate().toCartesian().transpose() << std::endl;
-  // std::cout << "EdgeSE3ProjectLine::computeError 3" << std::endl; 
 }
 
 Eigen::Vector3d EdgeSE3ProjectLine::cam_project(const g2o::Line3D& line) const {

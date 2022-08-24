@@ -32,7 +32,7 @@ superglue:
   engine_file: "superglue_indoor_sim_int32.engine"
   dla_core: -1
 
-line_ddetector:
+line_detector:
   length_threshold: 10
   distance_threshold : 1.414213562
   canny_th1: 50.0

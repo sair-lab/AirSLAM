@@ -19,7 +19,7 @@ public:
   void InsertKeyframe(FramePtr frame);
   void InsertMappoint(MappointPtr mappoint);
   void InsertMapline(MaplinePtr mapline);
-  void UppdateMapline(MaplinePtr mapline);
+  bool UppdateMapline(MaplinePtr mapline);
   void UpdateMaplineEndpoints(MaplinePtr mapline);
 
   FramePtr GetFramePtr(int frame_id);

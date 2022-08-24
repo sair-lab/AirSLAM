@@ -37,6 +37,7 @@ public:
 
   void SetEndpoints(Vector6d& p, bool compute_line3d=true);
   Vector6d& GetEndpoints();
+  void SetEndpointsValidStatus(bool status);
   bool EndpointsValid();
   void SetEndpointsUpdateStatus(bool status);
   bool ToUpdateEndpoints();

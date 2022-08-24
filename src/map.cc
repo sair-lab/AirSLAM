@@ -95,7 +95,6 @@ void Map::InsertKeyframe(FramePtr frame){
     }
     if(mpl->GetType() == Mapline::Type::UnTriangulated && mpl->ObverserNum() >= 2){
       TriangulateMaplineByMappoints(mpl);
-
     //   std::cout << "Map::InsertKeyframe 2" << std::endl;
     //   const std::map<int, int>& mpl_obversers = mpl->GetAllObversers();
     //   int obverser_frame_id = mpl_obversers.begin()->first;
@@ -140,13 +139,13 @@ void Map::InsertMapline(MaplinePtr mapline){
   _maplines[mapline_id] = mapline;
 }
 
-void Map::UppdateMapline(MaplinePtr mapline){
-  if(!mapline || !mapline->IsValid()) return;
+bool Map::UppdateMapline(MaplinePtr mapline){
+  if(!mapline || !mapline->IsValid()) return false;
 
   // get associated mappoints
   std::vector<Eigen::Vector3d> points;
-  const std::map<int, int>& obversers = mapline->GetAllObverserEndpointStatus();
-  if(obversers.size()) return;
+  const std::map<int, int>& obversers = mapline->GetAllObversers();
+  if(obversers.empty()) return false;
   for(auto& kv : obversers){
     int frame_id = kv.first;
     FramePtr frame = GetFramePtr(frame_id);
@@ -186,7 +185,7 @@ void Map::UppdateMapline(MaplinePtr mapline){
     }
   }
 
-  if(!find_max || !find_min) return;
+  if(!find_max || !find_min) return false;
 
   double r1 = (max_point_d - line_point(md)) / line_direction(md);
   double r2 = (min_point_d - line_point(md)) / line_direction(md);
@@ -195,6 +194,7 @@ void Map::UppdateMapline(MaplinePtr mapline){
   endpoints.tail(3) = line_point + r2 * line_direction;
   mapline->SetEndpoints(endpoints, false);
   mapline->SetEndpointsUpdateStatus(false);
+  return true;
 }
 
 void Map::UpdateMaplineEndpoints(MaplinePtr mapline){
@@ -977,7 +977,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
     if(_maplines.count(mpl_id) == 0) continue;
     MaplinePtr mpl = _maplines[mpl_id];
     mpl->SetLine3D(line.line_3d);
-    UppdateMapline(mpl);
+    mpl->SetEndpointsValidStatus(UppdateMapline(mpl));
     if(!mpl->EndpointsValid()) continue;
     const Vector6d& endpoints = mpl->GetEndpoints();
     mapline_message->ids.push_back(mpl_id);
@@ -1081,7 +1081,9 @@ void Map::RemoveLineOutliers(const std::vector<std::pair<FramePtr, MaplinePtr>>&
           }
         }
       }
-      if(delete_mapline) mpl->SetBad();
+      if(delete_mapline){
+        mpl->SetBad();
+      } 
     }
 
     frame->RemoveMapline(mpl);

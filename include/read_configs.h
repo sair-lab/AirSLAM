@@ -126,7 +126,7 @@ struct Configs{
     superglue_config.onnx_file = ConcatenateFolderAndFileName(model_dir, superglue_onnx_file);
     superglue_config.engine_file = ConcatenateFolderAndFileName(model_dir, superglue_engine_file); 
 
-    YAML::Node line_detector_node = file_node["line_ddetector"];
+    YAML::Node line_detector_node = file_node["line_detector"];
     line_detector_config.length_threshold = line_detector_node["length_threshold"].as<int>();
     line_detector_config.distance_threshold = line_detector_node["distance_threshold"].as<float>();
     line_detector_config.canny_th1 = line_detector_node["canny_th1"].as<double>();
