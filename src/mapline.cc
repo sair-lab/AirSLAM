@@ -86,6 +86,10 @@ Vector6d& Mapline::GetEndpoints(){
   return _endpoints;
 }
 
+void Mapline::SetEndpointsValidStatus(bool status){
+  _endpoints_valid = status;
+}
+
 bool Mapline::EndpointsValid(){
   return _endpoints_valid;
 }

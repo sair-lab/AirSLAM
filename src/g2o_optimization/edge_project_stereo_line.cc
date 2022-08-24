@@ -35,10 +35,11 @@ void EdgeStereoSE3ProjectLine::computeError() {
 
   g2o::Isometry3 T_right(T_left);
   T_right(0, 3) -= b;
+
   Eigen::Vector3d line_2d_right = cam_project(T_right * v2->estimate());
   double line_2d_norm_right = line_2d_right.head(2).norm();
-  error(2) = (obs(5) * line_2d_right(0) + obs(6) * line_2d_right(1) + line_2d_right(2)) / line_2d_norm_right;
-  error(3) = (obs(7) * line_2d_right(0) + obs(8) * line_2d_right(1) + line_2d_right(2)) / line_2d_norm_right;
+  error(2) = (obs(4) * line_2d_right(0) + obs(5) * line_2d_right(1) + line_2d_right(2)) / line_2d_norm_right;
+  error(3) = (obs(6) * line_2d_right(0) + obs(7) * line_2d_right(1) + line_2d_right(2)) / line_2d_norm_right;
   _error = error;
 }
 
