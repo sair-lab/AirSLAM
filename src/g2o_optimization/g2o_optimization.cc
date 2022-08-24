@@ -168,7 +168,7 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
 
   // solve 
   optimizer.initializeOptimization();
-  optimizer.optimize(1);
+  optimizer.optimize(5);
 
   // check inlier observations
   for(size_t i=0; i < mono_edges.size(); i++){
