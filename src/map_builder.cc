@@ -103,9 +103,8 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     if(stereo_matches.size() < 100) return;
     _init = Init(frame);
     if(_init){
-      // debug
-      DrawStereoLinePair(image_left_rect, image_right_rect, frame, _configs.saving_dir, std::to_string(frame_id));
-
+      // // debug
+      // DrawStereoLinePair(image_left_rect, image_right_rect, frame, _configs.saving_dir, std::to_string(frame_id));
       _last_frame = frame;
       _last_image = image_left_rect;
       _last_keyimage = image_left_rect;

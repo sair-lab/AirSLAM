@@ -60,6 +60,9 @@ void ConvertVectorToRt(Eigen::Matrix<double, 7, 1>& m, Eigen::Matrix3d& R, Eigen
 double DescriptorDistance(const Eigen::Matrix<double, 256, 1>& f1, const Eigen::Matrix<double, 256, 1>& f2);
 cv::Scalar GenerateColor(int id);
 void GenerateColor(int id, Eigen::Vector3d color);
+void DrawFeatures(cv::Mat& image, const std::vector<cv::KeyPoint>& keypoints, 
+    const std::vector<bool>& inliers, const std::vector<Eigen::Vector4d>& lines, 
+    const std::vector<int>& line_track_ids, const std::vector<std::map<int, double>>& points_on_lines);
 
 // files
 void GetFileNames(std::string path, std::vector<std::string>& filenames);

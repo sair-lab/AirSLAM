@@ -32,6 +32,42 @@ void GenerateColor(int id, Eigen::Vector3d color){
   color *= (1.0 / 255.0);
 }
 
+cv::Mat DrawFeatures(cv::Mat& image, const std::vector<cv::KeyPoint>& keypoints, 
+    const std::vector<bool>& inliers, const std::vector<Eigen::Vector4d>& lines, 
+    const std::vector<int>& line_track_ids, const std::vector<std::map<int, double>>& points_on_lines){
+  cv::Mat img_color;
+  cv::cvtColor(image, img_color, cv::COLOR_GRAY2RGB);
+
+  size_t point_num = keypoints.size();
+  std::vector<cv::Scalar> colors(point_num, cv::Scalar(0, 255, 0));
+  std::vector<int> radii(point_num, 2);
+
+  // draw lines
+  for(size_t i = 0; i < lines.size(); i++){
+    if(line_track_ids[i] < 0) continue;
+    cv::Scalar color = GenerateColor(line_track_ids[i]);
+    Eigen::Vector4d line = lines[i];
+    cv::line(img_color, cv::Point2i((int)(line(0)+0.5), (int)(line(1)+0.5)), 
+        cv::Point2i((int)(line(2)+0.5), (int)(line(3)+0.5)), color, 2);
+
+    cv::putText(img_color, std::to_string(line_track_ids[i]), cv::Point((int)((line(0)+line(2))/2), 
+        (int)((line(1)+line(3))/2)), cv::FONT_HERSHEY_DUPLEX, 1.0, color, 2);
+
+    for(auto& kv : points_on_line[i]){
+      colors[kv.first] = color;
+      radii[kv.first] *= 2;
+    }
+  }
+
+  // draw points
+  for(size_t j = 0; j < point_num; j++){
+    double x = points(0, j);
+    double y = points(1, j);
+    cv::circle(img_color, cv::Point(x, y), radii[j], colors[j], 1, cv::LINE_AA);
+  }
+  return img_color;
+}
+
 void GetFileNames(std::string path, std::vector<std::string>& filenames){
   DIR *pDir;
   struct dirent* ptr;

@@ -2,6 +2,8 @@
 
 #include <Eigen/Geometry>
 
+#include "utils.h"
+
 double GetCurrentTime(){
   return ros::Time::now().toSec();
 }
