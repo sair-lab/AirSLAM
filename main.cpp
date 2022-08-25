@@ -9,11 +9,18 @@
 #include "map_builder.h"
 
 int main(int argc, char **argv) {
-  ros::init(argc, argv, "air_slam");
-  std::string config_file = argv[1];
-  Configs configs(config_file);
-  MapBuilder map_builder(configs);
+  ros::init(argc, argv, "air_vo");
+
+  std::string config_path, model_dir;
+  ros::param::get("~config_path", config_path);
+  ros::param::get("~model_dir", model_dir);
+  Configs configs(config_path, model_dir);
+  ros::param::get("~dataroot", configs.dataroot);
+  ros::param::get("~camera_config_path", configs.camera_config_path);
+  ros::param::get("~saving_dir", configs.saving_dir);
+
   Dataset dataset(configs.dataroot);
+  MapBuilder map_builder(configs);
   size_t dataset_length = dataset.GetDatasetLength();
   for(size_t i = 0; i < dataset_length && ros::ok(); ++i){
     std::cout << "i ===== " << i << std::endl;

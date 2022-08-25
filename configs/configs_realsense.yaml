@@ -1,9 +1,3 @@
-dataroot: "/media/xukuan/something2/ubuntu_files/data/AirSLAM/realsense_meeting_room/euroc_style"
-# dataroot: "/media/xukuan/something2/ubuntu_files/data/AirSLAM/realsense_meeting_room/debug_data"
-camera_config_path: "/media/xukuan/something2/ubuntu_files/project/AirSLAM/catkin_ws/src/AirSLAM/configs/realsense_848_480.yaml"
-model_dir: "/media/xukuan/something2/ubuntu_files/project/AirSLAM/catkin_ws/src/AirSLAM/output"
-saving_dir: "/media/xukuan/something2/ubuntu_files/project/AirSLAM/catkin_ws/src/AirSLAM/debug"
-
 superpoint:
   max_keypoints: 700
   keypoint_threshold: 0.005
