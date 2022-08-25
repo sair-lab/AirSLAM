@@ -18,7 +18,7 @@
 #include "debug.h"
 
 int main(int argc, char **argv) {
-  ros::init(argc, argv, "air_slam");
+  ros::init(argc, argv, "air_vo");
   std::string config_file = argv[1];
   Configs configs(config_file);
   Dataset dataset(configs.dataroot);

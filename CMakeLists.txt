@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(air_slam)
+project(air_vo)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_BUILD_TYPE "release")

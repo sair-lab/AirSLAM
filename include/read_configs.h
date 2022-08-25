@@ -73,18 +73,13 @@ struct Configs{
   KeyframeConfig keyframe_config;
   RosPublisherConfig ros_publisher_config;
 
-  Configs(const std::string& config_file){
+  Configs(const std::string& config_file, const std::string& model_dir){
     std::cout << "config_file = " << config_file << std::endl;
     if(!FileExists(config_file)){
       std::cout << "config file: " << config_file << " doesn't exist" << std::endl;
       return;
     }
-
     YAML::Node file_node = YAML::LoadFile(config_file);
-    dataroot = file_node["dataroot"].as<std::string>();
-    camera_config_path = file_node["camera_config_path"].as<std::string>();
-    model_dir = file_node["model_dir"].as<std::string>();
-    saving_dir = file_node["saving_dir"].as<std::string>();
 
     YAML::Node superpoint_node = file_node["superpoint"];
     superpoint_config.max_keypoints = superpoint_node["max_keypoints"].as<int>();
@@ -105,7 +100,6 @@ struct Configs{
     std::string superpoint_engine_file= superpoint_node["engine_file"].as<std::string>();
     superpoint_config.onnx_file = ConcatenateFolderAndFileName(model_dir, superpoint_onnx_file);
     superpoint_config.engine_file = ConcatenateFolderAndFileName(model_dir, superpoint_engine_file);
-
     
     YAML::Node superglue_node = file_node["superglue"];
     superglue_config.image_width = superglue_node["image_width"].as<int>();
