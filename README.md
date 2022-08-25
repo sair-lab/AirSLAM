@@ -25,6 +25,6 @@ Build the code as a ros package.
 
 # Run 
 Modify the [config file](config/configs_euroc.yaml), [camera file](config/euroc.yaml) and run  
-'''
+```
 roslaunch air_vo euroc.launch 
-'''
+```
