@@ -13,16 +13,20 @@ RosPublisher::RosPublisher(const RosPublisherConfig& ros_publisher_config): _con
     _ros_feature_pub = nh.advertise<sensor_msgs::Image>(_config.feature_topic, 10);
     std::function<void(const FeatureMessgaeConstPtr&)> publish_feature_function = 
         [&](const FeatureMessgaeConstPtr& feature_message){
-      cv::Mat drawed_image;
-      cv::cvtColor(feature_message->image, drawed_image, cv::COLOR_GRAY2BGR);
-      assert(feature_message->inliers.size() == feature_message->keypoints.size());
-      for(int i = 0; i < feature_message->inliers.size(); i++){
-        if(feature_message->inliers[i]){
-          cv::circle(drawed_image, feature_message->keypoints[i].pt, 2, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);        
-        }else{
-          cv::circle(drawed_image, feature_message->keypoints[i].pt, 2, cv::Scalar(0, 0, 255), 1, cv::LINE_AA);        
-        }
-      }
+      cv::Mat drawed_image = DrawFeatures(feature_message->image, feature_message->keypoints, 
+          feature_message->inliers, feature_message->lines, feature_message->line_track_ids, 
+          feature_message->points_on_lines);
+
+      // cv::Mat drawed_image;
+      // cv::cvtColor(feature_message->image, drawed_image, cv::COLOR_GRAY2BGR);
+      // assert(feature_message->inliers.size() == feature_message->keypoints.size());
+      // for(int i = 0; i < feature_message->inliers.size(); i++){
+      //   if(feature_message->inliers[i]){
+      //     cv::circle(drawed_image, feature_message->keypoints[i].pt, 2, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);        
+      //   }else{
+      //     cv::circle(drawed_image, feature_message->keypoints[i].pt, 2, cv::Scalar(0, 0, 255), 1, cv::LINE_AA);        
+      //   }
+      // }
       sensor_msgs::ImagePtr ros_feature_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", drawed_image).toImageMsg();
       _ros_feature_pub.publish(ros_feature_msg);
     };

@@ -96,6 +96,8 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   FeatureMessgaePtr feature_message = std::shared_ptr<FeatureMessgae>(new FeatureMessgae);
   feature_message->image = image_left;
   feature_message->keypoints = keypoints;
+  feature_message->lines = frame->GatAllLines();
+  feature_message->points_on_lines = frame->GetPointsOnLines();
   FramePoseMessagePtr frame_pose_message = std::shared_ptr<FramePoseMessage>(new FramePoseMessage);
 
   // init
@@ -119,6 +121,7 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
       frame_pose_message->pose = Eigen::Matrix4d::Identity();
       _last_frame_track_well = false;
     }
+    feature_message->line_track_ids = frame->GetAllLineTrackId();
     _ros_publisher->PublishFeature(feature_message);
     _ros_publisher->PublishFramePose(frame_pose_message);
     return;
@@ -174,6 +177,7 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     std::vector<bool> inliers_feature_message;
     frame->GetInlierFlag(inliers_feature_message);
     feature_message->inliers = inliers_feature_message;
+    feature_message->line_track_ids = frame->GetAllLineTrackId();
     _ros_publisher->PublishFeature(feature_message);
 
     frame_pose_message->pose = frame->GetPose();

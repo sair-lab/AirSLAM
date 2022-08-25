@@ -25,7 +25,7 @@ struct FeatureMessgae{
   std::vector<bool> inliers;
   std::vector<cv::KeyPoint> keypoints;
   std::vector<Eigen::Vector4d> lines;
-  std::vector<int>& line_track_ids;
+  std::vector<int> line_track_ids;
   std::vector<std::map<int, double>> points_on_lines;
 };
 typedef std::shared_ptr<FeatureMessgae> FeatureMessgaePtr;
