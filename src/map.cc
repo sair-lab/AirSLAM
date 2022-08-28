@@ -1209,8 +1209,7 @@ void Map::SearchByProjection(FramePtr frame, std::vector<MappointPtr>& mappoints
   std::cout << "debug_vec = " << debug_vec.transpose() << std::endl;
 }
 
-void Map::SaveKeyframeTrajectory(std::string save_root){
-  std::string file_path = ConcatenateFolderAndFileName(save_root, "keyframe_trajectory.txt");
+void Map::SaveKeyframeTrajectory(std::string file_path){
   std::cout << "Save file to " << file_path << std::endl;
   std::ofstream f;
   f.open(file_path.c_str());

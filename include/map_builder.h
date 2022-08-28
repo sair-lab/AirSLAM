@@ -39,6 +39,7 @@ public:
   int TrackLocalMap(FramePtr frame, int num_inlier_thr);
 
   void SaveTrajectory();
+  void SaveTrajectory(std::string file_path);
   void SaveMap(const std::string& map_root);
 
 private:
