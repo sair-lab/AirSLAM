@@ -19,6 +19,7 @@ Dataset::Dataset(const std::string& dataroot){
   GetFileNames(left_image_dir, image_names);
   if(image_names.size() < 1) return;
   std::sort(image_names.begin(), image_names.end()); 
+
   bool use_current_time = (image_names[0].size() < 18);
   for(std::string& image_name : image_names){
     _left_images.emplace_back(ConcatenateFolderAndFileName(left_image_dir, image_name));

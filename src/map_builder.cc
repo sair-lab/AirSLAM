@@ -704,7 +704,12 @@ int MapBuilder::TrackLocalMap(FramePtr frame, int num_inlier_thr){
 }
 
 void MapBuilder::SaveTrajectory(){
-  _map->SaveKeyframeTrajectory(_configs.saving_dir);
+  std::string file_path = ConcatenateFolderAndFileName(_configs.saving_dir, "keyframe_trajectory.txt");
+  _map->SaveKeyframeTrajectory(file_path);
+}
+
+void MapBuilder::SaveTrajectory(std::string file_path){
+  _map->SaveKeyframeTrajectory(file_path);
 }
 
 void MapBuilder::SaveMap(const std::string& map_root){
