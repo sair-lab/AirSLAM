@@ -39,6 +39,7 @@ bool Dataset::GetData(size_t idx, cv::Mat& left_image, cv::Mat& right_image, dou
   if(idx >= _left_images.size()) return false;
   std::cout << "left_image = " << _left_images[idx] << std::endl;
   std::cout << "right_image = " << _right_images[idx] << std::endl;
+  if(!FileExists(_left_images[idx]) || !FileExists(_right_images[idx])) return false;
   left_image = cv::imread(_left_images[idx], 0);
   right_image = cv::imread(_right_images[idx], 0);
   if(_timestamps.empty()){
