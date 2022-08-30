@@ -679,6 +679,7 @@ void Map::SearchNeighborFrames(FramePtr frame, std::vector<FramePtr>& neighbor_f
         }
       }
     }
+    if(deeper_layer.empty()) break;
 
     // std::map<int, FramePtr> ordered_deeper_layer;
     std::set<std::pair<int, FramePtr>> ordered_deeper_layer;
