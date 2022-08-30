@@ -409,6 +409,7 @@ int SolvePnPWithCV(FramePtr frame, std::vector<MappointPtr>& mappoints,
     image_points.emplace_back(keypoint(0), keypoint(1));
     point_indexes.emplace_back(i);
   }
+  if(object_points.size() < 8) return 0;
 
   cv::solvePnPRansac(object_points, image_points, camera_matrix, dist_coeffs, 
       rotation_vector, translation_vector, false, 100, 20.0, 0.99, cv_inliers);

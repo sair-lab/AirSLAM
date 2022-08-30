@@ -94,7 +94,7 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   // message
   std::vector<cv::KeyPoint>& keypoints = frame->GetAllKeypoints();
   FeatureMessgaePtr feature_message = std::shared_ptr<FeatureMessgae>(new FeatureMessgae);
-  feature_message->image = image_left;
+  feature_message->image = image_left_rect;
   feature_message->keypoints = keypoints;
   feature_message->lines = frame->GatAllLines();
   feature_message->points_on_lines = frame->GetPointsOnLines();
