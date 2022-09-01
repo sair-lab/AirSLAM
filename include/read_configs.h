@@ -46,6 +46,14 @@ struct KeyframeConfig {
   double max_angle;
 };
 
+struct OptimizationConfig{
+  double mono_point;
+  double stereo_point;
+  double mono_line;
+  double stereo_line;
+  double rate;
+};
+
 struct RosPublisherConfig{
   int feature;
   std::string feature_topic;
@@ -71,6 +79,8 @@ struct Configs{
   SuperGlueConfig superglue_config;
   LineDetectorConfig line_detector_config;
   KeyframeConfig keyframe_config;
+  OptimizationConfig tracking_optimization_config;
+  OptimizationConfig backend_optimization_config;
   RosPublisherConfig ros_publisher_config;
 
   Configs(const std::string& config_file, const std::string& model_dir){
@@ -136,6 +146,20 @@ struct Configs{
     keyframe_config.max_num_match = keyframe_node["max_num_match"].as<int>();
     keyframe_config.max_distance = keyframe_node["max_distance"].as<double>();
     keyframe_config.max_angle = keyframe_node["max_angle"].as<double>();
+
+    YAML::Node tracking_optimization_node = file_node["optimization"]["tracking"];
+    tracking_optimization_config.mono_point = tracking_optimization_node["mono_point"].as<double>();
+    tracking_optimization_config.stereo_point = tracking_optimization_node["stereo_point"].as<double>();
+    tracking_optimization_config.mono_line = tracking_optimization_node["mono_line"].as<double>();
+    tracking_optimization_config.stereo_line = tracking_optimization_node["stereo_line"].as<double>();
+    tracking_optimization_config.rate = tracking_optimization_node["rate"].as<double>();
+
+    YAML::Node backend_optimization_node = file_node["optimization"]["backend"];
+    backend_optimization_config.mono_point = backend_optimization_node["mono_point"].as<double>();
+    backend_optimization_config.stereo_point = backend_optimization_node["stereo_point"].as<double>();
+    backend_optimization_config.mono_line = backend_optimization_node["mono_line"].as<double>();
+    backend_optimization_config.stereo_line = backend_optimization_node["stereo_line"].as<double>();
+    backend_optimization_config.rate = backend_optimization_node["rate"].as<double>();
 
     YAML::Node ros_publisher_node = file_node["ros_publisher"];
     ros_publisher_config.feature = ros_publisher_node["feature"].as<int>();

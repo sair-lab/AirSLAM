@@ -31,7 +31,7 @@ MapBuilder::MapBuilder(Configs& configs): _init(false), _track_id(0), _line_trac
   _point_matching = std::shared_ptr<PointMatching>(new PointMatching(configs.superglue_config));
   _line_detector = std::shared_ptr<LineDetector>(new LineDetector(configs.line_detector_config));
   _ros_publisher = std::shared_ptr<RosPublisher>(new RosPublisher(configs.ros_publisher_config));
-  _map = std::shared_ptr<Map>(new Map(_camera, _ros_publisher));
+  _map = std::shared_ptr<Map>(new Map(_configs.backend_optimization_config, _camera, _ros_publisher));
 }
 
 void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_right, double timestamp){
@@ -479,7 +479,8 @@ int MapBuilder::FramePoseOptimization(
 
   }
   // START_TIMER;;
-  int num_inliers = FrameOptimization(poses, points, camera_list, mono_point_constraints, stereo_point_constraints);
+  int num_inliers = FrameOptimization(poses, points, camera_list, mono_point_constraints, 
+      stereo_point_constraints, _configs.tracking_optimization_config);
   // STOP_TIMER("Optimize");
 
   std::cout << "poses.begin()->second.p = " << poses.begin()->second.p.transpose() << std::endl;
