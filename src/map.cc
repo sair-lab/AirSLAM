@@ -19,7 +19,8 @@
 
 // INITIALIZE_TIMER;
 
-Map::Map(CameraPtr camera, RosPublisherPtr ros_publisher): _camera(camera), _ros_publisher(ros_publisher){
+Map::Map(OptimizationConfig& backend_optimization_config, CameraPtr camera, RosPublisherPtr ros_publisher):
+    _backend_optimization_config(backend_optimization_config), _camera(camera), _ros_publisher(ros_publisher){
 }
 
 void Map::InsertKeyframe(FramePtr frame){
@@ -884,7 +885,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
   // START_TIMER;
   // LocalmapOptimization(poses, points, camera_list, mono_point_constraints, stereo_point_constraints);
   LocalmapOptimization(poses, points, lines, camera_list, mono_point_constraints, 
-      stereo_point_constraints, mono_line_constraints, stereo_line_constraints);
+      stereo_point_constraints, mono_line_constraints, stereo_line_constraints, _backend_optimization_config);
   // STOP_TIMER("SlidingWindowOptimization Time2");
   // START_TIMER;
 
