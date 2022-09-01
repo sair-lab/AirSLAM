@@ -130,8 +130,8 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   // first track with last keyframe
   bool track_keyframe = true;
   std::vector<cv::DMatch> matches;
-  // int num_match = TrackFrame(_last_keyframe, frame, matches);
-  int num_match = TrackFrame(_ref_keyframe, frame, matches);
+  int num_match = TrackFrame(_last_keyframe, frame, matches);
+  // int num_match = TrackFrame(_ref_keyframe, frame, matches);
   if(num_match < _configs.keyframe_config.min_num_match){
     if(_num_since_last_keyframe > 1 && _last_frame_track_well){
       // if failed, track with last frame
@@ -154,7 +154,7 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   }
   _last_frame_track_well = true;
   // STOP_TIMER("Tracking");
-    DrawStereoLinePair(image_left_rect, image_right_rect, frame, _configs.saving_dir, std::to_string(frame_id));
+  // DrawStereoLinePair(image_left_rect, image_right_rect, frame, _configs.saving_dir, std::to_string(frame_id));
 
 
   // START_TIMER;
@@ -170,10 +170,6 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
 
   // publish message
   {
-    // std::vector<bool> inliers_feature_message(keypoints.size(), false);
-    // for(cv::DMatch& match : matches){
-    //   inliers_feature_message[match.trainIdx] = true;
-    // }
     std::vector<bool> inliers_feature_message;
     frame->GetInlierFlag(inliers_feature_message);
     feature_message->inliers = inliers_feature_message;
@@ -206,8 +202,8 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
 
   if(track_keyframe){
     // select keyframe
-    // Eigen::Matrix4d& last_keyframe_pose = _last_keyframe->GetPose();
-    Eigen::Matrix4d& last_keyframe_pose = _ref_keyframe->GetPose();
+    Eigen::Matrix4d& last_keyframe_pose = _last_keyframe->GetPose();
+    // Eigen::Matrix4d& last_keyframe_pose = _ref_keyframe->GetPose();
     Eigen::Matrix3d last_R = last_keyframe_pose.block<3, 3>(0, 0);
     Eigen::Vector3d last_t = last_keyframe_pose.block<3, 1>(0, 3);
     Eigen::Matrix3d current_R = frame_pose.block<3, 3>(0, 0);
@@ -308,7 +304,7 @@ bool MapBuilder::Init(FramePtr frame){
     frame->SetLineTrackId(i, _line_track_id);
     MaplinePtr mapline = std::shared_ptr<Mapline>(new Mapline(_line_track_id));
     Vector6d endpoints;
-    if(frame->TriangleStereoLine(i, endpoints)){
+    if(frame->TrianguateStereoLine(i, endpoints)){
       mapline->SetEndpoints(endpoints);
       mapline->SetObverserEndpointStatus(frame_id, 1);
     }else{
@@ -329,6 +325,7 @@ bool MapBuilder::Init(FramePtr frame){
     _map->InsertMapline(mapline);
   }
   _ref_keyframe = frame;
+  _last_frame = frame;
 
   return true;
 }

@@ -31,7 +31,7 @@ void MatchLines(const std::vector<std::map<int, double>>& points_on_line0,
     size_t point_num0, size_t point_num1, std::vector<int>& line_matches);
 
 void SortPointsOnLine(std::vector<Eigen::Vector2d>& points, std::vector<size_t>& order, bool sort_by_x = true);
-bool TriangleByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& line_right, 
+bool TrianguateByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& line_right, 
     const Eigen::Matrix4d& Twc, const CameraPtr& camera, Vector6d& line_3d);
 
 bool CompoutePlaneFromPoints(const Eigen::Vector3d& point1, const Eigen::Vector3d& point2, 
@@ -39,7 +39,7 @@ bool CompoutePlaneFromPoints(const Eigen::Vector3d& point1, const Eigen::Vector3
 bool ComputeLineFramePlanes(const Eigen::Vector4d& plane1, const Eigen::Vector4d& plane2, Line3DPtr line_3d);
 
 // line_2d1, line_2d2 : line in normalized plane of camera
-bool TriangleByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d& pose1, 
+bool TrianguateByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d& pose1, 
     const Eigen::Vector4d& line_2d2, const Eigen::Matrix4d& pose2, const CameraPtr& camera, Line3DPtr line_3d);
 bool ComputeLine3DFromEndpoints(const Vector6d& endpoints, Line3DPtr line_3d);
 bool Point2DTo3D(const Eigen::Vector3d& anchor_point1, const Eigen::Vector3d& anchor_point2, 

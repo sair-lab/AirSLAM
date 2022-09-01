@@ -92,7 +92,7 @@ void Frame::AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_lef
     _feature_grid[grid_x][grid_y].push_back(i);
   }
 
-  // triangle stereo points
+  // Trianguate stereo points
   _u_right = std::vector<double>(features_left_size, -1);
   _depth = std::vector<double>(features_left_size, -1);
   for(cv::DMatch& match : stereo_matches){
@@ -363,13 +363,13 @@ const std::vector<std::map<int, double>>& Frame::GetPointsOnLines(){
   return _points_on_lines;
 }
 
-bool Frame::TriangleStereoLine(size_t idx, Vector6d& endpoints){
+bool Frame::TrianguateStereoLine(size_t idx, Vector6d& endpoints){
   return false;
   if(idx >= _lines.size() || !_lines_right_valid[idx]) return false;
-  return TriangleByStereo(_lines[idx], _lines_right[idx], _pose, _camera, endpoints);
+  return TrianguateByStereo(_lines[idx], _lines_right[idx], _pose, _camera, endpoints);
 }
 
-// bool Frame::TriangleLineByPoints(size_t idx, Vector6d& endpoints){
+// bool Frame::TrianguateLineByPoints(size_t idx, Vector6d& endpoints){
 //   if(idx >= _points_on_lines.size()) return false;
 //   std::map<int, double> points_on_line = _points_on_lines[idx];
 //   if(points_on_line.size() < 2) return false;

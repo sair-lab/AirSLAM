@@ -288,9 +288,9 @@ void SortPointsOnLine(std::vector<Eigen::Vector2d>& points, std::vector<size_t>&
   }                                
 }
 
-bool TriangleByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& line_right, 
+bool TrianguateByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& line_right, 
     const Eigen::Matrix4d& Twc, const CameraPtr& camera, Vector6d& line_3d){
-  // std::cout << "--------------------  TriangleByStereo  ----------------" << std::endl;
+  // std::cout << "--------------------  TrianguateByStereo  ----------------" << std::endl;
   // std::cout << "line_left = " << line_left.transpose() << std::endl;
   // std::cout << "line_right = " << line_right.transpose() << std::endl;
   double x11 = line_left(0);
@@ -360,7 +360,7 @@ bool TriangleByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& l
   // std::cout << "final twc = " << twc.transpose() << std::endl;
   // std::cout << "final point_3d1 = " << point_3d1.transpose() << std::endl;
   // std::cout << "final point_3d2 = " << point_3d2.transpose() << std::endl;
-  // std::cout << "--------------------  End TriangleByStereo  ----------------" << std::endl;
+  // std::cout << "--------------------  End TrianguateByStereo  ----------------" << std::endl;
 
   return true;
 }
@@ -407,9 +407,9 @@ bool ComputeLineFramePlanes(const Eigen::Vector4d& plane1, const Eigen::Vector4d
   return true;
 }
 
-bool TriangleByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d& pose1, 
+bool TrianguateByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d& pose1, 
     const Eigen::Vector4d& line_2d2, const Eigen::Matrix4d& pose2, const CameraPtr& camera, Line3DPtr line_3d){
-  std::cout << "----------------TriangleByTwoFrames-------------" << std::endl;
+  std::cout << "----------------TrianguateByTwoFrames-------------" << std::endl;
   Eigen::Matrix3d Rw1 = pose1.block<3, 3>(0, 0);
   Eigen::Vector3d tw1 = pose1.block<3, 1>(0, 3);
   Eigen::Matrix3d Rw2 = pose2.block<3, 3>(0, 0);
@@ -451,7 +451,7 @@ bool TriangleByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d&
   std::cout << "plane2 = " << plane2.transpose() << std::endl;
   std::cout << "success = " << success << std::endl;
   std::cout << "line_3d = " << line_3d->toCartesian().transpose() << std::endl;
-  std::cout << "----------------End TriangleByTwoFrames-------------" << std::endl;
+  std::cout << "----------------End TrianguateByTwoFrames-------------" << std::endl;
 
   return success;
 }
