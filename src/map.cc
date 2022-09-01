@@ -81,7 +81,7 @@ void Map::InsertKeyframe(FramePtr frame){
       mpl = std::shared_ptr<Mapline>(new Mapline(line_track_ids[i]));
       if(lines_right_valid[i]){
         Vector6d endpoints;
-        if(frame->TriangleStereoLine(i, endpoints)){
+        if(frame->TrianguateStereoLine(i, endpoints)){
           mpl->SetEndpoints(endpoints);
           mpl->SetObverserEndpointStatus(frame_id, 1);
         }
@@ -108,7 +108,7 @@ void Map::InsertKeyframe(FramePtr frame){
     //   std::cout << "Map::InsertKeyframe 4" << std::endl;
     //   Line3DPtr line_3d = std::shared_ptr<g2o::Line3D>(new g2o::Line3D());
     //   Eigen::Matrix4d obverser_pose = obverser_frame->GetPose();
-    //   if(!TriangleByTwoFrames(lines[i], Twf, obverser_line, obverser_pose, _camera, line_3d)) continue;
+    //   if(!TrianguateByTwoFrames(lines[i], Twf, obverser_line, obverser_pose, _camera, line_3d)) continue;
     //   std::cout << "Map::InsertKeyframe 5" << std::endl;
     // std::cout << "line_id = " << mpl->GetId() << std::endl;
     //   mpl->SetLine3DPtr(line_3d);
