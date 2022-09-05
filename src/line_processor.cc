@@ -220,6 +220,8 @@ void AssignPointsToLines(std::vector<Eigen::Vector4d>& lines, Eigen::Matrix<doub
 void MatchLines(const std::vector<std::map<int, double>>& points_on_line0, 
     const std::vector<std::map<int, double>>& points_on_line1, const std::vector<cv::DMatch>& point_matches, 
     size_t point_num0, size_t point_num1, std::vector<int>& line_matches){
+  if(point_num0 == 0 || point_num1 == 0) return;
+
   std::vector<std::vector<int>> assigned_lines0, assigned_lines1;
   assigned_lines0.resize(point_num0);
   assigned_lines1.resize(point_num1);
