@@ -6,6 +6,7 @@
 // #include <cv_bridge/cv_bridge.h>
 #include <opencv2/highgui/highgui.hpp>
 
+#include "read_configs.h"
 #include "camera.h"
 #include "mappoint.h"
 #include "mapline.h"
@@ -15,7 +16,7 @@
 
 class Map{
 public:
-  Map(CameraPtr camera, RosPublisherPtr ros_publisher);
+  Map(OptimizationConfig& backend_optimization_config, CameraPtr camera, RosPublisherPtr ros_publisher);
   void InsertKeyframe(FramePtr frame);
   void InsertMappoint(MappointPtr mappoint);
   void InsertMapline(MaplinePtr mapline);
@@ -44,6 +45,7 @@ public:
   void SaveKeyframeTrajectory(std::string save_root);
 
 private:
+  OptimizationConfig _backend_optimization_config;
   CameraPtr _camera;
   std::map<int, MappointPtr> _mappoints;
   std::map<int, MaplinePtr> _maplines;

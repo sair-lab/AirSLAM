@@ -1,0 +1,53 @@
+%YAML:1.0
+
+image_height: 720
+image_width: 1280
+
+# stereo baseline times fx
+bf: 32.3252131124
+
+depth_lower_thr: 0.1
+depth_upper_thr: 10.0
+
+# stereo rectification
+LEFT.D: !!opencv-matrix
+   rows: 1
+   cols: 5
+   dt: d
+   data: [-0.04087948, 0.03006104, 0, 0, 0.0]
+LEFT.K: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [639.2645, 0, 635.7686, 0, 639.5627, 355.1494, 0, 0, 1]
+LEFT.R:  !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [ 0.9999935662, -0.0033233921, -0.0013500365, 0.0033244884, 0.9999941453, 0.0008106159, 0.0013473346, -0.0008150989, 0.9999987602]
+LEFT.P:  !!opencv-matrix
+   rows: 3
+   cols: 4
+   dt: d
+   data: [644.6438364153, 0, 637.7982711792, 0,  0, 644.6438364153, 355.1050758362, 0,  0, 0, 1, 0]
+
+RIGHT.D: !!opencv-matrix
+   rows: 1
+   cols: 5
+   dt: d
+   data: [-0.04023259, 0.02970617, 0, 0, 0.0]
+RIGHT.K: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [639.7958, 0, 641.171, 0, 639.9821, 354.8851, 0, 0, 1]
+RIGHT.R:  !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [0.9999943337, -0.0022228281, 0.0025281572, 0.0022248824, 0.9999971969, -0.0008100474, -0.0025263495, 0.0008156677, 0.9999964761]
+RIGHT.P:  !!opencv-matrix
+   rows: 3
+   cols: 4
+   dt: d
+   data: [644.6438364153, 0, 637.7982711792, 0,  0, 644.6438364153, 355.1050758362, 0,  0, 0, 1, 0]

@@ -14,13 +14,14 @@
 #include <g2o/solvers/dense/linear_solver_dense.h>
 #include <g2o/types/sim3/types_seven_dof_expmap.h>
 
+#include "read_configs.h"
 #include "g2o_optimization/edge_project_line.h"
 #include "g2o_optimization/edge_project_stereo_line.h"
 
-
 void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d& lines, std::vector<CameraPtr>& camera_list, 
     VectorOfMonoPointConstraints& mono_point_constraints, VectorOfStereoPointConstraints& stereo_point_constraints, 
-    VectorOfMonoLineConstraints& mono_line_constraints, VectorOfStereoLineConstraints& stereo_line_constraints){
+    VectorOfMonoLineConstraints& mono_line_constraints, VectorOfStereoLineConstraints& stereo_line_constraints, 
+    const OptimizationConfig& cfg){
   // Setup optimizer
   typedef g2o::BlockSolver<g2o::BlockSolverTraits<-1, -1> > SlamBlockSolver;
   typedef g2o::LinearSolverEigen<SlamBlockSolver::PoseMatrixType> SlamLinearSolver;
@@ -73,8 +74,9 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
   mono_edges.reserve(mono_point_constraints.size());
   std::vector<g2o::EdgeStereoSE3ProjectXYZ*> stereo_edges;
   stereo_edges.reserve(stereo_point_constraints.size());
-  const float thHuberMono = sqrt(5.991);
-  const float thHuberStereo = sqrt(7.815);
+  const float thHuberMonoPoint = sqrt(cfg.mono_point);
+  const float thHuberStereoPoint = sqrt(cfg.stereo_point);
+
   // mono point edges
   for(MonoPointConstraintPtr& mpc : mono_point_constraints){
     g2o::EdgeSE3ProjectXYZ* e = new g2o::EdgeSE3ProjectXYZ();
@@ -84,7 +86,7 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
     e->setInformation(Eigen::Matrix2d::Identity());
     g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
     e->setRobustKernel(rk);
-    rk->setDelta(thHuberMono);
+    rk->setDelta(thHuberMonoPoint);
     e->fx = camera_list[mpc->id_camera]->Fx();
     e->fy = camera_list[mpc->id_camera]->Fy();
     e->cx = camera_list[mpc->id_camera]->Cx();
@@ -104,7 +106,7 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
     e->setInformation(Eigen::Matrix3d::Identity());
     g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
     e->setRobustKernel(rk);
-    rk->setDelta(thHuberStereo);
+    rk->setDelta(thHuberStereoPoint);
     e->fx = camera_list[spc->id_camera]->Fx();
     e->fy = camera_list[spc->id_camera]->Fy();
     e->cx = camera_list[spc->id_camera]->Cx();
@@ -120,8 +122,8 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
   mono_line_edges.reserve(mono_line_constraints.size());
   std::vector<EdgeStereoSE3ProjectLine*> stereo_line_edges;
   stereo_line_edges.reserve(stereo_line_constraints.size());
-  const float thHuberMonoLine = sqrt(5.991);
-  const float thHuberStereoLine = sqrt(7.815);
+  const float thHuberMonoLine = sqrt(cfg.mono_line);
+  const float thHuberStereoLine = sqrt(cfg.stereo_line);
   // mono line edges
   for(MonoLineConstraintPtr& mlc : mono_line_constraints){
     EdgeSE3ProjectLine* e = new EdgeSE3ProjectLine();
@@ -173,7 +175,7 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
   // check inlier observations
   for(size_t i=0; i < mono_edges.size(); i++){
     g2o::EdgeSE3ProjectXYZ* e = mono_edges[i];
-    if(e->chi2() > 5.991 || !e->isDepthPositive()){
+    if(e->chi2() > cfg.mono_point || !e->isDepthPositive()){
       e->setLevel(1);
     }
     e->setRobustKernel(0);
@@ -181,7 +183,7 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
 
   for(size_t i=0; i < stereo_edges.size(); i++){    
     g2o::EdgeStereoSE3ProjectXYZ* e = stereo_edges[i];
-    if(e->chi2() > 7.815 || !e->isDepthPositive()){
+    if(e->chi2() > cfg.stereo_point || !e->isDepthPositive()){
         e->setLevel(1);
     }
     e->setRobustKernel(0);
@@ -189,7 +191,7 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
 
   for(size_t i=0; i < mono_line_edges.size(); i++){
     EdgeSE3ProjectLine* e = mono_line_edges[i];
-    if(e->chi2() > 5.991){
+    if(e->chi2() > cfg.mono_line){
       e->setLevel(1);
     }
     e->setRobustKernel(0);
@@ -197,7 +199,7 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
 
   for(size_t i=0; i < stereo_line_edges.size(); i++){    
     EdgeStereoSE3ProjectLine* e = stereo_line_edges[i];
-    if(e->chi2() > 7.815){
+    if(e->chi2() > cfg.stereo_line){
         e->setLevel(1);
     }
     e->setRobustKernel(0);
@@ -211,22 +213,22 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
   // check inlier observations     
   for(size_t i = 0; i < mono_edges.size(); i++){
     g2o::EdgeSE3ProjectXYZ* e = mono_edges[i];
-    mono_point_constraints[i]->inlier = (e->chi2() <= 5.991 && e->isDepthPositive());
+    mono_point_constraints[i]->inlier = (e->chi2() <= cfg.mono_point && e->isDepthPositive());
   }
 
   for(size_t i = 0; i < stereo_edges.size(); i++){    
     g2o::EdgeStereoSE3ProjectXYZ* e = stereo_edges[i];
-    stereo_point_constraints[i]->inlier = (e->chi2() <= 7.815 && e->isDepthPositive());
+    stereo_point_constraints[i]->inlier = (e->chi2() <= cfg.stereo_point && e->isDepthPositive());
   }
 
   for(size_t i = 0; i < mono_line_edges.size(); i++){
     EdgeSE3ProjectLine* e = mono_line_edges[i];
-    mono_line_constraints[i]->inlier = (e->chi2() <= 5.991);
+    mono_line_constraints[i]->inlier = (e->chi2() <= cfg.mono_point);
   }
 
   for(size_t i = 0; i < stereo_line_edges.size(); i++){    
     EdgeStereoSE3ProjectLine* e = stereo_line_edges[i];
-    stereo_line_constraints[i]->inlier = (e->chi2() <= 7.815);
+    stereo_line_constraints[i]->inlier = (e->chi2() <= cfg.stereo_line);
   }
 
   // Recover optimized data
@@ -253,7 +255,8 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
 
 
 int FrameOptimization(MapOfPoses& poses, MapOfPoints3d& points, std::vector<CameraPtr>& camera_list, 
-    VectorOfMonoPointConstraints& mono_point_constraints, VectorOfStereoPointConstraints& stereo_point_constraints){
+    VectorOfMonoPointConstraints& mono_point_constraints, VectorOfStereoPointConstraints& stereo_point_constraints,
+    const OptimizationConfig& cfg){
   assert(poses.size() == 1);
   g2o::SparseOptimizer optimizer;
   optimizer.setVerbose(false);
@@ -276,8 +279,10 @@ int FrameOptimization(MapOfPoses& poses, MapOfPoints3d& points, std::vector<Came
   mono_edges.reserve(mono_point_constraints.size());
   std::vector<g2o::EdgeStereoSE3ProjectXYZOnlyPose*> stereo_edges;
   stereo_edges.reserve(stereo_point_constraints.size());
-  const float deltaMono = sqrt(5.991);
-  const float deltaStereo = sqrt(7.815);
+  const float deltaMonoPoint = sqrt(cfg.mono_point);
+  const float deltaStereoPoint = sqrt(cfg.stereo_point);
+  const float deltaMonoLine = sqrt(cfg.mono_line);
+  const float deltaStereoLine = sqrt(cfg.stereo_line);
 
   // mono edges
   for(MonoPointConstraintPtr& mpc : mono_point_constraints){
@@ -289,7 +294,7 @@ int FrameOptimization(MapOfPoses& poses, MapOfPoints3d& points, std::vector<Came
     e->setInformation(Eigen::Matrix2d::Identity());
     g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
     e->setRobustKernel(rk);
-    rk->setDelta(deltaMono);
+    rk->setDelta(deltaMonoPoint);
     e->fx = camera_list[mpc->id_camera]->Fx();
     e->fy = camera_list[mpc->id_camera]->Fy();
     e->cx = camera_list[mpc->id_camera]->Cx();
@@ -310,7 +315,7 @@ int FrameOptimization(MapOfPoses& poses, MapOfPoints3d& points, std::vector<Came
     e->setInformation(Eigen::Matrix3d::Identity());
     g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
     e->setRobustKernel(rk);
-    rk->setDelta(deltaStereo);
+    rk->setDelta(deltaStereoPoint);
     e->fx = camera_list[spc->id_camera]->Fx();
     e->fy = camera_list[spc->id_camera]->Fy();
     e->cx = camera_list[spc->id_camera]->Cx();
@@ -341,7 +346,8 @@ int FrameOptimization(MapOfPoses& poses, MapOfPoints3d& points, std::vector<Came
       }
 
       const float chi2 = e->chi2();
-      if(chi2 > chi2Mono[iter]){                
+      // if(chi2 > chi2Mono[iter]){                
+      if(chi2 > cfg.mono_point){                
         mono_point_constraints[i]->inlier = false;
         e->setLevel(1);
         num_outlier++;
@@ -362,7 +368,8 @@ int FrameOptimization(MapOfPoses& poses, MapOfPoints3d& points, std::vector<Came
       }
 
       const float chi2 = e->chi2();
-      if(chi2 > chi2Mono[iter]){                
+      // if(chi2 > chi2Mono[iter]){                
+      if(chi2 > cfg.stereo_point){                
         stereo_point_constraints[i]->inlier = false;
         e->setLevel(1);
         num_outlier++;
