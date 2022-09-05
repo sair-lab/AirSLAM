@@ -48,7 +48,7 @@ bool SuperPoint::build() {
     profile->setDimensions(super_point_config_.input_tensor_names[0].c_str(),
                            OptProfileSelector::kOPT, Dims4(1, 1, 500, 500));
     profile->setDimensions(super_point_config_.input_tensor_names[0].c_str(),
-                           OptProfileSelector::kMAX, Dims4(1, 1, 1000, 1000));
+                           OptProfileSelector::kMAX, Dims4(1, 1, 1500, 1500));
     config->addOptimizationProfile(profile);
     
     auto constructed = construct_network(builder, network, config, parser);

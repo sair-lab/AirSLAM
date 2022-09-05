@@ -70,6 +70,10 @@ Eigen::Matrix4d& Frame::GetPose(){
 bool Frame::FindGrid(double& x, double& y, int& grid_x, int& grid_y){
   grid_x = std::round(x * _grid_width_inv);
   grid_y = std::round(y * _grid_height_inv);
+
+  grid_x = std::min(std::max(0, grid_x), (FRAME_GRID_COLS-1));
+  grid_y = std::min(std::max(0, grid_y), (FRAME_GRID_ROWS-1));
+
   return !(grid_x < 0 || grid_x >= FRAME_GRID_COLS || grid_y < 0 || grid_y >= FRAME_GRID_ROWS);
 }
 
