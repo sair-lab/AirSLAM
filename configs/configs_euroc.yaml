@@ -1,6 +1,6 @@
 superpoint:
   max_keypoints: 500
-  keypoint_threshold: 0.005
+  keypoint_threshold: 0.004
   remove_borders: 4 
   input_tensor_names: 
     - "input"
