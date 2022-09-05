@@ -387,7 +387,7 @@ int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMa
 
   // update line track id
   const std::vector<MaplinePtr>& frame0_maplines = frame0->GetConstAllMaplines();
-  for(size_t i = 0; i < features0.cols(); i++){
+  for(size_t i = 0; i < frame0_maplines.size(); i++){
     int j = line_matches[i];
     if(j < 0) continue;
     int line_track_id = frame0->GetLineTrackId(i);

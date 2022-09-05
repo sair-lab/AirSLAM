@@ -222,6 +222,11 @@ void MatchLines(const std::vector<std::map<int, double>>& points_on_line0,
     size_t point_num0, size_t point_num1, std::vector<int>& line_matches){
   size_t line_num0 = points_on_line0.size();
   size_t line_num1 = points_on_line1.size();
+  line_matches.clear();
+  line_matches.resize(line_num0);
+  for(size_t i = 0; i < line_num0; i++){
+    line_matches[i] = -1;
+  }
   if(point_num0 == 0 || point_num1 == 0 || line_num0 == 0 || line_num1 == 0) return;
 
   std::vector<std::vector<int>> assigned_lines0, assigned_lines1;
@@ -254,13 +259,10 @@ void MatchLines(const std::vector<std::map<int, double>>& points_on_line0,
 
   // find good matches
   int line_match_num = 0;
-  line_matches.clear();
-  line_matches.resize(line_num0);
   std::vector<int> row_max_value(line_num0), col_max_value(line_num1);
   std::vector<Eigen::VectorXi::Index> row_max_location(line_num0), col_max_location(line_num1);
   for(size_t i = 0; i < line_num0; i++){
     row_max_value[i] = matching_matrix.row(i).maxCoeff(&row_max_location[i]);
-    line_matches[i] = -1;
   }
   for(size_t j = 0; j < line_num1; j++){
     Eigen::VectorXi::Index col_max_location;
