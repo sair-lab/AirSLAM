@@ -130,7 +130,7 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
     e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex((mlc->id_line+max_point_id))));
     e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(mlc->id_pose)));
     e->setMeasurement(mlc->line_2d);
-    e->setInformation(Eigen::Matrix2d::Identity());
+    e->setInformation(Eigen::Matrix2d::Identity() * 0.5);
     g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
     e->setRobustKernel(rk);
     rk->setDelta(thHuberMonoLine);
@@ -151,7 +151,7 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
     e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex((slc->id_line+max_point_id))));
     e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(slc->id_pose)));
     e->setMeasurement(slc->line_2d);
-    e->setInformation(Eigen::Matrix4d::Identity());
+    e->setInformation(Eigen::Matrix4d::Identity() * 0.5);
     g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
     e->setRobustKernel(rk);
     rk->setDelta(thHuberStereoLine);
@@ -418,8 +418,12 @@ int SolvePnPWithCV(FramePtr frame, std::vector<MappointPtr>& mappoints,
   }
   if(object_points.size() < 8) return 0;
 
-  cv::solvePnPRansac(object_points, image_points, camera_matrix, dist_coeffs, 
-      rotation_vector, translation_vector, false, 100, 20.0, 0.99, cv_inliers);
+  try{
+    cv::solvePnPRansac(object_points, image_points, camera_matrix, dist_coeffs, 
+        rotation_vector, translation_vector, false, 100, 20.0, 0.99, cv_inliers);
+  }catch(...){
+    return 0;
+  }
 
   cv::Mat cv_Rcw;
   cv::Rodrigues(rotation_vector, cv_Rcw);

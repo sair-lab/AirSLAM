@@ -490,24 +490,26 @@ bool Point2DTo3D(const Eigen::Vector3d& anchor_point_3d1, const Eigen::Vector3d&
 
 LineDetector::LineDetector(const LineDetectorConfig &line_detector_config): _line_detector_config(line_detector_config){
   fld = cv::ximgproc::createFastLineDetector(line_detector_config.length_threshold, line_detector_config.distance_threshold, 
-      line_detector_config.canny_th1, line_detector_config.canny_th2, line_detector_config.canny_aperture_size, line_detector_config.do_merge);
-      // line_detector_config.canny_th1, line_detector_config.canny_th2, line_detector_config.canny_aperture_size, false);
+      // line_detector_config.canny_th1, line_detector_config.canny_th2, line_detector_config.canny_aperture_size, line_detector_config.do_merge);
+      line_detector_config.canny_th1, line_detector_config.canny_th2, line_detector_config.canny_aperture_size, false);
 }
 
 void LineDetector::LineExtractor(cv::Mat& image, std::vector<Eigen::Vector4d>& lines){
   START_TIMER;
   std::vector<Eigen::Vector4f> source_lines, dst_lines;
   std::vector<cv::Vec4f> cv_lines;
-  fld->detect(image, cv_lines);
+  cv::Mat smaller_image;
+  cv::resize(image, smaller_image, cv::Size(), 0.5, 0.5, cv::INTER_LINEAR);
+  fld->detect(smaller_image, cv_lines);
   for(auto& cv_line : cv_lines){
-    source_lines.emplace_back(cv_line[0], cv_line[1], cv_line[2], cv_line[3]);
+    source_lines.emplace_back(cv_line[0]*2, cv_line[1]*2, cv_line[2]*2, cv_line[3]*2);
   }
   STOP_TIMER("Line detect");
   START_TIMER;
 
   if(_line_detector_config.do_merge){
     std::vector<Eigen::Vector4f> tmp_lines;
-    FilterShortLines(source_lines, 5);
+    // FilterShortLines(source_lines, 5);
     MergeLines(source_lines, tmp_lines, 0.05, 5, 15);
     FilterShortLines(tmp_lines, 30);
     MergeLines(tmp_lines, dst_lines, 0.03, 3, 50);
