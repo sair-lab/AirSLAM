@@ -26,6 +26,9 @@ for sequence in sequences:
   seq_dataroot = os.path.join(dataroot, sequence)
   seq_traj_file = sequence + ".txt"
   seq_traj_path = os.path.join(traj_saving_root, seq_traj_file)
+  if os.path.exists(seq_traj_path):
+    continue
+
   os.system("cd {} & roslaunch air_vo euroc.launch dataroot:={} traj_path:={}".format(workspace, seq_dataroot, seq_traj_path))
 
   gt_path = os.path.join(traj_gt_dir, seq_traj_file)
