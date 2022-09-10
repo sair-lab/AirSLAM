@@ -65,12 +65,12 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   // STOP_TIMER("StereoMatch");
   // START_TIMER;;
 
-  // // // for debug
-  // SaveStereoMatchResult(image_left, image_right, 
+  // // for debug
+  // SaveStereoMatchResult(image_left_rect, image_right_rect, 
   //     features_left, features_right, stereo_matches, _configs.saving_dir, frame_id);
-  // // //////////////////////////
-  // // STOP_TIMER("SaveStereoMatchResult");
-  // // START_TIMER;;
+  // //////////////////////////
+  // STOP_TIMER("SaveStereoMatchResult");
+  // START_TIMER;;
 
 
   // construct frame
@@ -101,6 +101,7 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   FramePoseMessagePtr frame_pose_message = std::shared_ptr<FramePoseMessage>(new FramePoseMessage);
 
   // init
+  std::cout << "stereo_matches.size() =  " << stereo_matches.size() << std::endl;
   if(!_init){
     if(stereo_matches.size() < 100) return;
     _init = Init(frame);

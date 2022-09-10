@@ -30,7 +30,7 @@ int PointMatching::MatchingPoints(Eigen::Matrix<double, 259, Eigen::Dynamic>& fe
       num_match++;
     }
   }
-  
+
   // reject outliers
   if(outlier_rejection){
     std::vector<uchar> inliers;
@@ -43,6 +43,7 @@ int PointMatching::MatchingPoints(Eigen::Matrix<double, 259, Eigen::Dynamic>& fe
     }
     matches.resize(j);
   }
+
   return matches.size();
 }
 

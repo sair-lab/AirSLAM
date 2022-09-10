@@ -22,7 +22,7 @@ void SaveMatchingResult(
     std::vector<cv::DMatch>& matches, std::string save_path){
 
   cv::Mat save_image;
-  if(matches.size() < 1) return;
+  // if(matches.size() < 1) return;
 
   cv::drawMatches(image1, keypoints1, image2, keypoints2, matches, save_image);
   cv::imwrite(save_path, save_image);
