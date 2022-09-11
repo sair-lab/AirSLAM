@@ -68,7 +68,7 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   // // for debug
   // SaveStereoMatchResult(image_left_rect, image_right_rect, 
   //     features_left, features_right, stereo_matches, _configs.saving_dir, frame_id);
-  // //////////////////////////
+  // ////////////////////////
   // STOP_TIMER("SaveStereoMatchResult");
   // START_TIMER;;
 
@@ -244,12 +244,13 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
 
  void MapBuilder::StereoMatch(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
       Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<cv::DMatch>& matches){
-  const double MaxYDiff = 2;
   std::vector<cv::DMatch> superglue_matches;
   _point_matching->MatchingPoints(features_left, features_right, superglue_matches);
 
   double min_x_diff = _camera->MinXDiff();
   double max_x_diff = _camera->MaxXDiff();
+  // const double max_y_diff = 2;
+  const double max_y_diff = _camera->MaxYDiff();
 
   for(cv::DMatch& match : superglue_matches){
     int idx_left = match.queryIdx;
@@ -258,7 +259,7 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     double dx = std::abs(features_left(1, idx_left) - features_right(1, idx_right));
     double dy = std::abs(features_left(2, idx_left) - features_right(2, idx_right));
 
-    if(dx > min_x_diff && dx < max_x_diff && dy <= MaxYDiff){
+    if(dx > min_x_diff && dx < max_x_diff && dy <= max_y_diff){
       matches.emplace_back(match);
     }
   }
@@ -410,6 +411,9 @@ int MapBuilder::FramePoseOptimization(
   if(pose_init == 0){
     std::vector<int> cv_inliers;
     num_cv_inliers = SolvePnPWithCV(frame, mappoints, cv_pose, cv_inliers);
+    Eigen::Vector3d check_dp = cv_pose.block<3, 1>(0, 3) - _last_pose.p;
+    if(check_dp.norm() > 0.7) num_cv_inliers = 0;
+
     std::cout << "cv_pose = " << cv_pose.block<3, 1>(0, 3).transpose() << std::endl;
   }
 
@@ -484,6 +488,7 @@ int MapBuilder::FramePoseOptimization(
       stereo_point_constraints, _configs.tracking_optimization_config);
   // STOP_TIMER("Optimize");
 
+  std::cout << "num_inliers = " << num_inliers << std::endl;
   std::cout << "poses.begin()->second.p = " << poses.begin()->second.p.transpose() << std::endl;
 
   if(num_inliers > _configs.keyframe_config.min_num_match){

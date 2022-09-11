@@ -1,7 +1,7 @@
 <launch>
-    <arg name="config_path" default = "$(find air_vo)/configs/configs_oivio.yaml" />
-    <arg name="dataroot" default = "/media/xukuan/something2/ubuntu_files/data/oivio/MN_050_HH_01/handheld0" />
-    <arg name="camera_config_path" default = "$(find air_vo)/configs/oivio.yaml" />
+    <arg name="config_path" default = "$(find air_vo)/configs/configs_uma_bumblebee.yaml" />
+    <arg name="dataroot" default = "/media/xukuan/something2/ubuntu_files/data/uma/third-floor-csc1_2019-03-04-20-06-37_IllChange/bumblebee" />
+    <arg name="camera_config_path" default = "$(find air_vo)/configs/uma_bumblebee.yaml" />
     <arg name="model_dir" default = "$(find air_vo)/output" />
     <arg name="saving_dir" default = "$(find air_vo)/debug" />
     <arg name="traj_path" default = "$(find air_vo)/debug/traj.txt" />

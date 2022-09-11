@@ -8,6 +8,10 @@ bf: 166.1255759599
 
 depth_lower_thr: 0.3
 depth_upper_thr: 40
+max_y_diff: 2
+
+# radial-tangential: 0, equidistant/fisheye: 1
+distortion_type: 0
 
 # stereo rectification
 LEFT.D: !!opencv-matrix
