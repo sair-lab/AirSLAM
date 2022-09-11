@@ -410,6 +410,9 @@ int MapBuilder::FramePoseOptimization(
   if(pose_init == 0){
     std::vector<int> cv_inliers;
     num_cv_inliers = SolvePnPWithCV(frame, mappoints, cv_pose, cv_inliers);
+    Eigen::Vector3d check_dp = cv_pose.block<3, 1>(0, 3) - _last_pose.p;
+    if(check_dp.norm() > 0.7) num_cv_inliers = 0;
+
     std::cout << "cv_pose = " << cv_pose.block<3, 1>(0, 3).transpose() << std::endl;
   }
 
@@ -484,6 +487,7 @@ int MapBuilder::FramePoseOptimization(
       stereo_point_constraints, _configs.tracking_optimization_config);
   // STOP_TIMER("Optimize");
 
+  std::cout << "num_inliers = " << num_inliers << std::endl;
   std::cout << "poses.begin()->second.p = " << poses.begin()->second.p.transpose() << std::endl;
 
   if(num_inliers > _configs.keyframe_config.min_num_match){
