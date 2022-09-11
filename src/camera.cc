@@ -20,6 +20,7 @@ Camera::Camera(const std::string& camera_file){
   _depth_upper_thr = camera_configs["depth_upper_thr"];
   _max_x_diff = _bf / _depth_lower_thr;
   _min_x_diff = _bf / _depth_upper_thr;
+  _max_y_diff = camera_configs["max_y_diff"];
 
   cv::Mat K_l, K_r, P_l, P_r, R_l, R_r, D_l, D_r;
   camera_configs["LEFT.K"] >> K_l;
@@ -47,11 +48,18 @@ Camera::Camera(const std::string& camera_file){
   _fx_inv = 1.0 / _fx;
   _fy_inv = 1.0 / _fy;
 
-  cv::initUndistortRectifyMap(K_l, D_l, R_l, P_l.rowRange(0,3).colRange(0,3), 
-      cv::Size(_image_width, _image_height), CV_32F, _mapl1, _mapl2);
-
-  cv::initUndistortRectifyMap(K_r, D_r, R_r, P_r.rowRange(0,3).colRange(0,3),
-      cv::Size(_image_width, _image_height), CV_32F, _mapr1, _mapr2);
+  int distortion_type = camera_configs["distortion_type"];
+  if(distortion_type == 0){
+    cv::initUndistortRectifyMap(K_l, D_l, R_l, P_l.rowRange(0,3).colRange(0,3), 
+        cv::Size(_image_width, _image_height), CV_32F, _mapl1, _mapl2);
+    cv::initUndistortRectifyMap(K_r, D_r, R_r, P_r.rowRange(0,3).colRange(0,3),
+        cv::Size(_image_width, _image_height), CV_32F, _mapr1, _mapr2);
+  }else{
+    cv::fisheye::initUndistortRectifyMap(K_l, D_l, R_l, P_l.rowRange(0,3).colRange(0,3), 
+        cv::Size(_image_width, _image_height), CV_32F, _mapl1, _mapl2);
+    cv::fisheye::initUndistortRectifyMap(K_r, D_r, R_r, P_r.rowRange(0,3).colRange(0,3),
+        cv::Size(_image_width, _image_height), CV_32F, _mapr1, _mapr2);
+  }
 }
 
 Camera& Camera::operator=(const Camera& camera){
@@ -62,6 +70,7 @@ Camera& Camera::operator=(const Camera& camera){
   _depth_upper_thr = camera._depth_upper_thr;
   _max_x_diff = _bf / _depth_lower_thr;
   _min_x_diff = _bf / _depth_upper_thr;
+  _max_y_diff = camera._max_y_diff;
   _fx = camera._fx;
   _fy = camera._fy;
   _cx = camera._cx;
@@ -123,6 +132,10 @@ double Camera::MaxXDiff(){
 
 double Camera::MinXDiff(){
   return _min_x_diff;
+}
+
+double Camera::MaxYDiff(){
+  return _max_y_diff;
 }
 
 void Camera::GetCamerMatrix(cv::Mat& camera_matrix){

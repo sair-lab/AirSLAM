@@ -1,0 +1,17 @@
+<launch>
+    <arg name="config_path" default = "$(find air_vo)/configs/configs_uma_bumblebee.yaml" />
+    <arg name="dataroot" default = "/media/xukuan/something2/ubuntu_files/data/uma/third-floor-csc1_2019-03-04-20-06-37_IllChange/bumblebee" />
+    <arg name="camera_config_path" default = "$(find air_vo)/configs/uma_bumblebee.yaml" />
+    <arg name="model_dir" default = "$(find air_vo)/output" />
+    <arg name="saving_dir" default = "$(find air_vo)/debug" />
+    <arg name="traj_path" default = "$(find air_vo)/debug/traj.txt" />
+
+    <node name="air_vo" pkg="air_vo" type="air_vo" output="screen">
+      <param name="config_path" type="string" value="$(arg config_path)" />
+      <param name="dataroot" type="string" value="$(arg dataroot)" />
+      <param name="camera_config_path" type="string" value="$(arg camera_config_path)" />
+      <param name="model_dir" type="string" value="$(arg model_dir)" />
+      <param name="saving_dir" type="string" value="$(arg saving_dir)" />
+      <param name="traj_path" type="string" value="$(arg traj_path)" />
+    </node>
+</launch>		

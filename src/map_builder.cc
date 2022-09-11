@@ -66,9 +66,9 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   // START_TIMER;;
 
   // // for debug
-  // SaveStereoMatchResult(image_left_rect, image_right_rect, 
-  //     features_left, features_right, stereo_matches, _configs.saving_dir, frame_id);
-  // //////////////////////////
+  SaveStereoMatchResult(image_left_rect, image_right_rect, 
+      features_left, features_right, stereo_matches, _configs.saving_dir, frame_id);
+  ////////////////////////
   // STOP_TIMER("SaveStereoMatchResult");
   // START_TIMER;;
 
@@ -244,12 +244,13 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
 
  void MapBuilder::StereoMatch(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
       Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<cv::DMatch>& matches){
-  const double MaxYDiff = 2;
   std::vector<cv::DMatch> superglue_matches;
   _point_matching->MatchingPoints(features_left, features_right, superglue_matches);
 
   double min_x_diff = _camera->MinXDiff();
   double max_x_diff = _camera->MaxXDiff();
+  // const double max_y_diff = 2;
+  const double max_y_diff = _camera->MaxYDiff();
 
   for(cv::DMatch& match : superglue_matches){
     int idx_left = match.queryIdx;
@@ -258,7 +259,7 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     double dx = std::abs(features_left(1, idx_left) - features_right(1, idx_right));
     double dy = std::abs(features_left(2, idx_left) - features_right(2, idx_right));
 
-    if(dx > min_x_diff && dx < max_x_diff && dy <= MaxYDiff){
+    if(dx > min_x_diff && dx < max_x_diff && dy <= max_y_diff){
       matches.emplace_back(match);
     }
   }
