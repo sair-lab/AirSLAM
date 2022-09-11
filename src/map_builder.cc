@@ -66,9 +66,9 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   // START_TIMER;;
 
   // // for debug
-  SaveStereoMatchResult(image_left_rect, image_right_rect, 
-      features_left, features_right, stereo_matches, _configs.saving_dir, frame_id);
-  ////////////////////////
+  // SaveStereoMatchResult(image_left_rect, image_right_rect, 
+  //     features_left, features_right, stereo_matches, _configs.saving_dir, frame_id);
+  // ////////////////////////
   // STOP_TIMER("SaveStereoMatchResult");
   // START_TIMER;;
 
