@@ -637,7 +637,7 @@ void LineDetector::MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::v
     std::vector<size_t> cluster;
     cluster.push_back(i);
     while(to_check_ids.size() > 0){
-      std::vector<size_t> tmp;
+      std::set<size_t> tmp;
       for(auto& j : to_check_ids){
         if(cluster_codes[j] < 0){
           cluster_codes[j] = new_code;
@@ -647,11 +647,12 @@ void LineDetector::MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::v
         std::vector<size_t> j_neighbor = neighbors[j];
         for(auto& k : j_neighbor){
           if(cluster_codes[k] < 0){
-            tmp.push_back(k);
-          }
+            tmp.insert(k);
+          } 
         }
       }
-      to_check_ids = tmp;
+      to_check_ids.clear();
+      to_check_ids.assign(tmp.begin(), tmp.end());    
     }
     cluster_ids.push_back(cluster);
   }
