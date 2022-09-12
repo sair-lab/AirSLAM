@@ -1,6 +1,6 @@
 superpoint:
   max_keypoints: 500
-  keypoint_threshold: 0.004
+  keypoint_threshold: 0.0035
   remove_borders: 4 
   input_tensor_names: 
     - "input"
@@ -12,8 +12,8 @@ superpoint:
   dla_core: -1
 
 superglue:
-  image_width: 752
-  image_height: 480
+  image_width: 1024
+  image_height: 768
   input_tensor_names:
     - "keypoints_0"
     - "scores_0"
@@ -23,8 +23,8 @@ superglue:
     - "descriptors_1"
   output_tensor_names:
     - "scores"
-  onnx_file: "superglue_indoor_sim_int32.onnx"
-  engine_file: "superglue_indoor_sim_int32.engine"
+  onnx_file: "superglue_outdoor_sim_int32.onnx"
+  engine_file: "superglue_outdoor_sim_int32.engine"
   dla_core: -1
 
 line_detector:

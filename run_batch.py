@@ -20,7 +20,6 @@ MakeDir(eva_seq_root)
 eva_sum_root = os.path.join(saving_root, "sum")
 MakeDir(eva_sum_root)
 
-os.system("cd {} & roscore & .".format(workspace))
 sequences = os.listdir(dataroot)
 for sequence in sequences:
   seq_dataroot = os.path.join(dataroot, sequence)
