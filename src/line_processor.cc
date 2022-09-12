@@ -648,7 +648,7 @@ void LineDetector::MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::v
         for(auto& k : j_neighbor){
           if(cluster_codes[k] < 0){
             tmp.insert(k);
-          }
+          } 
         }
       }
       to_check_ids.clear();
