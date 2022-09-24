@@ -17,8 +17,6 @@
 #include "g2o_optimization/g2o_optimization.h"
 #include "timer.h"
 
-// INITIALIZE_TIMER;
-
 Map::Map(OptimizationConfig& backend_optimization_config, CameraPtr camera, RosPublisherPtr ros_publisher):
     _backend_optimization_config(backend_optimization_config), _camera(camera), _ros_publisher(ros_publisher){
 }
@@ -30,7 +28,6 @@ void Map::InsertKeyframe(FramePtr frame){
   _keyframe_ids.push_back(frame_id);
   if(_keyframes.size() < 2) return;
 
-  // START_TIMER;
   // update mappoints
   std::vector<MappointPtr> new_mappoints;
   std::vector<int>& track_ids = frame->GetAllTrackIds();
@@ -66,7 +63,6 @@ void Map::InsertKeyframe(FramePtr frame){
   for(MappointPtr mpt:new_mappoints){
     InsertMappoint(mpt);
   }
-  // STOP_TIMER("Insert to map Time");
 
   // update mapline
   std::vector<MaplinePtr> new_maplines;
@@ -96,23 +92,6 @@ void Map::InsertKeyframe(FramePtr frame){
     }
     if(mpl->GetType() == Mapline::Type::UnTriangulated && mpl->ObverserNum() >= 2){
       TriangulateMaplineByMappoints(mpl);
-    //   std::cout << "Map::InsertKeyframe 2" << std::endl;
-    //   const std::map<int, int>& mpl_obversers = mpl->GetAllObversers();
-    //   int obverser_frame_id = mpl_obversers.begin()->first;
-    //   int obverser_line_idx = mpl_obversers.begin()->second;
-
-    //   FramePtr obverser_frame = GetFramePtr(obverser_frame_id);
-    //   if(!obverser_frame) continue;
-    //   std::cout << "Map::InsertKeyframe 3" << std::endl;
-    //   Eigen::Vector4d obverser_line;
-    //   if(!frame->GetLine(i, obverser_line)) continue;
-    //   std::cout << "Map::InsertKeyframe 4" << std::endl;
-    //   Line3DPtr line_3d = std::shared_ptr<g2o::Line3D>(new g2o::Line3D());
-    //   Eigen::Matrix4d obverser_pose = obverser_frame->GetPose();
-    //   if(!TrianguateByTwoFrames(lines[i], Twf, obverser_line, obverser_pose, _camera, line_3d)) continue;
-    //   std::cout << "Map::InsertKeyframe 5" << std::endl;
-    // std::cout << "line_id = " << mpl->GetId() << std::endl;
-    //   mpl->SetLine3DPtr(line_3d);
     }
 
   }
@@ -124,7 +103,6 @@ void Map::InsertKeyframe(FramePtr frame){
 
   // optimization
   if(_keyframes.size() >= 2){
-    // SlidingWindowOptimization(frame);
     LocalMapOptimization(frame);
   }
 
@@ -463,14 +441,10 @@ bool Map::UpdateMappointDescriptor(MappointPtr mappoint){
   }
 
   descriptor_array.resize(num_valid_obversers);
-  // Eigen::Matrix<double, 256, Dynamic> descriptors = 
-  //     Eigen::Map<Eigen::Matrix<double, 256, Dynamic>>(descriptor_array[0].data(), 3, descriptor_array.size());
-
   double distances[num_valid_obversers][num_valid_obversers];
   for(size_t i = 0; i < num_valid_obversers; i++){
     distances[i][i]=0;
     for(size_t j = i + 1; j < num_valid_obversers; j++){
-      // double dij = (descriptor_array[i] - descriptor_array[j]).cwiseAbs2().sum();
       double dij = DescriptorDistance(descriptor_array[i], descriptor_array[j]);
       distances[i][j] = dij;
       distances[j][i] = dij;
@@ -493,152 +467,6 @@ bool Map::UpdateMappointDescriptor(MappointPtr mappoint){
   mappoint->SetDescriptor(descriptor_array[best_idx]);
   return true;
 }
-
-// void Map::SlidingWindowOptimization(FramePtr new_frame){
-//   const size_t WindowSize = 10;
-//   int new_frame_id = new_frame->GetFrameId();
-//   // START_TIMER;
-//   MapOfPoses poses;
-//   MapOfPoints3d points;
-//   std::vector<CameraPtr> camera_list;
-//   VectorOfMonoPointConstraints mono_point_constraints;
-//   VectorOfStereoPointConstraints stereo_point_constraints;
-
-//   // camera
-//   camera_list.emplace_back(_camera);
-
-//   // select frames to optimize
-//   std::vector<FramePtr> frames;
-//   size_t frame_num = std::min(WindowSize, _keyframe_ids.size());
-//   for(size_t i = _keyframe_ids.size() - frame_num; i < _keyframe_ids.size(); i++){
-//     frames.push_back(_keyframes[_keyframe_ids[i]]);
-//   }
-
-//   std::cout << "--------------SlidingWindowOptimization Begin------------------------" << std::endl;
-//   std::cout << "before optimization : " << std::endl;
-
-//   // point constrainnts
-//   for(size_t i = 0; i < frames.size(); i++){
-//     FramePtr frame = frames[i];
-//     bool fix_this_frame = ((i==0) || frame->PoseFixed());
-//     int frame_id = frame->GetFrameId();
-//     Eigen::Matrix4d& frame_pose = frame->GetPose();
-//     Pose3d pose;
-//     pose.q = frame_pose.block<3, 3>(0, 0);
-//     pose.p = frame_pose.block<3, 1>(0, 3);
-//     pose.fixed = fix_this_frame;
-//     poses.insert(std::pair<int, Pose3d>(frame_id, pose));  
-    
-//     std::vector<MappointPtr>& mappoints = frame->GetAllMappoints();
-//     for(size_t j = 0; j < mappoints.size(); j++){
-//       // points
-//       MappointPtr mpt = mappoints[j];
-//       if(!mpt || !mpt->IsValid()) continue;
-//       Eigen::Vector3d keypoint; 
-//       if(!frame->GetKeypointPosition(j, keypoint)) continue;
-//       int mpt_id = mpt->GetId();
-
-//       if(mpt->local_map_optimization_frame_id != new_frame_id){
-//         Position3d point;
-//         point.p = mpt->GetPosition();
-//         point.fixed = false;
-//         points.insert(std::pair<int, Position3d>(mpt_id, point));
-//         mpt->local_map_optimization_frame_id = new_frame_id;
-//       }
-
-//       // visual constraint
-//       if(keypoint(2) > 0){
-//         StereoPointConstraintPtr stereo_constraint = std::shared_ptr<StereoPointConstraint>(new StereoPointConstraint()); 
-//         stereo_constraint->id_pose = frame_id;
-//         stereo_constraint->id_point = mpt_id;
-//         stereo_constraint->id_camera = 0;
-//         stereo_constraint->inlier = true;
-//         stereo_constraint->keypoint = keypoint;
-//         stereo_constraint->pixel_sigma = 0.8;
-//         stereo_point_constraints.push_back(stereo_constraint);
-//       }else{
-//         MonoPointConstraintPtr mono_constraint = std::shared_ptr<MonoPointConstraint>(new MonoPointConstraint()); 
-//         mono_constraint->id_pose = frame_id;
-//         mono_constraint->id_point = mpt_id;
-//         mono_constraint->id_camera = 0;
-//         mono_constraint->inlier = true;
-//         mono_constraint->keypoint = keypoint.head(2);
-//         mono_constraint->pixel_sigma = 0.8;
-//         mono_point_constraints.push_back(mono_constraint);
-//       }
-//     }
-//   }
-//   // STOP_TIMER("SlidingWindowOptimization Time1");
-//   // START_TIMER;
-//   LocalmapOptimization(poses, points, camera_list, mono_point_constraints, stereo_point_constraints);
-//   // STOP_TIMER("SlidingWindowOptimization Time2");
-//   // START_TIMER;
-
-//   // erase outliers
-//   std::vector<std::pair<FramePtr, MappointPtr>> outliers;
-//   for(auto& mono_point_constraint : mono_point_constraints){
-//     if(!mono_point_constraint->inlier){
-//       std::map<int, FramePtr>::iterator frame_it = _keyframes.find(mono_point_constraint->id_pose);
-//       std::map<int, MappointPtr>::iterator mpt_it = _mappoints.find(mono_point_constraint->id_point);
-//       if(frame_it != _keyframes.end() && mpt_it != _mappoints.end() && frame_it->second && mpt_it->second){
-//         outliers.emplace_back(frame_it->second, mpt_it->second);
-//       }
-//     }
-//   }
-
-//   for(auto& stereo_point_constraint : stereo_point_constraints){
-//     if(!stereo_point_constraint->inlier){
-//       std::map<int, FramePtr>::iterator frame_it = _keyframes.find(stereo_point_constraint->id_pose);
-//       std::map<int, MappointPtr>::iterator mpt_it = _mappoints.find(stereo_point_constraint->id_point);
-//       if(frame_it != _keyframes.end() && mpt_it != _mappoints.end() && frame_it->second && mpt_it->second){
-//         outliers.emplace_back(frame_it->second, mpt_it->second);
-//       }
-//     }
-//   }
-//   RemoveOutliers(outliers);
-//   // STOP_TIMER("RemoveOutliers Time2");
-//   // START_TIMER;
-//   UpdateFrameConnection(frames.back());
-//   // STOP_TIMER("UpdateFrameConnection Time2");
-//   // START_TIMER;
-//   // PrintConnection();
-//   // STOP_TIMER("PrintConnection Time2");
-
-//   std::cout << "after optimization : " << std::endl;
-
-//   // copy back to map
-//   KeyframeMessagePtr keyframe_message = std::shared_ptr<KeyframeMessage>(new KeyframeMessage);
-//   MapMessagePtr map_message = std::shared_ptr<MapMessage>(new MapMessage);
-
-//   for(auto& kv : poses){
-//     int frame_id = kv.first;
-//     Pose3d pose = kv.second;
-//     if(_keyframes.count(frame_id) == 0) continue;
-//     Eigen::Matrix4d pose_eigen;
-//     pose_eigen.block<3, 3>(0, 0) = pose.q.matrix();
-//     pose_eigen.block<3, 1>(0, 3) = pose.p;
-//     _keyframes[frame_id]->SetPose(pose_eigen);
-
-//     keyframe_message->ids.push_back(frame_id);
-//     keyframe_message->poses.push_back(pose_eigen);
-//   }
-
-//   for(auto& kv : points){
-//     int mpt_id = kv.first;
-//     Position3d position = kv.second;
-//     if(_mappoints.count(mpt_id) == 0) continue;
-//     _mappoints[mpt_id]->SetPosition(position.p);
-
-//     map_message->ids.push_back(mpt_id);
-//     map_message->points.push_back(position.p);
-//   }
-
-//   _ros_publisher->PublisheKeyframe(keyframe_message);
-//   _ros_publisher->PublishMap(map_message);
-//   std::cout << "--------------SlidingWindowOptimization Finish------------------------" << std::endl;
-//   // STOP_TIMER("SlidingWindowOptimization Time3");
-
-// }
 
 void Map::SearchNeighborFrames(FramePtr frame, std::vector<FramePtr>& neighbor_frames){
   const int target_num = 9;
@@ -777,7 +605,6 @@ void Map::LocalMapOptimization(FramePtr new_frame){
     fixed_frame_num += to_add_fixed_num;
   }
 
-
   // add point constraint
   for(auto& mpt : mappoints){
     if(!mpt || !mpt->IsValid()) continue;
@@ -808,7 +635,6 @@ void Map::LocalMapOptimization(FramePtr new_frame){
         stereo_constraint->keypoint = keypoint;
         stereo_constraint->pixel_sigma = 0.8;
         tmp_stereo_point_constraints.push_back(stereo_constraint);
-        // stereo_point_constraints.push_back(stereo_constraint);
       }else{
         MonoPointConstraintPtr mono_constraint = std::shared_ptr<MonoPointConstraint>(new MonoPointConstraint()); 
         mono_constraint->id_pose = kv.first;
@@ -818,7 +644,6 @@ void Map::LocalMapOptimization(FramePtr new_frame){
         mono_constraint->keypoint = keypoint.head(2);
         mono_constraint->pixel_sigma = 0.8;
         tmp_mono_point_constraints.push_back(mono_constraint);
-        // mono_point_constraints.push_back(mono_constraint);
       }
     }
 
@@ -881,13 +706,8 @@ void Map::LocalMapOptimization(FramePtr new_frame){
     }
   }
 
-  // STOP_TIMER("SlidingWindowOptimization Time1");
-  // START_TIMER;
-  // LocalmapOptimization(poses, points, camera_list, mono_point_constraints, stereo_point_constraints);
   LocalmapOptimization(poses, points, lines, camera_list, mono_point_constraints, 
       stereo_point_constraints, mono_line_constraints, stereo_line_constraints, _backend_optimization_config);
-  // STOP_TIMER("SlidingWindowOptimization Time2");
-  // START_TIMER;
 
   // erase point outliers
   std::vector<std::pair<FramePtr, MappointPtr>> outliers;
@@ -936,14 +756,8 @@ void Map::LocalMapOptimization(FramePtr new_frame){
 
   RemoveLineOutliers(line_outliers);
 
-  // STOP_TIMER("RemoveOutliers Time2");
-  // START_TIMER;
   UpdateFrameConnection(new_frame);
-  // STOP_TIMER("UpdateFrameConnection Time2");
-  // START_TIMER;
   // PrintConnection();
-  // STOP_TIMER("PrintConnection Time2");
-
 
   // copy back to map
   KeyframeMessagePtr keyframe_message = std::shared_ptr<KeyframeMessage>(new KeyframeMessage);
@@ -986,23 +800,9 @@ void Map::LocalMapOptimization(FramePtr new_frame){
     mapline_message->lines.push_back(endpoints); 
   }
 
-  // // maplines
-  // const std::vector<MaplinePtr>& new_maplines = new_frame->GetAllMaplines();
-  // for(auto& new_mapline : new_maplines){
-  //   // UpdateMaplineEndpoints(new_mapline);
-  //   if(!new_mapline || !new_mapline->EndpointsValid()) continue;
-  //   int mpl_id = new_mapline->GetId();
-  //   const Vector6d& endpoints = new_mapline->GetEndpoints();
-  //   mapline_message->ids.push_back(mpl_id);
-  //   mapline_message->lines.push_back(endpoints); 
-  // }
-
   _ros_publisher->PublisheKeyframe(keyframe_message);
   _ros_publisher->PublishMap(map_message);
   _ros_publisher->PublishMapLine(mapline_message);  
-
-
-  // STOP_TIMER("SlidingWindowOptimization Time3");
 }
 
 std::pair<FramePtr, FramePtr> Map::MakeFramePair(FramePtr frame0, FramePtr frame1){
@@ -1159,7 +959,6 @@ void Map::SearchByProjection(FramePtr frame, std::vector<MappointPtr>& mappoints
   double image_height = camera->ImageHeight();
   const double r = 15.0 * thr;
 
-  Eigen::VectorXi debug_vec = Eigen::VectorXi::Zero(6);
   for(auto& mpt : mappoints){
     // check whether mappoint is valid
     if(!mpt || !mpt->IsValid()) continue;
@@ -1168,19 +967,16 @@ void Map::SearchByProjection(FramePtr frame, std::vector<MappointPtr>& mappoints
     const Eigen::Vector3d& pw = mpt->GetPosition();
     Eigen::Vector3d pc = Rwc.transpose() * (pw - twc);
     if(pc(2) <= 0) continue;
-    debug_vec(0) += 1;
 
     // check whether mappoint can project on the image
     Eigen::Vector3d p2D;
     camera->StereoProject(p2D, pc);
     if(p2D(0) <= 0 || p2D(0) >= image_width || p2D(1) <=0 || p2D(1) >= image_height) continue;
-    debug_vec(1) += 1;
 
     // find neighbor features 
     std::vector<int> candidate_ids;
     frame->FindNeighborKeypoints(p2D, candidate_ids, r, true);
     if(candidate_ids.empty()) continue;
-    debug_vec(2) += 1;
 
     Eigen::Matrix<double, 256, 1>& mpd_desc = mpt->GetDescriptor(); 
     double best_dist = 4.0;
@@ -1204,11 +1000,8 @@ void Map::SearchByProjection(FramePtr frame, std::vector<MappointPtr>& mappoints
     if(best_dist < distance_threshold && best_dist < ratio_threshold * second_dist){
       // frame->InsertMappoint(best_idx, mpt);
       good_projections.emplace_back(best_idx, mpt);
-      debug_vec(5) += 1;
     }
   }
-
-  std::cout << "debug_vec = " << debug_vec.transpose() << std::endl;
 }
 
 void Map::SaveKeyframeTrajectory(std::string file_path){
@@ -1282,16 +1075,3 @@ void Map::SaveMap(const std::string& map_root){
   std::string mappoints_file = ConcatenateFolderAndFileName(map_root, "mappoints.txt");
   WriteTxt(mappoints_file, mappoints_lines, ",");
 }
-
-
-
-
-// ros::Time ConvertToRosTime(int64_t& t){
-//   const uint32_t kNanosecondsToSecond = 1e9;
-//   const uint64_t timestamp_u64 = static_cast<uint64_t>(t);
-//   const uint32_t ros_timestamp_sec = timestamp_u64 / kNanosecondsToSecond;
-//   const uint32_t ros_timestamp_nsec =
-//       timestamp_u64 - (ros_timestamp_sec * kNanosecondsToSecond);
-//   return ros::Time(ros_timestamp_sec, ros_timestamp_nsec);
-// }
-

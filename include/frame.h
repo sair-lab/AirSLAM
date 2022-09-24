@@ -84,7 +84,6 @@ public:
   bool TrianguateStereoLine(size_t idx, Vector6d& endpoints);
   void RemoveMapline(MaplinePtr mapline);
   void RemoveMapline(int idx);
-  // bool TrianguateLineByPoints(size_t idx, Vector6d& endpoints);
 
   // covisibility graph
   void AddConnection(std::shared_ptr<Frame> frame, int weight);

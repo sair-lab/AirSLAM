@@ -18,8 +18,6 @@
 #include "timer.h"
 #include "debug.h"
 
-// INITIALIZE_TIMER;
-
 MapBuilder::MapBuilder(Configs& configs): _init(false), _track_id(0), _line_track_id(0), 
     _to_update_local_map(false), _configs(configs){
   _camera = std::shared_ptr<Camera>(new Camera(configs.camera_config_path));
@@ -38,12 +36,9 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   // undistort image 
   cv::Mat image_left_rect, image_right_rect;
 
-  // START_TIMER;; 
   _camera->UndistortImage(image_left, image_right, image_left_rect, image_right_rect);
-  // STOP_TIMER("UndistortImage");
 
   // extract features
-  // START_TIMER;;
   Eigen::Matrix<double, 259, Eigen::Dynamic> features_left, features_right;
   std::vector<Eigen::Vector4d> lines_left, lines_right;
   if(!_superpoint->infer(image_left_rect, features_left)){
@@ -56,40 +51,26 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   }
   _line_detector->LineExtractor(image_left_rect, lines_left);
   _line_detector->LineExtractor(image_right_rect, lines_right);
-  // STOP_TIMER("Superpoint");
-  // START_TIMER;;
 
   // stereo_match
   std::vector<cv::DMatch> stereo_matches;
   StereoMatch(features_left, features_right, stereo_matches);
-  // STOP_TIMER("StereoMatch");
-  // START_TIMER;;
 
   // // for debug
   // SaveStereoMatchResult(image_left_rect, image_right_rect, 
   //     features_left, features_right, stereo_matches, _configs.saving_dir, frame_id);
   // ////////////////////////
-  // STOP_TIMER("SaveStereoMatchResult");
-  // START_TIMER;;
-
 
   // construct frame
   FramePtr frame = std::shared_ptr<Frame>(new Frame(frame_id, false, _camera, timestamp));
   frame->AddFeatures(features_left, features_right, lines_left, lines_right, stereo_matches);
   std::cout << "Detected feature point number = " << features_left.cols() << std::endl;
-  // STOP_TIMER("Construct frame");
-  // START_TIMER;;
-
 
   // // // for debug
-  // std::cout << "SaveStereoLineMatch" << std::endl;
   // SaveStereoLineMatch(image_left_rect, image_right_rect, features_left, features_right, 
   //     lines_left, lines_right, frame->relation_left, frame->relation_right, 
   //     frame->line_left_to_right_match, _configs.saving_dir, std::to_string(frame_id));
   // // //////////////////////////
-  // // STOP_TIMER("SaveStereoMatchResult");
-  // // START_TIMER;;
-
 
   // message
   std::vector<cv::KeyPoint>& keypoints = frame->GetAllKeypoints();
@@ -101,13 +82,10 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   FramePoseMessagePtr frame_pose_message = std::shared_ptr<FramePoseMessage>(new FramePoseMessage);
 
   // init
-  std::cout << "stereo_matches.size() =  " << stereo_matches.size() << std::endl;
   if(!_init){
     if(stereo_matches.size() < 100) return;
     _init = Init(frame);
     if(_init){
-      // // debug
-      // DrawStereoLinePair(image_left_rect, image_right_rect, frame, _configs.saving_dir, std::to_string(frame_id));
       _last_frame = frame;
       _last_image = image_left_rect;
       _last_keyimage = image_left_rect;
@@ -132,7 +110,6 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   bool track_keyframe = true;
   std::vector<cv::DMatch> matches;
   int num_match = TrackFrame(_last_keyframe, frame, matches);
-  // int num_match = TrackFrame(_ref_keyframe, frame, matches);
   if(num_match < _configs.keyframe_config.min_num_match){
     if(_num_since_last_keyframe > 1 && _last_frame_track_well){
       // if failed, track with last frame
@@ -154,20 +131,13 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     }
   }
   _last_frame_track_well = true;
-  // STOP_TIMER("Tracking");
+
+  // For debug
   // DrawStereoLinePair(image_left_rect, image_right_rect, frame, _configs.saving_dir, std::to_string(frame_id));
-
-
-  // START_TIMER;
+  
   // int track_local_map_num = TrackLocalMap(frame, num_match);
   // UpdateReferenceFrame(frame);
-  int track_local_map_num = 0;
-  // STOP_TIMER("TrackLocalMap");
-
-  // std::cout << "track_local_map_num = " << track_local_map_num << "   num_match = " << num_match << std::endl;
-  num_match = (track_local_map_num > 0) ? track_local_map_num : num_match;
-
-  // START_TIMER;
+  // num_match = (track_local_map_num > 0) ? track_local_map_num : num_match;
 
   // publish message
   {
@@ -180,19 +150,15 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     frame_pose_message->pose = frame->GetPose();
     _ros_publisher->PublishFramePose(frame_pose_message);
   }
-  // STOP_TIMER("Publish");
-  // START_TIMER;
 
-  // // ////// for debug //////
+  // for debug 
   // if(track_keyframe){
   //   SaveTrackingResult(_last_keyimage, image_left, _last_keyframe, frame, matches, _configs.saving_dir);
   // }else{
   //   SaveTrackingResult(_last_image, image_left, _last_frame, frame, matches, _configs.saving_dir);
   // }
-  // // ///////////////////////
+  // 
 
-  // STOP_TIMER("SaveTrackingResult");
-  // START_TIMER;
   // update last frame
   _last_frame = frame;
   _last_image = image_left_rect;
@@ -204,7 +170,6 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   if(track_keyframe){
     // select keyframe
     Eigen::Matrix4d& last_keyframe_pose = _last_keyframe->GetPose();
-    // Eigen::Matrix4d& last_keyframe_pose = _ref_keyframe->GetPose();
     Eigen::Matrix3d last_R = last_keyframe_pose.block<3, 3>(0, 0);
     Eigen::Vector3d last_t = last_keyframe_pose.block<3, 1>(0, 3);
     Eigen::Matrix3d current_R = frame_pose.block<3, 3>(0, 0);
@@ -220,27 +185,11 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     bool large_delta_angle = (delta_angle > _configs.keyframe_config.max_angle);
     bool large_distance = (delta_distance > _configs.keyframe_config.max_distance);
     bool enough_passed_frame = (passed_frame_num > _configs.keyframe_config.max_num_passed_frame);
-
-    std::cout << "last_t = " << last_t.transpose() << std::endl; 
-    std::cout << "current_t = " << current_t.transpose() << std::endl; 
-
-
-    std::cout << "num_match = " << num_match << std::endl; 
-    std::cout << "large_delta_angle = " << delta_angle << std::endl; 
-    std::cout << "large_distance = " << delta_distance << std::endl; 
-
-
-    std::cout << "not_enough_match = " << not_enough_match 
-              << "  large_delta_angle = " << large_delta_angle
-              << "  large_distance = " << large_distance << std::endl;
     if(!(not_enough_match || large_delta_angle || large_distance || enough_passed_frame)) return;
   }
 
   InsertKeyframe(frame);
   _last_keyimage = image_left_rect;
-  // STOP_TIMER("InsertKeyframe");
-
-  std::cout << "last_keyframe id = " << frame->GetFrameId() << std::endl;
   return;
 }
 
@@ -251,7 +200,6 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
 
   double min_x_diff = _camera->MinXDiff();
   double max_x_diff = _camera->MaxXDiff();
-  // const double max_y_diff = 2;
   const double max_y_diff = _camera->MaxYDiff();
 
   for(cv::DMatch& match : superglue_matches){
@@ -335,7 +283,6 @@ bool MapBuilder::Init(FramePtr frame){
 }
 
 int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMatch>& matches){
-  // START_TIMER;
   // point tracking
   Eigen::Matrix<double, 259, Eigen::Dynamic>& features0 = frame0->GetAllFeatures();
   Eigen::Matrix<double, 259, Eigen::Dynamic>& features1 = frame1->GetAllFeatures();
@@ -343,7 +290,6 @@ int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMa
   if(num_match < _configs.keyframe_config.min_num_match){
     return num_match;
   }
-  // STOP_TIMER("MatchingPoints");
 
   // line tracking
   std::vector<std::map<int, double>> points_on_lines0 = frame0->GetPointsOnLines();
@@ -351,7 +297,6 @@ int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMa
   std::vector<int> line_matches;
   MatchLines(points_on_lines0, points_on_lines1, matches, features0.cols(), features1.cols(), line_matches);
 
-  // START_TIMER;
   std::vector<int> inliers(frame1->FeatureNum(), -1);
   std::vector<MappointPtr> matched_mappoints(features1.cols(), nullptr);
   std::vector<MappointPtr>& frame0_mappoints = frame0->GetAllMappoints();
@@ -363,9 +308,7 @@ int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMa
   }
   
   int num_inliers = FramePoseOptimization(frame1, matched_mappoints, inliers);
-  // STOP_TIMER("FramePoseOptimization");
 
-  // START_TIMER;
   // update track id
   int RM = 0;
   if(num_inliers > _configs.keyframe_config.min_num_match){
@@ -384,10 +327,7 @@ int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMa
         RM++;
       }
     }
-    std::cout << "remove " << RM << " matches" << std::endl;
   }
-  // STOP_TIMER("Remove outliers");
-  std::cout << "origin match number = " << num_match << std::endl;
 
   // update line track id
   const std::vector<MaplinePtr>& frame0_maplines = frame0->GetConstAllMaplines();
@@ -415,8 +355,6 @@ int MapBuilder::FramePoseOptimization(
     num_cv_inliers = SolvePnPWithCV(frame, mappoints, cv_pose, cv_inliers);
     Eigen::Vector3d check_dp = cv_pose.block<3, 1>(0, 3) - _last_pose.p;
     if(check_dp.norm() > 0.7) num_cv_inliers = 0;
-
-    std::cout << "cv_pose = " << cv_pose.block<3, 1>(0, 3).transpose() << std::endl;
   }
 
   // Second, optimization
@@ -443,7 +381,6 @@ int MapBuilder::FramePoseOptimization(
   }
   int frame_id = frame->GetFrameId();    
   poses.insert(std::pair<int, Pose3d>(frame_id, pose));  
-  std::cout << "initial pose = " << pose.p.transpose() << std::endl;
 
   // visual constraint construction
   std::vector<size_t> mono_indexes;
@@ -485,13 +422,8 @@ int MapBuilder::FramePoseOptimization(
     }
 
   }
-  // START_TIMER;;
   int num_inliers = FrameOptimization(poses, points, camera_list, mono_point_constraints, 
       stereo_point_constraints, _configs.tracking_optimization_config);
-  // STOP_TIMER("Optimize");
-
-  std::cout << "num_inliers = " << num_inliers << std::endl;
-  std::cout << "poses.begin()->second.p = " << poses.begin()->second.p.transpose() << std::endl;
 
   if(num_inliers > _configs.keyframe_config.min_num_match){
     // set frame pose
@@ -545,8 +477,6 @@ void MapBuilder::InsertKeyframe(FramePtr frame){
   _num_since_last_keyframe = 1;
   _ref_keyframe = frame;
   _to_update_local_map = true;
-
-  std::cout << "Insert a keyframe" << std::endl;
 }
 
 void MapBuilder::UpdateReferenceFrame(FramePtr frame){
@@ -668,9 +598,7 @@ void MapBuilder::SearchLocalPoints(FramePtr frame, std::vector<std::pair<int, Ma
     }
   }
 
-  // std::cout << "selected_mappoints = " << selected_mappoints.size() << std::endl;
   _map->SearchByProjection(frame, selected_mappoints, 1, good_projections);
-
 }
 
 int MapBuilder::TrackLocalMap(FramePtr frame, int num_inlier_thr){
@@ -692,8 +620,6 @@ int MapBuilder::TrackLocalMap(FramePtr frame, int num_inlier_thr){
 
   std::vector<int> inliers(mappoints.size(), -1);
   int num_inliers = FramePoseOptimization(frame, mappoints, inliers, 2);
-
-  // std::cout << "num_inliers = " << num_inliers << "  num_inlier_thr = " << num_inlier_thr << std::endl;
 
   // update track id
   if(num_inliers > _configs.keyframe_config.min_num_match && num_inliers > num_inlier_thr){

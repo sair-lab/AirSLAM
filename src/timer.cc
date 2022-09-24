@@ -11,12 +11,10 @@ void stopTimer(Timer *pTimer){
 }
 
 double getElapsedTime(Timer *pTimer){
-
 	return ((pTimer->stop.tv_sec - pTimer->start.tv_sec) * 1000.0 + (pTimer->stop.tv_usec - pTimer->start.tv_usec) / 1000.0);
 }
 
-void writeTimeToFile(double arrTime[], int nCount, int nFrameNo, char *filename)
-{
+void writeTimeToFile(double arrTime[], int nCount, int nFrameNo, char *filename){
 	FILE *pFile;
 	int i;
 
@@ -26,8 +24,7 @@ void writeTimeToFile(double arrTime[], int nCount, int nFrameNo, char *filename)
 
 	fprintf(pFile, "FrameNo, %d", nFrameNo);
 
-	for (i = 0; i < nCount; i++)
-	{
+	for (i = 0; i < nCount; i++){
 		fprintf(pFile, ",%f", arrTime[i]);
 	}
 

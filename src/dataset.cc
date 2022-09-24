@@ -15,11 +15,9 @@ Dataset::Dataset(const std::string& dataroot){
   std::string right_image_dir = ConcatenateFolderAndFileName(dataroot, "cam1/data");
 
   std::vector<std::string> image_names;
-  std::cout << "left_image_dir = " << left_image_dir << std::endl;
   GetFileNames(left_image_dir, image_names);
   if(image_names.size() < 1) return;
   std::sort(image_names.begin(), image_names.end()); 
-
   bool use_current_time = (image_names[0].size() < 18);
   for(std::string& image_name : image_names){
     _left_images.emplace_back(ConcatenateFolderAndFileName(left_image_dir, image_name));
@@ -37,8 +35,6 @@ size_t Dataset::GetDatasetLength(){
 
 bool Dataset::GetData(size_t idx, cv::Mat& left_image, cv::Mat& right_image, double& timestamp){
   if(idx >= _left_images.size()) return false;
-  std::cout << "left_image = " << _left_images[idx] << std::endl;
-  std::cout << "right_image = " << _right_images[idx] << std::endl;
   if(!FileExists(_left_images[idx]) || !FileExists(_right_images[idx])) return false;
   left_image = cv::imread(_left_images[idx], 0);
   right_image = cv::imread(_right_images[idx], 0);

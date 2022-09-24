@@ -8,8 +8,6 @@
 #include "camera.h"
 #include "timer.h"
 
-INITIALIZE_TIMER;
-
 void FilterShortLines(std::vector<Eigen::Vector4f>& lines, float length_thr){
   Eigen::Array4Xf line_array = Eigen::Map<Eigen::Array4Xf, Eigen::Unaligned>(lines[0].data(), 4, lines.size());
   Eigen::ArrayXf length_square = (line_array.row(2) - line_array.row(0)).square() + (line_array.row(3) - line_array.row(1)).square();
@@ -64,7 +62,7 @@ double CVPointLineDistance3D(const std::vector<cv::Point3f> points, const cv::Ve
     y = points[j].y - py;
     z = points[j].z - pz;
 
-   // cross ?
+   // cross 
     p(0) = vy * z - vz * y;
     p(1) = vz * x - vx * z;
     p(2) = vx * y - vy * x;
@@ -185,7 +183,6 @@ void AssignPointsToLines(std::vector<Eigen::Vector4d>& lines, Eigen::Matrix<doub
   for(int i = 0, line_num = lines.size(); i < line_num; i++){
     std::map<int, double> points_on_line;
     for(int j = 0, point_num = points.cols(); j < point_num; j++){
-      // if(!good_distances(i, j)) continue;
       // filter by x, y
       double lx1 = x1(i);
       double ly1 = y1(i);
@@ -275,7 +272,6 @@ void MatchLines(const std::vector<std::map<int, double>>& points_on_line0,
     line_matches[col_max_location] = j;
     line_match_num++;
   }
-  std::cout << "line_match_num = " << line_match_num << std::endl;
 }
 
 void SortPointsOnLine(std::vector<Eigen::Vector2d>& points, std::vector<size_t>& order, bool sort_by_x){
@@ -294,9 +290,6 @@ void SortPointsOnLine(std::vector<Eigen::Vector2d>& points, std::vector<size_t>&
 
 bool TrianguateByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& line_right, 
     const Eigen::Matrix4d& Twc, const CameraPtr& camera, Vector6d& line_3d){
-  // std::cout << "--------------------  TrianguateByStereo  ----------------" << std::endl;
-  // std::cout << "line_left = " << line_left.transpose() << std::endl;
-  // std::cout << "line_right = " << line_right.transpose() << std::endl;
   double x11 = line_left(0);
   double y11 = line_left(1);
   double x12 = line_left(2);
@@ -345,12 +338,8 @@ bool TrianguateByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d&
   double max_x_diff = camera->MaxXDiff();
   if(dx1 < min_x_diff || dx1 > max_x_diff || dx2 < min_x_diff || dx2 > max_x_diff) return false;
 
-  // std::cout << "BackProjectStereo point_2d1 = " << point_2d1.transpose() << std::endl;
-  // std::cout << "BackProjectStereo point_2d2 = " << point_2d2.transpose() << std::endl;
   camera->BackProjectStereo(point_2d1, point_3d1);
   camera->BackProjectStereo(point_2d2, point_3d2);
-  // std::cout << "BackProjectStereo point_3d1 = " << point_3d1.transpose() << std::endl;
-  // std::cout << "BackProjectStereo point_3d2 = " << point_3d2.transpose() << std::endl;
 
   // form camera to world
   Eigen::Matrix3d Rwc = Twc.block<3, 3>(0, 0);
@@ -359,13 +348,6 @@ bool TrianguateByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d&
   point_3d2 = Rwc * point_3d2 + twc;
   line_3d << point_3d1, point_3d2;
 
-
-  // std::cout << "final Rwc = " << Rwc << std::endl;
-  // std::cout << "final twc = " << twc.transpose() << std::endl;
-  // std::cout << "final point_3d1 = " << point_3d1.transpose() << std::endl;
-  // std::cout << "final point_3d2 = " << point_3d2.transpose() << std::endl;
-  // std::cout << "--------------------  End TrianguateByStereo  ----------------" << std::endl;
-
   return true;
 }
 
@@ -373,18 +355,9 @@ bool CompoutePlaneFromPoints(const Eigen::Vector3d& point1, const Eigen::Vector3
     const Eigen::Vector3d& point3, Eigen::Vector4d& plane){
   Eigen::Vector3d line12 = point2 - point1;
   Eigen::Vector3d line13 = point3 - point1;
-  std::cout << "------- CompoutePlaneFromPoints ---------" << std::endl;
-  std::cout << "point1 = " << point1.transpose() << std::endl;
-  std::cout << "point2 = " << point2.transpose() << std::endl;
-  std::cout << "point3 = " << point3.transpose() << std::endl;
-  std::cout << "line12 = " << line12.transpose() << std::endl;
-  std::cout << "line13 = " << line13.transpose() << std::endl;
   Eigen::Vector3d n = line12.cross(line13);
-  std::cout << "n = " << n.transpose() << std::endl;
   plane.head(3) = n.normalized();
   plane(3) = - n.transpose() * point1;
-  std::cout << "plane = " << plane.transpose() << std::endl;
-  std::cout << "------- End CompoutePlaneFromPoints ---------" << std::endl;
   return true;
 }
 
@@ -395,16 +368,11 @@ bool ComputeLineFramePlanes(const Eigen::Vector4d& plane1, const Eigen::Vector4d
   double cos_theta = n1.transpose() * n2;
   cos_theta /= (n1.norm() * n2.norm());
 
-  std::cout << "n1 = " << n1.transpose() << std::endl;
-  std::cout << "n2 = " << n2.transpose() << std::endl;
-  std::cout << "cos_theta = " << cos_theta << std::endl;
   // cos10 = cos170 = 0.9848
   // if(std::abs(cos_theta) > 0.9848) return false;
 
   Eigen::Vector3d d = n1.cross(n2);
   Eigen::Vector3d w = plane2(3) * n1 - plane1(3) * n2;
-  std::cout << "d = " << d.transpose() << std::endl;
-  std::cout << "w = " << w.transpose() << std::endl;
   line_3d->setD(d);
   line_3d->setW(w);
   line_3d->normalize();
@@ -413,7 +381,6 @@ bool ComputeLineFramePlanes(const Eigen::Vector4d& plane1, const Eigen::Vector4d
 
 bool TrianguateByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d& pose1, 
     const Eigen::Vector4d& line_2d2, const Eigen::Matrix4d& pose2, const CameraPtr& camera, Line3DPtr line_3d){
-  std::cout << "----------------TrianguateByTwoFrames-------------" << std::endl;
   Eigen::Matrix3d Rw1 = pose1.block<3, 3>(0, 0);
   Eigen::Vector3d tw1 = pose1.block<3, 1>(0, 3);
   Eigen::Matrix3d Rw2 = pose2.block<3, 3>(0, 0);
@@ -426,14 +393,10 @@ bool TrianguateByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4
   Eigen::Vector3d point11, point12, point13;
   camera->BackProjectMono(line_2d1.head(2), point11);
   camera->BackProjectMono(line_2d1.tail(2), point12);
-  // point11 << line_2d1.head(2), 1.0;
-  // point12 << line_2d1.tail(2), 1.0;
   point13 << 0.0, 0.0, 0.0;
   if(!CompoutePlaneFromPoints(point11, point12, point13, plane1)) return false;
 
   Eigen::Vector3d point21, point22;
-  // point21 << line_2d2.head(2), 1.0;
-  // point22 << line_2d2.tail(2), 1.0;
   camera->BackProjectMono(line_2d2.head(2), point21);
   camera->BackProjectMono(line_2d2.tail(2), point22);
 
@@ -450,13 +413,6 @@ bool TrianguateByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4
   line_3d_w.normalize();
   line_3d->setW(line_3d_w.w());
   line_3d->setD(line_3d_w.d());
-
-  std::cout << "plane1 = " << plane1.transpose() << std::endl;
-  std::cout << "plane2 = " << plane2.transpose() << std::endl;
-  std::cout << "success = " << success << std::endl;
-  std::cout << "line_3d = " << line_3d->toCartesian().transpose() << std::endl;
-  std::cout << "----------------End TrianguateByTwoFrames-------------" << std::endl;
-
   return success;
 }
 
@@ -490,12 +446,10 @@ bool Point2DTo3D(const Eigen::Vector3d& anchor_point_3d1, const Eigen::Vector3d&
 
 LineDetector::LineDetector(const LineDetectorConfig &line_detector_config): _line_detector_config(line_detector_config){
   fld = cv::ximgproc::createFastLineDetector(line_detector_config.length_threshold, line_detector_config.distance_threshold, 
-      // line_detector_config.canny_th1, line_detector_config.canny_th2, line_detector_config.canny_aperture_size, line_detector_config.do_merge);
       line_detector_config.canny_th1, line_detector_config.canny_th2, line_detector_config.canny_aperture_size, false);
 }
 
 void LineDetector::LineExtractor(cv::Mat& image, std::vector<Eigen::Vector4d>& lines){
-  START_TIMER;
   std::vector<Eigen::Vector4f> source_lines, dst_lines;
   std::vector<cv::Vec4f> cv_lines;
   cv::Mat smaller_image;
@@ -504,12 +458,9 @@ void LineDetector::LineExtractor(cv::Mat& image, std::vector<Eigen::Vector4d>& l
   for(auto& cv_line : cv_lines){
     source_lines.emplace_back(cv_line[0]*2, cv_line[1]*2, cv_line[2]*2, cv_line[3]*2);
   }
-  STOP_TIMER("Line detect");
-  START_TIMER;
 
   if(_line_detector_config.do_merge){
     std::vector<Eigen::Vector4f> tmp_lines;
-    // FilterShortLines(source_lines, 5);
     MergeLines(source_lines, tmp_lines, 0.05, 5, 15);
     FilterShortLines(tmp_lines, 30);
     MergeLines(tmp_lines, dst_lines, 0.03, 3, 50);
@@ -523,7 +474,6 @@ void LineDetector::LineExtractor(cv::Mat& image, std::vector<Eigen::Vector4d>& l
       lines.push_back(line.cast<double>());
     }
   }
-  STOP_TIMER("Merge");
 }
 
 void LineDetector::MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::vector<Eigen::Vector4f>& dst_lines,
@@ -687,7 +637,6 @@ void LineDetector::MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::v
       new_cluster_ids.push_back(sub_cluster);
     }
   }
-
 
   // merge clusters
   dst_lines.clear();
