@@ -1,0 +1,73 @@
+superpoint:
+  max_keypoints: 500
+  keypoint_threshold: 0.004
+  remove_borders: 4 
+  input_tensor_names: 
+    - "input"
+  output_tensor_names:
+    - "scores"
+    - "descriptors"
+  onnx_file: "superpoint_v1_sim_int32.onnx"
+  engine_file: "superpoint_v1_sim_int32.engine"
+  dla_core: -1
+
+superglue:
+  image_width: 752
+  image_height: 480
+  input_tensor_names:
+    - "keypoints_0"
+    - "scores_0"
+    - "descriptors_0"
+    - "keypoints_1"
+    - "scores_1"
+    - "descriptors_1"
+  output_tensor_names:
+    - "scores"
+  onnx_file: "superglue_outdoor_sim_int32.onnx"
+  engine_file: "superglue_outdoor_sim_int32.engine"
+  dla_core: -1
+
+line_detector:
+  length_threshold: 7
+  distance_threshold : 1.414213562
+  canny_th1: 50.0
+  canny_th2: 50.0
+  canny_aperture_size: 3
+  do_merge: 1
+  # line_merger
+  angle_thr: 0.1 # 5 degree
+  distance_thr: 15
+  ep_thr: 30
+
+keyframe:
+  min_num_match: 10
+  max_num_match: 80
+  max_distance: 0.5
+  max_angle: 0.52
+
+optimization:
+  tracking:
+    mono_point: 50
+    stereo_point: 75
+    mono_line: 50
+    stereo_line: 75
+    rate: 0.5
+  backend:
+    mono_point: 50
+    stereo_point: 75
+    mono_line: 50
+    stereo_line: 75
+    rate: 0.5
+
+ros_publisher:
+  feature: 1
+  feature_topic: "/AirSLAM/feature"
+  frame_pose: 1
+  frame_pose_topic: "/AirSLAM/frame_pose"
+  keyframe: 1
+  keyframe_topic: "/AirSLAM/keyframe"
+  path_topic: "/AirSLAM/odometry"
+  map: 1
+  map_topic: "/AirSLAM/map"
+  mapline: 1
+  mapline_topic: "/AirSLAM/mapline"
