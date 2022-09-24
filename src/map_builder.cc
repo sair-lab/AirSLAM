@@ -214,10 +214,12 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     Eigen::AngleAxisd angle_axis(delta_R); 
     double delta_angle = angle_axis.angle();
     double delta_distance = (current_t - last_t).norm();
+    int passed_frame_num = frame->GetFrameId() - _last_keyframe->GetFrameId();
 
     bool not_enough_match = (num_match < _configs.keyframe_config.max_num_match);
     bool large_delta_angle = (delta_angle > _configs.keyframe_config.max_angle);
     bool large_distance = (delta_distance > _configs.keyframe_config.max_distance);
+    bool enough_passed_frame = (passed_frame_num > _configs.keyframe_config.max_num_passed_frame);
 
     std::cout << "last_t = " << last_t.transpose() << std::endl; 
     std::cout << "current_t = " << current_t.transpose() << std::endl; 
@@ -231,7 +233,7 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     std::cout << "not_enough_match = " << not_enough_match 
               << "  large_delta_angle = " << large_delta_angle
               << "  large_distance = " << large_distance << std::endl;
-    if(!(not_enough_match || large_delta_angle || large_distance)) return;
+    if(!(not_enough_match || large_delta_angle || large_distance || enough_passed_frame)) return;
   }
 
   InsertKeyframe(frame);
