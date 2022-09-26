@@ -1,7 +1,4 @@
 # Demo
-
-<a href="https://youtu.be/ZBggy5syysY" target="_blank"></a>
-
 [Video demo](https://www.youtube.com/watch?v=ZBggy5syysY)
 
 # Dependencies:
