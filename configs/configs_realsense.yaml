@@ -62,13 +62,13 @@ optimization:
 
 ros_publisher:
   feature: 1
-  feature_topic: "/AirSLAM/feature"
+  feature_topic: "/AirVO/feature"
   frame_pose: 1
-  frame_pose_topic: "/AirSLAM/frame_pose"
+  frame_pose_topic: "/AirVO/frame_pose"
   keyframe: 1
-  keyframe_topic: "/AirSLAM/keyframe"
-  path_topic: "/AirSLAM/odometry"
+  keyframe_topic: "/AirVO/keyframe"
+  path_topic: "/AirVO/odometry"
   map: 1
-  map_topic: "/AirSLAM/map"
+  map_topic: "/AirVO/map"
   mapline: 1
-  mapline_topic: "/AirSLAM/mapline"
+  mapline_topic: "/AirVO/mapline"
