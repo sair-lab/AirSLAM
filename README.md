@@ -1,4 +1,4 @@
-# Demo
+# AirVO: An Illumination-Robust Point-Line Visual Odometry
 [Video demo](https://www.youtube.com/watch?v=ZBggy5syysY)
 
 # Dependencies:
