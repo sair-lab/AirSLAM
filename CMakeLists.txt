@@ -6,6 +6,8 @@ set(CMAKE_BUILD_TYPE "release")
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 add_definitions(-w)
 
+add_subdirectory(${PROJECT_SOURCE_DIR}/Thirdparty/TensorRTBuffer)
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -26,7 +28,6 @@ find_package(CUDA REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(Boost REQUIRED)
 find_package(G2O REQUIRED)
-# find_package(gflags REQUIRED)
 find_package(Gflags REQUIRED)
 find_package(Glog REQUIRED)
 
@@ -74,7 +75,6 @@ add_library(${PROJECT_NAME}_lib SHARED
 target_link_libraries(${PROJECT_NAME}_lib
   nvinfer
   nvonnxparser
-  ${PROJECT_SOURCE_DIR}/Thirdparty/TensorRTBuffer/lib/libTensorRTBuffer.so
   ${OpenCV_LIBRARIES}
   ${CUDA_LIBRARIES}
   ${Boost_LIBRARIES}
@@ -82,6 +82,7 @@ target_link_libraries(${PROJECT_NAME}_lib
   ${GFLAGS_LIBRARIES} 
   ${GLOG_LIBRARIES}
   yaml-cpp
+  TensorRTBuffer
 )
 
 add_executable(${PROJECT_NAME} main.cpp)
