@@ -995,8 +995,6 @@ void Map::SearchByProjection(FramePtr frame, std::vector<MappointPtr>& mappoints
 
     const double distance_threshold = 0.35;
     const double ratio_threshold = 0.6;
-    if(best_dist < distance_threshold) debug_vec(3) += 1;
-    if(best_dist < ratio_threshold * second_dist) debug_vec(4) += 1;
     if(best_dist < distance_threshold && best_dist < ratio_threshold * second_dist){
       // frame->InsertMappoint(best_idx, mpt);
       good_projections.emplace_back(best_idx, mpt);
