@@ -44,7 +44,7 @@ keyframe:
   max_num_match: 80
   max_distance: 0.5
   max_angle: 0.52
-  max_num_passed_frame: 30
+  max_num_passed_frame: 25
 
 optimization:
   tracking:
