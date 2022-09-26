@@ -44,19 +44,20 @@ keyframe:
   max_num_match: 80
   max_distance: 0.5
   max_angle: 0.52
+  max_num_passed_frame: 25
 
 optimization:
   tracking:
-    mono_point: 50
-    stereo_point: 75
-    mono_line: 50
-    stereo_line: 75
+    mono_point: 25
+    stereo_point: 37
+    mono_line: 25
+    stereo_line: 37
     rate: 0.5
   backend:
-    mono_point: 50
-    stereo_point: 75
-    mono_line: 50
-    stereo_line: 75
+    mono_point: 25
+    stereo_point: 37
+    mono_line: 25
+    stereo_line: 37
     rate: 0.5
 
 ros_publisher:

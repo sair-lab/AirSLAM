@@ -40,11 +40,11 @@ line_detector:
   ep_thr: 30
 
 keyframe:
-  min_num_match: 15
+  min_num_match: 10
   max_num_match: 80
-  # max_num_match: 150
   max_distance: 0.5
   max_angle: 0.52
+  max_num_passed_frame: 300
 
 optimization:
   tracking:

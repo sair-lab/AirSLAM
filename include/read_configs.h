@@ -44,6 +44,7 @@ struct KeyframeConfig {
   int max_num_match;
   double max_distance;
   double max_angle;
+  int max_num_passed_frame;
 };
 
 struct OptimizationConfig{
@@ -146,6 +147,7 @@ struct Configs{
     keyframe_config.max_num_match = keyframe_node["max_num_match"].as<int>();
     keyframe_config.max_distance = keyframe_node["max_distance"].as<double>();
     keyframe_config.max_angle = keyframe_node["max_angle"].as<double>();
+    keyframe_config.max_num_passed_frame = keyframe_node["max_num_passed_frame"].as<int>();
 
     YAML::Node tracking_optimization_node = file_node["optimization"]["tracking"];
     tracking_optimization_config.mono_point = tracking_optimization_node["mono_point"].as<double>();
