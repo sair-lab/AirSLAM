@@ -1,3 +1,6 @@
+# Demo
+[Video demo](https://www.youtube.com/watch?v=ZBggy5syysY)
+
 # Dependencies:
 * OpenCV
 * Eigen
@@ -11,6 +14,7 @@
 * Glog
 * Gflag
 
+
 # Docker     
 ```bash
 docker push xukuanhit/air_slam:v1
@@ -20,11 +24,24 @@ docker run -it --env DISPLAY=$DISPLAY --volume /tmp/.X11-unix:/tmp/.X11-unix:rw 
 # Data
 Euroc style stereo data.
 
+
 # Build
 Build the code as a ros package.
 
+
 # Run 
-Modify the [config file](config/configs_euroc.yaml), [camera file](config/euroc.yaml) and run  
+
+## OIVIO Dataset
+```
+roslaunch air_vo oivio.launch 
+```
+
+## UMA-VI Dataset
+```
+roslaunch air_vo uma_bumblebee_indoor.launch 
+```
+
+## Euroc Dataset
 ```
 roslaunch air_vo euroc.launch 
 ```
