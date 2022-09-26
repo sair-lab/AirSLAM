@@ -1,9 +1,6 @@
 #ifndef MAP_H_
 #define MAP_H_
 
-// #include <ros/ros.h>
-// #include <ros/package.h>
-// #include <cv_bridge/cv_bridge.h>
 #include <opencv2/highgui/highgui.hpp>
 
 #include "read_configs.h"
@@ -30,7 +27,6 @@ public:
   bool TriangulateMappoint(MappointPtr mappoint);
   bool TriangulateMaplineByMappoints(MaplinePtr mapline);
   bool UpdateMappointDescriptor(MappointPtr mappoint);
-  // void SlidingWindowOptimization(FramePtr new_frame);
   void SearchNeighborFrames(FramePtr frame, std::vector<FramePtr>& neighbor_frames);
   void AddFrameVertex(FramePtr frame, MapOfPoses& poses, bool fix_this_frame);
   void LocalMapOptimization(FramePtr new_frame);

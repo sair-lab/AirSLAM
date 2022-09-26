@@ -25,8 +25,6 @@ void EdgeStereoSE3ProjectLine::computeError() {
   const VertexLine3D *v2 = static_cast<const VertexLine3D *>(_vertices[0]);
   Vector8d obs(_measurement);
   Eigen::Vector4d error;
-
-  // g2o::Isometry3 T_left = v1->estimate().Isometry3();
   g2o::Isometry3 T_left = g2o::internal::fromSE3Quat(v1->estimate());
   Eigen::Vector3d line_2d_left = cam_project(T_left * v2->estimate());
   double line_2d_norm_left = line_2d_left.head(2).norm();

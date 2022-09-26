@@ -44,7 +44,6 @@ struct KeyframeMessage{
   double time;
   std::vector<int> ids;
   std::vector<Eigen::Matrix4d> poses;
-  // Eigen::Matrix4Xd poses;
 };
 typedef std::shared_ptr<KeyframeMessage> KeyframeMessagePtr;
 typedef std::shared_ptr<const KeyframeMessage> KeyframeMessageConstPtr;
@@ -56,7 +55,6 @@ struct MapMessage{
   bool reset;
   std::vector<int> ids;
   std::vector<Eigen::Vector3d> points;
-  // Eigen::Matrix3Xd points;
 };
 typedef std::shared_ptr<MapMessage> MapMessagePtr;
 typedef std::shared_ptr<const MapMessage> MapMessageConstPtr;

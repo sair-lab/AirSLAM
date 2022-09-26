@@ -373,34 +373,6 @@ bool Frame::TrianguateStereoLine(size_t idx, Vector6d& endpoints){
   return TrianguateByStereo(_lines[idx], _lines_right[idx], _pose, _camera, endpoints);
 }
 
-// bool Frame::TrianguateLineByPoints(size_t idx, Vector6d& endpoints){
-//   if(idx >= _points_on_lines.size()) return false;
-//   std::map<int, double> points_on_line = _points_on_lines[idx];
-//   if(points_on_line.size() < 2) return false;
-//   std::vector<std::pair<int, double>> good_points;
-//   std::map<double, int> good_points;
-//   for(auto& kv : points_on_line){
-//     size_t point_idx = kv.first;
-//     if(_depth[point_idx] <= 0) continue;
-//     good_points.push_back(kv);
-//   }
-//   if(good_points.size() < 2) return false;
-
-
-//   // sort
-//   std::vector<size_t> order;
-//   order.resize(good_points.size());
-//   std::iota(order.begin(), order.end(), 0);       
-//   std::sort(order.begin(), order.end(), [&good_points](size_t i1, size_t i2) { return good_points[i1].second < good_points[i2].second; });
-
-//   // select points
-  
-//   for(size_t i = 0; i < order.size(); i++){
-//     size_t ii = order[i];
-
-//   }
-// }
-
 void Frame::RemoveMapline(MaplinePtr mapline){
   RemoveMapline(mapline->GetLineIdx(_frame_id));
 }

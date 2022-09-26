@@ -87,10 +87,4 @@ private:
   bool shutdown_requested;
 };
 
-// // publish function
-// std::function<void(const FrameMatchMsg::ConstPtr&)> publish_feature_tracking_function = 
-//     [&](const FrameMatchMsg::ConstPtr& feature_tracking_msg){
-//   PublishFeatureTracking(feature_tracking_msg);
-// };
-
 #endif  // THREAD_PUBLISHER_H_

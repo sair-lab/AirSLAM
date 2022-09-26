@@ -252,8 +252,6 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
   } 
 }
 
-
-
 int FrameOptimization(MapOfPoses& poses, MapOfPoints3d& points, std::vector<CameraPtr>& camera_list, 
     VectorOfMonoPointConstraints& mono_point_constraints, VectorOfStereoPointConstraints& stereo_point_constraints,
     const OptimizationConfig& cfg){
@@ -346,7 +344,6 @@ int FrameOptimization(MapOfPoses& poses, MapOfPoints3d& points, std::vector<Came
       }
 
       const float chi2 = e->chi2();
-      // if(chi2 > chi2Mono[iter]){                
       if(chi2 > cfg.mono_point){                
         mono_point_constraints[i]->inlier = false;
         e->setLevel(1);
@@ -368,7 +365,6 @@ int FrameOptimization(MapOfPoses& poses, MapOfPoints3d& points, std::vector<Came
       }
 
       const float chi2 = e->chi2();
-      // if(chi2 > chi2Mono[iter]){                
       if(chi2 > cfg.stereo_point){                
         stereo_point_constraints[i]->inlier = false;
         e->setLevel(1);
