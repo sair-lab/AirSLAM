@@ -16,7 +16,7 @@
 
 # Docker     
 ```bash
-docker push xukuanhit/air_slam:v1
+docker pull xukuanhit/air_slam:v1
 docker run -it --env DISPLAY=$DISPLAY --volume /tmp/.X11-unix:/tmp/.X11-unix:rw --privileged --network host --runtime nvidia --gpus all --volume ${PWD}:/workspace --workdir /workspace --name air_slam xukuanhit/air_slam:v1 /bin/bash
 ```
 
