@@ -80,12 +80,12 @@ dataroot
 
 ## Run 
 
-### [OIVIO Dataset](http://mapir.isa.uma.es/mapirwebsite/?p=2108)
+### [OIVIO Dataset](https://arpg.github.io/oivio/)
 ```
 roslaunch air_vo oivio.launch 
 ```
 
-### [UMA-VI Dataset](https://arpg.github.io/oivio/)
+### [UMA-VI Dataset](http://mapir.isa.uma.es/mapirwebsite/?p=2108)
 ```
 roslaunch air_vo uma_bumblebee_indoor.launch 
 ```
