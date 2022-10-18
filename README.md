@@ -47,7 +47,7 @@ We also test AirVO on sequences collected by Realsense D435I in the environment 
 ### Docker (Recommend)
 ```bash
 docker pull xukuanhit/air_slam:v1
-docker run -it --env DISPLAY=$DISPLAY --volume /tmp/.X11-unix:/tmp/.X11-unix:rw --privileged --network host --runtime nvidia --gpus all --volume ${PWD}:/workspace --workdir /workspace --name air_slam xukuanhit/air_slam:v1 /bin/bash
+docker run -it --env DISPLAY=$DISPLAY --volume /tmp/.X11-unix:/tmp/.X11-unix --privileged --network host --runtime nvidia --gpus all --volume ${PWD}:/workspace --workdir /workspace --name air_slam xukuanhit/air_slam:v1 /bin/bash
 ```
 
 ## Data
