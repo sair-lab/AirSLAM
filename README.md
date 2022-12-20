@@ -10,7 +10,7 @@ AirVO is an **illumination-robust** and accurate **stereo visual odometry system
 
 ## Related Papers
 
-* **AirVO: An Illumination-Robust Point-Line Visual Odometry**, Kuan Xu and Yuefan Hao, Chen Wang and Lihua Xie, arXiv preprint arXiv:2212.07595, 2022, [pdf](https://arxiv.org/abs/2212.07595)
+**AirVO: An Illumination-Robust Point-Line Visual Odometry**, Kuan Xu and Yuefan Hao, Chen Wang and Lihua Xie, arXiv preprint arXiv:2212.07595, 2022. [pdf](https://arxiv.org/abs/2212.07595)
 
 If you use AirVO, please cite:
 
