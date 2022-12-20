@@ -8,6 +8,20 @@ AirVO is an **illumination-robust** and accurate **stereo visual odometry system
 **Authors:** [Kuan Xu](https://github.com/xukuanHIT), [Yuefan Hao](https://github.com/yuefanhao), [Chen Wang](https://chenwang.site/), and [Lihua Xie](https://personal.ntu.edu.sg/elhxie/)
 
 
+## Related Papers
+
+If you use AirVO, please cite the paper below. You may also [download it here](https://arxiv.org/abs/2212.07595).
+
+```bibtex
+@article{xu2022airvo,
+  title={AirVO: An Illumination-Robust Point-Line Visual Odometry},
+  author={Xu, Kuan and Hao, Yuefan and Wang, Chen and Xie, Lihua},
+  journal={arXiv preprint arXiv:2212.07595},
+  year={2022}
+}
+```
+
+
 ## Demos
 
 ### UMA-VI dataset
