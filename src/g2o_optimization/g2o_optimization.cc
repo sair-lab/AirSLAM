@@ -223,7 +223,7 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
 
   for(size_t i = 0; i < mono_line_edges.size(); i++){
     EdgeSE3ProjectLine* e = mono_line_edges[i];
-    mono_line_constraints[i]->inlier = (e->chi2() <= cfg.mono_point);
+    mono_line_constraints[i]->inlier = (e->chi2() <= cfg.mono_line);
   }
 
   for(size_t i = 0; i < stereo_line_edges.size(); i++){    
