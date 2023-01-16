@@ -29,6 +29,7 @@ public:
 
   // pose_init = 0 : opencv pnp, pose_init = 1 : last frame pose, pose_init = 2 : original pose
   int FramePoseOptimization(FramePtr frame, std::vector<MappointPtr>& mappoints, std::vector<int>& inliers, int pose_init = 0);
+  bool AddKeyframe(FramePtr last_keyframe, FramePtr current_frame, int num_match);
   void InsertKeyframe(FramePtr frame);
 
   // for tracking local map
@@ -37,6 +38,8 @@ public:
   void UpdateLocalMappoints(FramePtr frame);
   void SearchLocalPoints(FramePtr frame, std::vector<std::pair<int, MappointPtr>>& good_projections);
   int TrackLocalMap(FramePtr frame, int num_inlier_thr);
+
+  void PublishFrame(FramePtr frame, cv::Mat& image);
 
   void SaveTrajectory();
   void SaveTrajectory(std::string file_path);

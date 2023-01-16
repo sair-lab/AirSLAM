@@ -100,6 +100,9 @@ public:
 
   std::vector<std::pair<int, std::shared_ptr<Frame>>> GetOrderedConnections(int number);
 
+  void SetPreviousFrame(const std::shared_ptr<Frame> previous_frame);
+  std::shared_ptr<Frame> PreviousFrame();
+  
 public:
   int tracking_frame_id;
   int local_map_optimization_frame_id;
@@ -142,6 +145,7 @@ private:
   std::set<std::pair<int, std::shared_ptr<Frame>>> _ordered_connections;
   std::shared_ptr<Frame> _parent;
   std::shared_ptr<Frame> _child;
+  std::shared_ptr<Frame> _previous_frame;
 };
 
 typedef std::shared_ptr<Frame> FramePtr;
