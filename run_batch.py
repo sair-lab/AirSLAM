@@ -6,7 +6,7 @@ def MakeDir(nd):
 
 
 dataroot = "/data/xukuan/euroc/seq"
-saving_root = "/home/xukuan/project/air_vio/debug/air_vo+"
+saving_root = "/home/xukuan/project/air_vo/experiments/resubmit"
 workspace = "/home/xukuan/project/air_vo/air_vo_ws"
 traj_gt_dir = "/home/xukuan/project/air_vo/experiments/traj_gt/euroc"
 
