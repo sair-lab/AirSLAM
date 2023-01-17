@@ -457,3 +457,11 @@ std::vector<std::pair<int, std::shared_ptr<Frame>>> Frame::GetOrderedConnections
   int n = (number > 0 && number < _ordered_connections.size()) ? number : _ordered_connections.size();
   return std::vector<std::pair<int, std::shared_ptr<Frame>>>(_ordered_connections.begin(), std::next(_ordered_connections.begin(), n));
 }
+
+void Frame::SetPreviousFrame(std::shared_ptr<Frame> previous_frame){
+  _previous_frame = previous_frame;
+}
+
+std::shared_ptr<Frame> Frame::PreviousFrame(){
+  return _previous_frame;
+}

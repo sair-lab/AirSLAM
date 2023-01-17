@@ -5,10 +5,10 @@ def MakeDir(nd):
     os.mkdir(nd)
 
 
-dataroot = "/media/xukuan/something2/ubuntu_files/data/AirSLAM/batch_test/data"
-saving_root = "/media/xukuan/something2/ubuntu_files/data/AirSLAM/batch_test/saving"
-workspace = "/media/xukuan/something2/ubuntu_files/project/AirSLAM/catkin_ws"
-traj_gt_dir = "/media/xukuan/something2/ubuntu_files/data/AirSLAM/batch_test/gt"
+dataroot = "/data/xukuan/euroc/seq"
+saving_root = "/home/xukuan/project/air_vio/debug/air_vo+"
+workspace = "/home/xukuan/project/air_vo/air_vo_ws"
+traj_gt_dir = "/home/xukuan/project/air_vo/experiments/traj_gt/euroc"
 
 MakeDir(saving_root)
 traj_saving_root = os.path.join(saving_root, "traj")
