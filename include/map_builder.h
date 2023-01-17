@@ -58,7 +58,7 @@ private:
   cv::Mat _last_image;
   cv::Mat _last_keyimage;
 
-  Pose3d _last_pose;
+  Pose3d _last_pose; 
 
   // for tracking local map
   bool _to_update_local_map;
