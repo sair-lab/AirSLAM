@@ -56,30 +56,10 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   std::vector<cv::DMatch> stereo_matches;
   StereoMatch(features_left, features_right, stereo_matches);
 
-  // // for debug
-  // SaveStereoMatchResult(image_left_rect, image_right_rect, 
-  //     features_left, features_right, stereo_matches, _configs.saving_dir, frame_id);
-  // ////////////////////////
-
   // construct frame
   FramePtr frame = std::shared_ptr<Frame>(new Frame(frame_id, false, _camera, timestamp));
   frame->AddFeatures(features_left, features_right, lines_left, lines_right, stereo_matches);
   std::cout << "Detected feature point number = " << features_left.cols() << std::endl;
-
-  // // // for debug
-  // SaveStereoLineMatch(image_left_rect, image_right_rect, features_left, features_right, 
-  //     lines_left, lines_right, frame->relation_left, frame->relation_right, 
-  //     frame->line_left_to_right_match, _configs.saving_dir, std::to_string(frame_id));
-  // // //////////////////////////
-
-  // // message
-  // std::vector<cv::KeyPoint>& keypoints = frame->GetAllKeypoints();
-  // FeatureMessgaePtr feature_message = std::shared_ptr<FeatureMessgae>(new FeatureMessgae);
-  // feature_message->image = image_left_rect;
-  // feature_message->keypoints = keypoints;
-  // feature_message->lines = frame->GatAllLines();
-  // feature_message->points_on_lines = frame->GetPointsOnLines();
-  // FramePoseMessagePtr frame_pose_message = std::shared_ptr<FramePoseMessage>(new FramePoseMessage);
 
   // init
   if(!_init){
@@ -114,6 +94,13 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   }
   frame->SetPreviousFrame(_last_keyframe);
 
+  // int track_local_map_num = TrackLocalMap(frame, num_match);
+  // UpdateReferenceFrame(frame);
+  // num_match = (track_local_map_num > 0) ? track_local_map_num : num_match;
+
+  // for debug 
+  // SaveTrackingResult(_last_keyimage, image_left, _last_keyframe, frame, matches, _configs.saving_dir);
+
   PublishFrame(frame, image_left_rect);
   _last_frame_track_well = true;
 
@@ -124,115 +111,6 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
 
   _last_frame = frame;
   _last_image = image_left_rect;
-
-  // if(!_init){
-  //   if(stereo_matches.size() < 100) return;
-  //   _init = Init(frame);
-  //   if(_init){
-  //     _last_frame = frame;
-  //     _last_image = image_left_rect;
-  //     _last_keyimage = image_left_rect;
-  //     Eigen::Matrix4d frame_pose = frame->GetPose();
-  //     _last_pose.p = frame_pose.block<3, 1>(0, 3);
-  //     _last_pose.q = frame_pose.block<3, 3>(0, 0);
-  //     feature_message->inliers = std::vector<bool>(keypoints.size(), true);
-  //     frame_pose_message->pose = frame->GetPose();
-  //     _last_frame_track_well = true;
-  //   }else{
-  //     feature_message->inliers = std::vector<bool>(keypoints.size(), false);
-  //     frame_pose_message->pose = Eigen::Matrix4d::Identity();
-  //     _last_frame_track_well = false;
-  //   }
-  //   feature_message->line_track_ids = frame->GetAllLineTrackId();
-  //   _ros_publisher->PublishFeature(feature_message);
-  //   _ros_publisher->PublishFramePose(frame_pose_message);
-  //   return;
-  // }
-
-  // // first track with last keyframe
-  // bool track_keyframe = true;
-  // std::vector<cv::DMatch> matches;
-  // int num_match = TrackFrame(_last_keyframe, frame, matches);
-  // if(num_match < _configs.keyframe_config.min_num_match){
-  //   if(_num_since_last_keyframe > 1 && _last_frame_track_well){
-  //     // if failed, track with last frame
-  //     track_keyframe = false;
-  //     matches.clear();
-  //     num_match = TrackFrame(_last_frame, frame, matches);
-  //     if(num_match < _configs.keyframe_config.min_num_match){
-  //       InsertKeyframe(_last_frame);
-  //       _last_keyimage = _last_image;
-  //       Eigen::Matrix4d frame_pose = _last_frame->GetPose();
-  //       _last_pose.p = frame_pose.block<3, 1>(0, 3);
-  //       _last_pose.q = frame_pose.block<3, 3>(0, 0);
-  //       _last_frame_track_well = false;
-  //       return;
-  //     }
-  //   }else{
-  //     _last_frame_track_well = false;
-  //     return;
-  //   }
-  // }
-  // _last_frame_track_well = true;
-
-  // For debug
-  // DrawStereoLinePair(image_left_rect, image_right_rect, frame, _configs.saving_dir, std::to_string(frame_id));
-  
-  // int track_local_map_num = TrackLocalMap(frame, num_match);
-  // UpdateReferenceFrame(frame);
-  // num_match = (track_local_map_num > 0) ? track_local_map_num : num_match;
-
-  // // publish message
-  // {
-  //   std::vector<bool> inliers_feature_message;
-  //   frame->GetInlierFlag(inliers_feature_message);
-  //   feature_message->inliers = inliers_feature_message;
-  //   feature_message->line_track_ids = frame->GetAllLineTrackId();
-  //   _ros_publisher->PublishFeature(feature_message);
-
-  //   frame_pose_message->pose = frame->GetPose();
-  //   _ros_publisher->PublishFramePose(frame_pose_message);
-  // }
-
-  // // for debug 
-  // // if(track_keyframe){
-  // //   SaveTrackingResult(_last_keyimage, image_left, _last_keyframe, frame, matches, _configs.saving_dir);
-  // // }else{
-  // //   SaveTrackingResult(_last_image, image_left, _last_frame, frame, matches, _configs.saving_dir);
-  // // }
-  // // 
-
-  // // update last frame
-  // _last_frame = frame;
-  // _last_image = image_left_rect;
-  // Eigen::Matrix4d frame_pose = frame->GetPose();
-  // _last_pose.p = frame_pose.block<3, 1>(0, 3);
-  // _last_pose.q = frame_pose.block<3, 3>(0, 0);
-  // std::cout << "frame_pose = " << frame_pose.block<3, 1>(0, 3).transpose() << std::endl;
-
-  // if(track_keyframe){
-  //   // select keyframe
-  //   Eigen::Matrix4d& last_keyframe_pose = _last_keyframe->GetPose();
-  //   Eigen::Matrix3d last_R = last_keyframe_pose.block<3, 3>(0, 0);
-  //   Eigen::Vector3d last_t = last_keyframe_pose.block<3, 1>(0, 3);
-  //   Eigen::Matrix3d current_R = frame_pose.block<3, 3>(0, 0);
-  //   Eigen::Vector3d current_t = frame_pose.block<3, 1>(0, 3);
-
-  //   Eigen::Matrix3d delta_R = last_R.transpose() * current_R;
-  //   Eigen::AngleAxisd angle_axis(delta_R); 
-  //   double delta_angle = angle_axis.angle();
-  //   double delta_distance = (current_t - last_t).norm();
-  //   int passed_frame_num = frame->GetFrameId() - _last_keyframe->GetFrameId();
-
-  //   bool not_enough_match = (num_match < _configs.keyframe_config.max_num_match);
-  //   bool large_delta_angle = (delta_angle > _configs.keyframe_config.max_angle);
-  //   bool large_distance = (delta_distance > _configs.keyframe_config.max_distance);
-  //   bool enough_passed_frame = (passed_frame_num > _configs.keyframe_config.max_num_passed_frame);
-  //   if(!(not_enough_match || large_delta_angle || large_distance || enough_passed_frame)) return;
-  // }
-
-  // InsertKeyframe(frame);
-  // _last_keyimage = image_left_rect;
   return;
 }
 
@@ -399,17 +277,6 @@ int MapBuilder::FramePoseOptimization(
     Twc = _last_frame->GetPose();
   }
 
-  // // Solve PnP using opencv to get initial pose
-  // Eigen::Matrix4d cv_pose;
-  // int num_cv_inliers = 0;
-  // if(pose_init == 0){
-  //   std::vector<int> cv_inliers;
-  //   num_cv_inliers = SolvePnPWithCV(frame, mappoints, cv_pose, cv_inliers);
-  //   Eigen::Vector3d check_dp = cv_pose.block<3, 1>(0, 3) - _last_pose.p;
-  //   if(check_dp.norm() > 0.7) num_cv_inliers = 0;
-  // }
-
-
   // Second, optimization
   MapOfPoses poses;
   MapOfPoints3d points;
@@ -423,18 +290,6 @@ int MapBuilder::FramePoseOptimization(
   Pose3d pose;
   pose.p = Twc.block<3, 1>(0, 3);
   pose.q = Twc.block<3, 3>(0, 0);
-
-  // if(pose_init == 0 && num_cv_inliers > _configs.keyframe_config.min_num_match){
-  //   pose.p = cv_pose.block<3, 1>(0, 3);
-  //   pose.q = cv_pose.block<3, 3>(0, 0);
-  // }else if(pose_init == 2){
-  //   Eigen::Matrix4d& frame_pose = frame->GetPose();
-  //   pose.p = frame_pose.block<3, 1>(0, 3);
-  //   pose.q = frame_pose.block<3, 3>(0, 0);
-  // }else{
-  //   pose.p = _last_pose.p;
-  //   pose.q = _last_pose.q;
-  // }
   int frame_id = frame->GetFrameId();    
   poses.insert(std::pair<int, Pose3d>(frame_id, pose));  
 
@@ -593,59 +448,6 @@ void MapBuilder::UpdateLocalKeyframes(FramePtr frame){
   for(auto& kv : neighbor_frames){
     _local_keyframes.push_back(kv.second);
   }
-
-  // int current_frame_id = frame->GetFrameId();
-  // std::vector<MappointPtr>& mappoints = frame->GetAllMappoints();
-  // std::map<FramePtr, int> keyframes;
-  // for(MappointPtr mpt : mappoints){
-  //   if(!mpt || mpt->IsBad()) continue;
-  //   const std::map<int, int> obversers = mpt->GetAllObversers();
-  //   for(auto& kv : obversers){
-  //     int observer_id = kv.first;
-  //     if(observer_id == current_frame_id) continue;
-  //     FramePtr keyframe = _map->GetFramePtr(observer_id);
-  //     if(!keyframe) continue;
-  //     keyframes[keyframe]++;
-  //   }
-  // }
-  // if(keyframes.empty()) return;
-
-  // std::pair<FramePtr, int> max_covi = std::pair<FramePtr, int>(nullptr, -1);
-  // _local_keyframes.clear();
-  // _local_keyframes.reserve(3 * keyframes.size());
-  // for(auto& kv : keyframes){
-  //   if(kv.second > max_covi.second){
-  //     max_covi = kv;
-  //   }
-  //   _local_keyframes.push_back(kv.first);
-  //   kv.first->tracking_frame_id = current_frame_id;
-  // }
-
-  // for(std::vector<FramePtr>::const_iterator it = _local_keyframes.begin(), it_end = _local_keyframes.end(); it!=it_end; it++){
-  //   if(_local_keyframes.size() > 80) break;
-  //   FramePtr kf = *it;
-  //   std::vector<std::pair<int, std::shared_ptr<Frame>>> neighbors = kf->GetOrderedConnections(10);
-  //   for(auto& neighbor : neighbors){
-  //     if(neighbor.second->tracking_frame_id != current_frame_id){
-  //       neighbor.second->tracking_frame_id = current_frame_id;
-  //       _local_keyframes.push_back(neighbor.second);
-  //     }
-  //   }
-
-  //   FramePtr parent = kf->GetParent();
-  //   if(parent && parent->tracking_frame_id != current_frame_id){
-  //     _local_keyframes.push_back(parent);
-  //   }
-
-  //   FramePtr child = kf->GetParent();
-  //   if(child && child->tracking_frame_id != current_frame_id){
-  //     _local_keyframes.push_back(child);
-  //   }
-  // }
-
-  // if(!max_covi.first && (max_covi.second > 10)){
-  //   _ref_keyframe = max_covi.first;
-  // }
 }
 
 void MapBuilder::UpdateLocalMappoints(FramePtr frame){
