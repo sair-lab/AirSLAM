@@ -35,36 +35,14 @@ MapBuilder::MapBuilder(Configs& configs): _init(false), _track_id(0), _line_trac
 void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_right, double timestamp){
   // undistort image 
   cv::Mat image_left_rect, image_right_rect;
-
   _camera->UndistortImage(image_left, image_right, image_left_rect, image_right_rect);
-
-  // extract features
-  Eigen::Matrix<double, 259, Eigen::Dynamic> features_left, features_right;
-  std::vector<Eigen::Vector4d> lines_left, lines_right;
-  if(!_superpoint->infer(image_left_rect, features_left)){
-    std::cout << "Failed when extracting features of left image !" << std::endl;
-    return;
-  }
-  if(!_superpoint->infer(image_right_rect, features_right)){
-    std::cout << "Failed when extracting features of right image !" << std::endl;
-    return;
-  }
-  _line_detector->LineExtractor(image_left_rect, lines_left);
-  _line_detector->LineExtractor(image_right_rect, lines_right);
-
-  // stereo_match
-  std::vector<cv::DMatch> stereo_matches;
-  StereoMatch(features_left, features_right, stereo_matches);
 
   // construct frame
   FramePtr frame = std::shared_ptr<Frame>(new Frame(frame_id, false, _camera, timestamp));
-  frame->AddFeatures(features_left, features_right, lines_left, lines_right, stereo_matches);
-  std::cout << "Detected feature point number = " << features_left.cols() << std::endl;
 
   // init
   if(!_init){
-    if(stereo_matches.size() < 100) return;
-    _init = Init(frame);
+    _init = Init(frame, image_left_rect, image_right_rect);
     _last_frame_track_well = _init;
 
     if(_init){
@@ -76,8 +54,39 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     return;
   }
 
-  // first track with last keyframe
+  // extract features and track last keyframe
   std::vector<cv::DMatch> matches;
+  Eigen::Matrix<double, 259, Eigen::Dynamic> features_left, features_last_keyframe;
+  features_last_keyframe = _last_keyframe->GetAllFeatures();
+  std::vector<Eigen::Vector4d> lines_left;
+  ExtractFeatureAndMatch(image_left_rect, features_last_keyframe, features_left, lines_left, matches);
+  frame->AddLeftFeatures(features_left, lines_left);
+  std::cout << "Detected feature point number = " << features_left.cols() << std::endl;
+
+
+  // track
+  std::function<int()> track_last_frame = [&](){
+    if(_num_since_last_keyframe < 1 || !_last_frame_track_well) return -1;
+    // add superglue
+
+    InsertKeyframe(_last_frame);
+    _last_keyimage = _last_image;
+    matches.clear();
+    return TrackFrame(_last_frame, frame, matches);
+  };
+
+  int num_match = matches.size();
+  if(num_match < _configs.keyframe_config.min_num_match){
+    num_match = track_last_frame();
+  }else{
+    num_match = TrackFrame(_last_keyframe, frame, matches);
+    if(num_match < _configs.keyframe_config.min_num_match){
+      num_match = track_last_frame();
+    }
+  }
+  if(num_match < _configs.keyframe_config.min_num_match) return;
+
+  // first track with last keyframe
   int num_match = TrackFrame(_last_keyframe, frame, matches);
   if(num_match < _configs.keyframe_config.min_num_match){
     _last_frame_track_well = false;
@@ -114,7 +123,81 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   return;
 }
 
- void MapBuilder::StereoMatch(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
+
+void MapBuilder::ExtractFeatrue(const cv::Mat& image, Eigen::Matrix<double, 259, Eigen::Dynamic>& points, 
+    std::vector<Eigen::Vector4d>& lines){
+  std::function<void()> extract_point = [&](){
+    auto point1 = std::chrono::steady_clock::now();
+    if(!_superpoint->infer(image, points)){
+      std::cout << "Failed when extracting point features !" << std::endl;
+      return;
+    }
+    auto point2 = std::chrono::steady_clock::now();
+    auto point_time = std::chrono::duration_cast<std::chrono::milliseconds>(point2 - point1).count();
+    // std::cout << "One Frame point Time: " << point_time << " ms." << std::endl;
+  };
+
+  std::function<void()> extract_line = [&](){
+    auto line1 = std::chrono::steady_clock::now();
+    _line_detector->LineExtractor(image, lines);
+    auto line2 = std::chrono::steady_clock::now();
+    auto line_time = std::chrono::duration_cast<std::chrono::milliseconds>(line2 - line1).count();
+    // std::cout << "One Frame line Time: " << line_time << " ms." << std::endl;
+  };
+
+  auto feature1 = std::chrono::steady_clock::now();
+  std::thread point_ectraction_thread(extract_point);
+  std::thread line_ectraction_thread(extract_line);
+
+  point_ectraction_thread.join();
+  line_ectraction_thread.join();
+
+  // extract_point();
+  // extract_line();
+
+  auto feature2 = std::chrono::steady_clock::now();
+  auto feature_time = std::chrono::duration_cast<std::chrono::milliseconds>(feature2 - feature1).count();
+  // std::cout << "One Frame featrue Time: " << feature_time << " ms." << std::endl;
+
+}
+
+void MapBuilder::ExtractFeatureAndMatch(const cv::Mat& image, const Eigen::Matrix<double, 259, Eigen::Dynamic>& points0, 
+    Eigen::Matrix<double, 259, Eigen::Dynamic>& points1, std::vector<Eigen::Vector4d>& lines, std::vector<cv::DMatch>& matches){
+  std::function<void()> extract_point_and_match = [&](){
+    auto point1 = std::chrono::steady_clock::now();
+    if(!_superpoint->infer(image, points)){
+      std::cout << "Failed when extracting point features !" << std::endl;
+      return;
+    }
+
+    matches.clear();
+    _point_matching->MatchingPoints(points0, points1, matches);
+    auto point2 = std::chrono::steady_clock::now();
+    auto point_time = std::chrono::duration_cast<std::chrono::milliseconds>(point2 - point1).count();
+    // std::cout << "One Frame point Time: " << point_time << " ms." << std::endl;
+  };
+
+  std::function<void()> extract_line = [&](){
+    auto line1 = std::chrono::steady_clock::now();
+    _line_detector->LineExtractor(image, lines);
+    auto line2 = std::chrono::steady_clock::now();
+    auto line_time = std::chrono::duration_cast<std::chrono::milliseconds>(line2 - line1).count();
+    // std::cout << "One Frame line Time: " << line_time << " ms." << std::endl;
+  };
+
+  auto feature1 = std::chrono::steady_clock::now();
+  std::thread point_ectraction_thread(extract_point);
+  std::thread line_ectraction_thread(extract_line);
+
+  point_ectraction_thread.join();
+  line_ectraction_thread.join();
+
+  auto feature2 = std::chrono::steady_clock::now();
+  auto feature_time = std::chrono::duration_cast<std::chrono::milliseconds>(feature2 - feature1).count();
+  // std::cout << "One Frame featrue Time: " << feature_time << " ms." << std::endl;
+}
+
+void MapBuilder::StereoMatch(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
       Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<cv::DMatch>& matches){
   std::vector<cv::DMatch> superglue_matches;
   _point_matching->MatchingPoints(features_left, features_right, superglue_matches);
@@ -136,9 +219,18 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   }
 }
 
-bool MapBuilder::Init(FramePtr frame){
-  int feature_num = frame->FeatureNum();
+bool MapBuilder::Init(FramePtr frame, cv::Mat& image_left, cv::Mat& image_right){
+  // extract features
+  Eigen::Matrix<double, 259, Eigen::Dynamic> features_left, features_right;
+  std::vector<Eigen::Vector4d> lines_left, lines_right;
+  std::vector<cv::DMatch> stereo_matches;
+  ExtractFeatrue(image_left, features_left, lines_left);
+  int feature_num = features_left.cols();
   if(feature_num < 150) return false;
+  ExtractFeatureAndMatch(image_right, features_left, features_right, lines_right, stereo_matches);
+  frame->AddLeftFeatures(features_left, lines_left);
+  int stereo_point_num = frame->AddRightFeatures(features_right, lines_right, stereo_matches);
+  if(stereo_point_num < 100) return false;
 
   // Eigen::Matrix4d init_pose = Eigen::Matrix4d::Identity();
   Eigen::Matrix4d init_pose;
@@ -167,7 +259,6 @@ bool MapBuilder::Init(FramePtr frame){
       new_mappoints.push_back(mappoint);
     }
   }
-  if(stereo_point_num < 100) return false;
   frame->SetTrackIds(track_ids);
 
   // construct maplines
@@ -204,19 +295,28 @@ bool MapBuilder::Init(FramePtr frame){
 }
 
 int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMatch>& matches){
+
+  auto track0 = std::chrono::steady_clock::now();
   // point tracking
-  Eigen::Matrix<double, 259, Eigen::Dynamic>& features0 = frame0->GetAllFeatures();
-  Eigen::Matrix<double, 259, Eigen::Dynamic>& features1 = frame1->GetAllFeatures();
-  int num_match = _point_matching->MatchingPoints(features0, features1, matches);
+  // Eigen::Matrix<double, 259, Eigen::Dynamic>& features0 = frame0->GetAllFeatures();
+  // Eigen::Matrix<double, 259, Eigen::Dynamic>& features1 = frame1->GetAllFeatures();
+  // int num_match = _point_matching->MatchingPoints(features0, features1, matches);
   if(num_match < _configs.keyframe_config.min_num_match){
     return num_match;
   }
+  auto track1 = std::chrono::steady_clock::now();
 
   // line tracking
   std::vector<std::map<int, double>> points_on_lines0 = frame0->GetPointsOnLines();
   std::vector<std::map<int, double>> points_on_lines1 = frame1->GetPointsOnLines();
   std::vector<int> line_matches;
   MatchLines(points_on_lines0, points_on_lines1, matches, features0.cols(), features1.cols(), line_matches);
+  auto track2 = std::chrono::steady_clock::now();
+
+  auto point_track_time = std::chrono::duration_cast<std::chrono::milliseconds>(track1 - track0).count();
+  auto line_track_time = std::chrono::duration_cast<std::chrono::milliseconds>(track2 - track1).count();
+  std::cout << "point_track_time: " << point_track_time << " ms." << std::endl;
+  std::cout << "line_track_time: " << line_track_time << " ms." << std::endl;
 
   std::vector<int> inliers(frame1->FeatureNum(), -1);
   std::vector<MappointPtr> matched_mappoints(features1.cols(), nullptr);

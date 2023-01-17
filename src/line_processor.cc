@@ -449,7 +449,7 @@ LineDetector::LineDetector(const LineDetectorConfig &line_detector_config): _lin
       line_detector_config.canny_th1, line_detector_config.canny_th2, line_detector_config.canny_aperture_size, false);
 }
 
-void LineDetector::LineExtractor(cv::Mat& image, std::vector<Eigen::Vector4d>& lines){
+void LineDetector::LineExtractor(const cv::Mat& image, std::vector<Eigen::Vector4d>& lines){
   std::vector<Eigen::Vector4f> source_lines, dst_lines;
   std::vector<cv::Vec4f> cv_lines;
   cv::Mat smaller_image;

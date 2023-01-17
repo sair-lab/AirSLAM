@@ -34,7 +34,7 @@ public:
       Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<Eigen::Vector4d>& lines_left, 
       std::vector<Eigen::Vector4d>& lines_right, std::vector<cv::DMatch>& stereo_matches);
   void AddLeftFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, std::vector<Eigen::Vector4d>& lines_left);
-  void AddRightFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<Eigen::Vector4d>& lines_right, std::vector<cv::DMatch>& stereo_matches);
+  int AddRightFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<Eigen::Vector4d>& lines_right, std::vector<cv::DMatch>& stereo_matches);
 
   Eigen::Matrix<double, 259, Eigen::Dynamic>& GetAllFeatures();
 

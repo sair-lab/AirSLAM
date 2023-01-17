@@ -22,6 +22,9 @@ class MapBuilder{
 public:
   MapBuilder(Configs& configs);
   void AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_right, double timestamp);
+  void ExtractFeatrue(const cv::Mat& image, Eigen::Matrix<double, 259, Eigen::Dynamic>& points, std::vector<Eigen::Vector4d>& lines);
+  void ExtractFeatureAndMatch(const cv::Mat& image, const Eigen::Matrix<double, 259, Eigen::Dynamic>& points0, 
+      Eigen::Matrix<double, 259, Eigen::Dynamic>& points1, std::vector<Eigen::Vector4d>& lines, std::vector<cv::DMatch>& matches);
   void StereoMatch(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
       Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<cv::DMatch>& matches);
   bool Init(FramePtr frame);

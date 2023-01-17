@@ -130,11 +130,28 @@ void Frame::AddLeftFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features
   relation_left = points_on_line_left;
 }
 
-void Frame::AddRightFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, 
+int Frame::AddRightFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, 
     std::vector<Eigen::Vector4d>& lines_right, std::vector<cv::DMatch>& stereo_matches){
+  // filter matches from superglue
+  std::vector<cv::DMatch>& matches;
+  double min_x_diff = _camera->MinXDiff();
+  double max_x_diff = _camera->MaxXDiff();
+  const double max_y_diff = _camera->MaxYDiff();
 
-  // Trianguate stereo points
   for(cv::DMatch& match : stereo_matches){
+    int idx_left = match.queryIdx;
+    int idx_right = match.trainIdx;
+
+    double dx = std::abs(_features(1, idx_left) - features_right(1, idx_right));
+    double dy = std::abs(_features(2, idx_left) - features_right(2, idx_right));
+
+    if(dx > min_x_diff && dx < max_x_diff && dy <= max_y_diff){
+      matches.emplace_back(match);
+    }
+  }
+
+  // trianguate stereo points
+  for(cv::DMatch& match : matches){
     int idx_left = match.queryIdx;
     int idx_right = match.trainIdx;
 
@@ -152,7 +169,7 @@ void Frame::AddRightFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& feature
   size_t line_num = _lines.size();
   _lines_right.resize(line_num);
   _lines_right_valid.resize(line_num);
-  MatchLines(_points_on_lines, points_on_line_right, stereo_matches, _features.cols(), features_right.cols(), line_matches);
+  MatchLines(_points_on_lines, points_on_line_right, matches, _features.cols(), features_right.cols(), line_matches);
   for(size_t i = 0; i < line_num; i++){
     if(line_matches[i] > 0){
       _lines_right[i] = lines_right[line_matches[i]];
@@ -165,6 +182,8 @@ void Frame::AddRightFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& feature
   // for debug
   line_left_to_right_match = line_matches;
   relation_right = points_on_line_right;
+
+  return matches.size();
 }
 
 Eigen::Matrix<double, 259, Eigen::Dynamic>& Frame::GetAllFeatures(){
