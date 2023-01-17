@@ -120,6 +120,7 @@ void Frame::AddLeftFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features
   _points_on_lines = points_on_line_left;
 
   // initialize line track ids and maplines
+  size_t line_num = lines_left.size();
   std::vector<int> line_track_ids(line_num, -1);
   _line_track_ids = line_track_ids;
   std::vector<MaplinePtr> maplines(line_num, nullptr);
