@@ -9,8 +9,8 @@ PointMatching::PointMatching(SuperGlueConfig& superglue_config) :superglue(super
   }
 }
 
-int PointMatching::MatchingPoints(Eigen::Matrix<double, 259, Eigen::Dynamic>& features0, 
-    Eigen::Matrix<double, 259, Eigen::Dynamic>& features1, std::vector<cv::DMatch>& matches, bool outlier_rejection){
+int PointMatching::MatchingPoints(const Eigen::Matrix<double, 259, Eigen::Dynamic>& features0, 
+    const Eigen::Matrix<double, 259, Eigen::Dynamic>& features1, std::vector<cv::DMatch>& matches, bool outlier_rejection){
   matches.clear();
   Eigen::Matrix<double, 259, Eigen::Dynamic> norm_features0 = NormalizeKeypoints(features0, _superglue_config.image_width, _superglue_config.image_height);
   Eigen::Matrix<double, 259, Eigen::Dynamic> norm_features1 = NormalizeKeypoints(features1, _superglue_config.image_width, _superglue_config.image_height);

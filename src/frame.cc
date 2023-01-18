@@ -133,11 +133,10 @@ void Frame::AddLeftFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features
 int Frame::AddRightFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, 
     std::vector<Eigen::Vector4d>& lines_right, std::vector<cv::DMatch>& stereo_matches){
   // filter matches from superglue
-  std::vector<cv::DMatch>& matches;
+  std::vector<cv::DMatch> matches;
   double min_x_diff = _camera->MinXDiff();
   double max_x_diff = _camera->MaxXDiff();
   const double max_y_diff = _camera->MaxYDiff();
-
   for(cv::DMatch& match : stereo_matches){
     int idx_left = match.queryIdx;
     int idx_right = match.trainIdx;

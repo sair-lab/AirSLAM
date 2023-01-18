@@ -27,12 +27,13 @@ public:
       Eigen::Matrix<double, 259, Eigen::Dynamic>& points1, std::vector<Eigen::Vector4d>& lines, std::vector<cv::DMatch>& matches);
   void StereoMatch(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
       Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<cv::DMatch>& matches);
-  bool Init(FramePtr frame);
+  bool Init(FramePtr frame, cv::Mat& image_left, cv::Mat& image_right);
   int TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMatch>& matches);
 
   // pose_init = 0 : opencv pnp, pose_init = 1 : last frame pose, pose_init = 2 : original pose
   int FramePoseOptimization(FramePtr frame, std::vector<MappointPtr>& mappoints, std::vector<int>& inliers, int pose_init = 0);
   bool AddKeyframe(FramePtr last_keyframe, FramePtr current_frame, int num_match);
+  void InsertKeyframe(FramePtr frame, const cv::Mat& image_right);
   void InsertKeyframe(FramePtr frame);
 
   // for tracking local map
@@ -59,6 +60,7 @@ private:
   bool _last_frame_track_well;
 
   cv::Mat _last_image;
+  cv::Mat _last_right_image;
   cv::Mat _last_keyimage;
 
   Pose3d _last_pose; 

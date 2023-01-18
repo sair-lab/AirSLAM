@@ -33,9 +33,11 @@ MapBuilder::MapBuilder(Configs& configs): _init(false), _track_id(0), _line_trac
 }
 
 void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_right, double timestamp){
+  auto add_input0 = std::chrono::steady_clock::now();
   // undistort image 
   cv::Mat image_left_rect, image_right_rect;
   _camera->UndistortImage(image_left, image_right, image_left_rect, image_right_rect);
+  auto add_input1 = std::chrono::steady_clock::now();
 
   // construct frame
   FramePtr frame = std::shared_ptr<Frame>(new Frame(frame_id, false, _camera, timestamp));
@@ -48,11 +50,13 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     if(_init){
       _last_frame = frame;
       _last_image = image_left_rect;
+      _last_right_image = image_right_rect;
       _last_keyimage = image_left_rect;
     }
     PublishFrame(frame, image_left_rect);
     return;
   }
+  auto add_input2 = std::chrono::steady_clock::now();
 
   // extract features and track last keyframe
   std::vector<cv::DMatch> matches;
@@ -60,16 +64,15 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
   features_last_keyframe = _last_keyframe->GetAllFeatures();
   std::vector<Eigen::Vector4d> lines_left;
   ExtractFeatureAndMatch(image_left_rect, features_last_keyframe, features_left, lines_left, matches);
+  auto add_input3 = std::chrono::steady_clock::now();
   frame->AddLeftFeatures(features_left, lines_left);
   std::cout << "Detected feature point number = " << features_left.cols() << std::endl;
-
+  auto add_input4 = std::chrono::steady_clock::now();
 
   // track
   std::function<int()> track_last_frame = [&](){
     if(_num_since_last_keyframe < 1 || !_last_frame_track_well) return -1;
-    // add superglue
-
-    InsertKeyframe(_last_frame);
+    InsertKeyframe(_last_frame, _last_right_image);
     _last_keyimage = _last_image;
     matches.clear();
     return TrackFrame(_last_frame, frame, matches);
@@ -84,23 +87,10 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
       num_match = track_last_frame();
     }
   }
-  if(num_match < _configs.keyframe_config.min_num_match) return;
+  _last_frame_track_well = (num_match >= _configs.keyframe_config.min_num_match);
+  if(!_last_frame_track_well) return;
+  auto add_input5 = std::chrono::steady_clock::now();
 
-  // first track with last keyframe
-  int num_match = TrackFrame(_last_keyframe, frame, matches);
-  if(num_match < _configs.keyframe_config.min_num_match){
-    _last_frame_track_well = false;
-    if(_num_since_last_keyframe > 1 && _last_frame_track_well){
-      // if failed, track with last frame
-      InsertKeyframe(_last_frame);
-      _last_keyimage = _last_image;
-      matches.clear();
-      num_match = TrackFrame(_last_frame, frame, matches);
-      if(num_match < _configs.keyframe_config.min_num_match) return;
-    }else{
-      return;
-    }
-  }
   frame->SetPreviousFrame(_last_keyframe);
 
   // int track_local_map_num = TrackLocalMap(frame, num_match);
@@ -112,14 +102,33 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
 
   PublishFrame(frame, image_left_rect);
   _last_frame_track_well = true;
+  auto add_input6 = std::chrono::steady_clock::now();
 
   if(AddKeyframe(_last_keyframe, frame, num_match)){
-    InsertKeyframe(frame);
+    InsertKeyframe(frame, image_right_rect);
     _last_keyimage = image_left_rect;
   }
+  auto add_input7 = std::chrono::steady_clock::now();
+  auto UndistortImage_time = std::chrono::duration_cast<std::chrono::milliseconds>(add_input1 - add_input0).count();
+  auto construct_frame_time = std::chrono::duration_cast<std::chrono::milliseconds>(add_input2 - add_input1).count();
+  auto ExtractFeatureAndMatch_time = std::chrono::duration_cast<std::chrono::milliseconds>(add_input3 - add_input2).count();
+  auto AddLeftFeatures_time = std::chrono::duration_cast<std::chrono::milliseconds>(add_input4 - add_input3).count();
+  auto track_time = std::chrono::duration_cast<std::chrono::milliseconds>(add_input5 - add_input4).count();
+  auto PublishFrame_time = std::chrono::duration_cast<std::chrono::milliseconds>(add_input6 - add_input5).count();
+  auto InsertKeyframe_time = std::chrono::duration_cast<std::chrono::milliseconds>(add_input7 - add_input6).count();
+  auto all_time = std::chrono::duration_cast<std::chrono::milliseconds>(add_input7 - add_input0).count();
+  std::cout << "UndistortImage_time: " << UndistortImage_time << " ms." << std::endl;
+  std::cout << "construct_frame_time: " << construct_frame_time << " ms." << std::endl;
+  std::cout << "ExtractFeatureAndMatch_time: " << ExtractFeatureAndMatch_time << " ms." << std::endl;
+  std::cout << "AddLeftFeatures_time: " << AddLeftFeatures_time << " ms." << std::endl;
+  std::cout << "track_time: " << track_time << " ms." << std::endl;
+  std::cout << "PublishFrame_time: " << PublishFrame_time << " ms." << std::endl;
+  std::cout << "InsertKeyframe_time: " << InsertKeyframe_time << " ms." << std::endl;
+  std::cout << "all_time: " << all_time << " ms." << std::endl;
 
   _last_frame = frame;
   _last_image = image_left_rect;
+  _last_right_image = image_right_rect;
   return;
 }
 
@@ -152,29 +161,28 @@ void MapBuilder::ExtractFeatrue(const cv::Mat& image, Eigen::Matrix<double, 259,
   point_ectraction_thread.join();
   line_ectraction_thread.join();
 
-  // extract_point();
-  // extract_line();
-
   auto feature2 = std::chrono::steady_clock::now();
   auto feature_time = std::chrono::duration_cast<std::chrono::milliseconds>(feature2 - feature1).count();
   // std::cout << "One Frame featrue Time: " << feature_time << " ms." << std::endl;
-
 }
 
 void MapBuilder::ExtractFeatureAndMatch(const cv::Mat& image, const Eigen::Matrix<double, 259, Eigen::Dynamic>& points0, 
     Eigen::Matrix<double, 259, Eigen::Dynamic>& points1, std::vector<Eigen::Vector4d>& lines, std::vector<cv::DMatch>& matches){
   std::function<void()> extract_point_and_match = [&](){
-    auto point1 = std::chrono::steady_clock::now();
-    if(!_superpoint->infer(image, points)){
+    auto point0 = std::chrono::steady_clock::now();
+    if(!_superpoint->infer(image, points1)){
       std::cout << "Failed when extracting point features !" << std::endl;
       return;
     }
+    auto point1 = std::chrono::steady_clock::now();
 
     matches.clear();
     _point_matching->MatchingPoints(points0, points1, matches);
     auto point2 = std::chrono::steady_clock::now();
-    auto point_time = std::chrono::duration_cast<std::chrono::milliseconds>(point2 - point1).count();
-    // std::cout << "One Frame point Time: " << point_time << " ms." << std::endl;
+    auto point_time = std::chrono::duration_cast<std::chrono::milliseconds>(point1 - point0).count();
+    auto point_match_time = std::chrono::duration_cast<std::chrono::milliseconds>(point2 - point1).count();
+    std::cout << "One Frame point Time: " << point_time << " ms." << std::endl;
+    std::cout << "One Frame point match Time: " << point_time << " ms." << std::endl;
   };
 
   std::function<void()> extract_line = [&](){
@@ -182,11 +190,11 @@ void MapBuilder::ExtractFeatureAndMatch(const cv::Mat& image, const Eigen::Matri
     _line_detector->LineExtractor(image, lines);
     auto line2 = std::chrono::steady_clock::now();
     auto line_time = std::chrono::duration_cast<std::chrono::milliseconds>(line2 - line1).count();
-    // std::cout << "One Frame line Time: " << line_time << " ms." << std::endl;
+    std::cout << "One Frame line Time: " << line_time << " ms." << std::endl;
   };
 
   auto feature1 = std::chrono::steady_clock::now();
-  std::thread point_ectraction_thread(extract_point);
+  std::thread point_ectraction_thread(extract_point_and_match);
   std::thread line_ectraction_thread(extract_line);
 
   point_ectraction_thread.join();
@@ -194,7 +202,7 @@ void MapBuilder::ExtractFeatureAndMatch(const cv::Mat& image, const Eigen::Matri
 
   auto feature2 = std::chrono::steady_clock::now();
   auto feature_time = std::chrono::duration_cast<std::chrono::milliseconds>(feature2 - feature1).count();
-  // std::cout << "One Frame featrue Time: " << feature_time << " ms." << std::endl;
+  std::cout << "One Frame featrue Time: " << feature_time << " ms." << std::endl;
 }
 
 void MapBuilder::StereoMatch(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
@@ -242,7 +250,6 @@ bool MapBuilder::Init(FramePtr frame, cv::Mat& image_left, cv::Mat& image_right)
   Eigen::Vector3d twc = init_pose.block<3, 1>(0, 3);
   // construct mappoints
   std::vector<int> track_ids(feature_num, -1);
-  int stereo_point_num = 0;
   int frame_id = frame->GetFrameId();
   Eigen::Vector3d tmp_position;
   std::vector<MappointPtr> new_mappoints;
@@ -260,6 +267,7 @@ bool MapBuilder::Init(FramePtr frame, cv::Mat& image_left, cv::Mat& image_right)
     }
   }
   frame->SetTrackIds(track_ids);
+  if(stereo_point_num < 100) return false;
 
   // construct maplines
   size_t line_num = frame->LineNum();
@@ -295,28 +303,13 @@ bool MapBuilder::Init(FramePtr frame, cv::Mat& image_left, cv::Mat& image_right)
 }
 
 int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMatch>& matches){
-
-  auto track0 = std::chrono::steady_clock::now();
-  // point tracking
-  // Eigen::Matrix<double, 259, Eigen::Dynamic>& features0 = frame0->GetAllFeatures();
-  // Eigen::Matrix<double, 259, Eigen::Dynamic>& features1 = frame1->GetAllFeatures();
-  // int num_match = _point_matching->MatchingPoints(features0, features1, matches);
-  if(num_match < _configs.keyframe_config.min_num_match){
-    return num_match;
-  }
-  auto track1 = std::chrono::steady_clock::now();
-
   // line tracking
+  Eigen::Matrix<double, 259, Eigen::Dynamic>& features0 = frame0->GetAllFeatures();
+  Eigen::Matrix<double, 259, Eigen::Dynamic>& features1 = frame1->GetAllFeatures();
   std::vector<std::map<int, double>> points_on_lines0 = frame0->GetPointsOnLines();
   std::vector<std::map<int, double>> points_on_lines1 = frame1->GetPointsOnLines();
   std::vector<int> line_matches;
   MatchLines(points_on_lines0, points_on_lines1, matches, features0.cols(), features1.cols(), line_matches);
-  auto track2 = std::chrono::steady_clock::now();
-
-  auto point_track_time = std::chrono::duration_cast<std::chrono::milliseconds>(track1 - track0).count();
-  auto line_track_time = std::chrono::duration_cast<std::chrono::milliseconds>(track2 - track1).count();
-  std::cout << "point_track_time: " << point_track_time << " ms." << std::endl;
-  std::cout << "line_track_time: " << line_track_time << " ms." << std::endl;
 
   std::vector<int> inliers(frame1->FeatureNum(), -1);
   std::vector<MappointPtr> matched_mappoints(features1.cols(), nullptr);
@@ -483,6 +476,16 @@ bool MapBuilder::AddKeyframe(FramePtr last_keyframe, FramePtr current_frame, int
   bool large_distance = (delta_distance > _configs.keyframe_config.max_distance);
   bool enough_passed_frame = (passed_frame_num > _configs.keyframe_config.max_num_passed_frame);
   return (not_enough_match || large_delta_angle || large_distance || enough_passed_frame);
+}
+
+void MapBuilder::InsertKeyframe(FramePtr frame, const cv::Mat& image_right){
+  Eigen::Matrix<double, 259, Eigen::Dynamic> features_right;
+  std::vector<Eigen::Vector4d> lines_right;
+  std::vector<cv::DMatch> stereo_matches;
+
+  ExtractFeatureAndMatch(image_right, frame->GetAllFeatures(), features_right, lines_right, stereo_matches);
+  frame->AddRightFeatures(features_right, lines_right, stereo_matches);
+  InsertKeyframe(frame);
 }
 
 void MapBuilder::InsertKeyframe(FramePtr frame){
