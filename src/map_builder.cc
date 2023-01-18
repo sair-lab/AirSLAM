@@ -56,6 +56,7 @@ void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_righ
     PublishFrame(frame, image_left_rect);
     return;
   }
+  std::cout << "good init" << std::endl;
   auto add_input2 = std::chrono::steady_clock::now();
 
   // extract features and track last keyframe
