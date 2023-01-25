@@ -33,15 +33,18 @@ size_t Dataset::GetDatasetLength(){
   return _left_images.size();
 }
 
-bool Dataset::GetData(size_t idx, cv::Mat& left_image, cv::Mat& right_image, double& timestamp){
-  if(idx >= _left_images.size()) return false;
-  if(!FileExists(_left_images[idx]) || !FileExists(_right_images[idx])) return false;
-  left_image = cv::imread(_left_images[idx], 0);
-  right_image = cv::imread(_right_images[idx], 0);
+InputDataPtr Dataset::GetData(size_t idx){
+  if(idx >= _left_images.size()) return nullptr;
+  if(!FileExists(_left_images[idx]) || !FileExists(_right_images[idx])) return nullptr;
+
+  InputDataPtr data = std::shared_ptr<InputData>(new InputData());
+  data->index = idx;
+  data->image_left = cv::imread(_left_images[idx], 0);
+  data->image_right = cv::imread(_right_images[idx], 0);
   if(_timestamps.empty()){
-    timestamp = GetCurrentTime();
+    data->time = GetCurrentTime();
   }else{
-    timestamp = _timestamps[idx];
+    data->time = _timestamps[idx];
   }
-  return true;
+  return data;
 }
