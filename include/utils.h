@@ -25,6 +25,23 @@
 #include <g2o/types/slam3d/types_slam3d.h>
 #include <g2o/types/slam3d_addons/types_slam3d_addons.h>
 
+struct InputData{
+  size_t index;
+  double time;
+  cv::Mat image_left;
+  cv::Mat image_right;
+
+  InputData() {}
+  InputData& operator =(InputData& other){
+		index = other.index;
+		time = other.time;
+		image_left = other.image_left.clone();
+		image_right = other.image_right.clone();
+		return *this;
+	}
+};
+typedef std::shared_ptr<InputData> InputDataPtr;
+
 typedef std::shared_ptr<g2o::Line3D> Line3DPtr;
 typedef std::shared_ptr<const g2o::Line3D> ConstLine3DPtr;
 

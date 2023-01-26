@@ -18,15 +18,34 @@
 #include "ros_publisher.h"
 #include "g2o_optimization/types.h"
 
+struct TrackingData{
+  FramePtr frame;
+  FramePtr ref_keyframe;
+  std::vector<cv::DMatch> matches;
+  InputDataPtr input_data;
+
+  TrackingData() {}
+  TrackingData& operator =(TrackingData& other){
+		frame = other.frame;
+		ref_keyframe = other.ref_keyframe;
+		matches = other.matches;
+		input_data = other.input_data;
+		return *this;
+	}
+};
+typedef std::shared_ptr<TrackingData> TrackingDataPtr;
+
 class MapBuilder{
 public:
   MapBuilder(Configs& configs);
-  void AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_right, double timestamp);
+  void AddInput(InputDataPtr data);
+  void ExtractFeatureThread();
+  void TrackingThread();
+  void Process();
+
   void ExtractFeatrue(const cv::Mat& image, Eigen::Matrix<double, 259, Eigen::Dynamic>& points, std::vector<Eigen::Vector4d>& lines);
   void ExtractFeatureAndMatch(const cv::Mat& image, const Eigen::Matrix<double, 259, Eigen::Dynamic>& points0, 
       Eigen::Matrix<double, 259, Eigen::Dynamic>& points1, std::vector<Eigen::Vector4d>& lines, std::vector<cv::DMatch>& matches);
-  void StereoMatch(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
-      Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<cv::DMatch>& matches);
   bool Init(FramePtr frame, cv::Mat& image_left, cv::Mat& image_right);
   int TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMatch>& matches);
 
@@ -49,7 +68,24 @@ public:
   void SaveTrajectory(std::string file_path);
   void SaveMap(const std::string& map_root);
 
+  void ShutDown();
+
 private:
+  // left feature extraction and tracking thread
+  std::mutex _buffer_mutex;
+  std::queue<InputDataPtr> _data_buffer;
+  std::thread _feature_thread;
+
+  // pose estimation thread
+  std::mutex _tracking_mutex;
+  std::queue<TrackingDataPtr> _tracking_data_buffer;
+  std::thread _tracking_thread;
+
+  // gpu mutex
+  std::mutex _gpu_mutex;
+
+  bool _shutdown;
+
   // tmp 
   bool _init;
   int _track_id;

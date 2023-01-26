@@ -14,7 +14,7 @@ class Dataset{
 public:
   Dataset(const std::string& dataroot);
   size_t GetDatasetLength();
-  bool GetData(size_t idx, cv::Mat& left_image, cv::Mat& right_image, double& timestamp);
+  InputDataPtr GetData(size_t idx);
 
 private:
   std::vector<std::string> _left_images;
