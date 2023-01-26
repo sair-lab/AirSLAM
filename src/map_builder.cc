@@ -31,7 +31,8 @@ MapBuilder::MapBuilder(Configs& configs): _shutdown(false), _init(false), _track
   _ros_publisher = std::shared_ptr<RosPublisher>(new RosPublisher(configs.ros_publisher_config));
   _map = std::shared_ptr<Map>(new Map(_configs.backend_optimization_config, _camera, _ros_publisher));
 
-  _feature_thread = std::thread(boost::bind(&MapBuilder::Process, this));
+  _feature_thread = std::thread(boost::bind(&MapBuilder::ExtractFeatureThread, this));
+  _tracking_thread = std::thread(boost::bind(&MapBuilder::TrackingThread, this));
 }
 
 void MapBuilder::AddInput(InputDataPtr data){
@@ -172,125 +173,9 @@ void MapBuilder::TrackingThread(){
   }  
 }
 
-void MapBuilder::Process(){
-  while(!_shutdown){
-    if(_data_buffer.empty()){
-      usleep(2000);
-      continue;
-    }
-    InputDataPtr input_data;
-    _buffer_mutex.lock();
-    input_data = _data_buffer.front();
-    _data_buffer.pop();
-    _buffer_mutex.unlock();
-
-    int frame_id = input_data->index;
-    double timestamp = input_data->time;
-    cv::Mat image_left_rect = input_data->image_left;
-    cv::Mat image_right_rect = input_data->image_right;
-
-    auto add_input0 = std::chrono::steady_clock::now();
-
-    // construct frame
-    FramePtr frame = std::shared_ptr<Frame>(new Frame(frame_id, false, _camera, timestamp));
-    auto add_input1 = std::chrono::steady_clock::now();
-
-    // init
-    if(!_init){
-      _init = Init(frame, image_left_rect, image_right_rect);
-      _last_frame_track_well = _init;
-
-      if(_init){
-        _last_frame = frame;
-        _last_image = image_left_rect;
-        _last_right_image = image_right_rect;
-        _last_keyimage = image_left_rect;
-      }
-      PublishFrame(frame, image_left_rect);
-      continue;;
-    }
-    auto add_input2 = std::chrono::steady_clock::now();
-
-    // extract features and track last keyframe
-    std::vector<cv::DMatch> matches;
-    Eigen::Matrix<double, 259, Eigen::Dynamic> features_left, features_last_keyframe;
-    features_last_keyframe = _last_keyframe->GetAllFeatures();
-    std::vector<Eigen::Vector4d> lines_left;
-    ExtractFeatureAndMatch(image_left_rect, features_last_keyframe, features_left, lines_left, matches);
-    auto add_input3 = std::chrono::steady_clock::now();
-    frame->AddLeftFeatures(features_left, lines_left);
-    std::cout << "Detected feature point number = " << features_left.cols() << std::endl;
-    auto add_input4 = std::chrono::steady_clock::now();
-
-    // track
-    std::function<int()> track_last_frame = [&](){
-      if(_num_since_last_keyframe < 1 || !_last_frame_track_well) return -1;
-      InsertKeyframe(_last_frame, _last_right_image);
-      _last_keyimage = _last_image;
-      matches.clear();
-      return TrackFrame(_last_frame, frame, matches);
-    };
-
-    int num_match = matches.size();
-    if(num_match < _configs.keyframe_config.min_num_match){
-      num_match = track_last_frame();
-    }else{
-      num_match = TrackFrame(_last_keyframe, frame, matches);
-      if(num_match < _configs.keyframe_config.min_num_match){
-        num_match = track_last_frame();
-      }
-    }
-    _last_frame_track_well = (num_match >= _configs.keyframe_config.min_num_match);
-    if(!_last_frame_track_well) continue;
-    auto add_input5 = std::chrono::steady_clock::now();
-
-    frame->SetPreviousFrame(_last_keyframe);
-
-    // int track_local_map_num = TrackLocalMap(frame, num_match);
-    // UpdateReferenceFrame(frame);
-    // num_match = (track_local_map_num > 0) ? track_local_map_num : num_match;
-
-    // for debug 
-    // SaveTrackingResult(_last_keyimage, image_left, _last_keyframe, frame, matches, _configs.saving_dir);
-
-    PublishFrame(frame, image_left_rect);
-    _last_frame_track_well = true;
-    auto add_input6 = std::chrono::steady_clock::now();
-
-    if(AddKeyframe(_last_keyframe, frame, num_match)){
-      InsertKeyframe(frame, image_right_rect);
-      _last_keyimage = image_left_rect;
-    }
-
-    _last_frame = frame;
-    _last_image = image_left_rect;
-    _last_right_image = image_right_rect;
-
-    auto add_input7 = std::chrono::steady_clock::now();
-    auto UndistortImage_time = std::chrono::duration_cast<std::chrono::milliseconds>(add_input1 - add_input0).count();
-    auto construct_frame_time = std::chrono::duration_cast<std::chrono::milliseconds>(add_input2 - add_input1).count();
-    auto ExtractFeatureAndMatch_time = std::chrono::duration_cast<std::chrono::milliseconds>(add_input3 - add_input2).count();
-    auto AddLeftFeatures_time = std::chrono::duration_cast<std::chrono::milliseconds>(add_input4 - add_input3).count();
-    auto track_time = std::chrono::duration_cast<std::chrono::milliseconds>(add_input5 - add_input4).count();
-    auto PublishFrame_time = std::chrono::duration_cast<std::chrono::milliseconds>(add_input6 - add_input5).count();
-    auto InsertKeyframe_time = std::chrono::duration_cast<std::chrono::milliseconds>(add_input7 - add_input6).count();
-    auto all_time = std::chrono::duration_cast<std::chrono::milliseconds>(add_input7 - add_input0).count();
-    std::cout << "UndistortImage_time: " << UndistortImage_time << " ms." << std::endl;
-    std::cout << "construct_frame_time: " << construct_frame_time << " ms." << std::endl;
-    std::cout << "ExtractFeatureAndMatch_time: " << ExtractFeatureAndMatch_time << " ms." << std::endl;
-    std::cout << "AddLeftFeatures_time: " << AddLeftFeatures_time << " ms." << std::endl;
-    std::cout << "track_time: " << track_time << " ms." << std::endl;
-    std::cout << "PublishFrame_time: " << PublishFrame_time << " ms." << std::endl;
-    std::cout << "InsertKeyframe_time: " << InsertKeyframe_time << " ms." << std::endl;
-    std::cout << "all_time: " << all_time << " ms." << std::endl;
-  }  
-}
-
-
 void MapBuilder::ExtractFeatrue(const cv::Mat& image, Eigen::Matrix<double, 259, Eigen::Dynamic>& points, 
     std::vector<Eigen::Vector4d>& lines){
   std::function<void()> extract_point = [&](){
-    auto point1 = std::chrono::steady_clock::now();
     _gpu_mutex.lock();
     bool good_infer = _superpoint->infer(image, points);
     _gpu_mutex.unlock();
@@ -298,29 +183,17 @@ void MapBuilder::ExtractFeatrue(const cv::Mat& image, Eigen::Matrix<double, 259,
       std::cout << "Failed when extracting point features !" << std::endl;
       return;
     }
-    auto point2 = std::chrono::steady_clock::now();
-    auto point_time = std::chrono::duration_cast<std::chrono::milliseconds>(point2 - point1).count();
-    // std::cout << "One Frame point Time: " << point_time << " ms." << std::endl;
   };
 
   std::function<void()> extract_line = [&](){
-    auto line1 = std::chrono::steady_clock::now();
     _line_detector->LineExtractor(image, lines);
-    auto line2 = std::chrono::steady_clock::now();
-    auto line_time = std::chrono::duration_cast<std::chrono::milliseconds>(line2 - line1).count();
-    // std::cout << "One Frame line Time: " << line_time << " ms." << std::endl;
   };
 
-  auto feature1 = std::chrono::steady_clock::now();
   std::thread point_ectraction_thread(extract_point);
   std::thread line_ectraction_thread(extract_line);
 
   point_ectraction_thread.join();
   line_ectraction_thread.join();
-
-  auto feature2 = std::chrono::steady_clock::now();
-  auto feature_time = std::chrono::duration_cast<std::chrono::milliseconds>(feature2 - feature1).count();
-  // std::cout << "One Frame featrue Time: " << feature_time << " ms." << std::endl;
 }
 
 void MapBuilder::ExtractFeatureAndMatch(const cv::Mat& image, const Eigen::Matrix<double, 259, Eigen::Dynamic>& points0, 
@@ -791,4 +664,6 @@ void MapBuilder::SaveMap(const std::string& map_root){
 
 void MapBuilder::ShutDown(){
   _shutdown = true;
+  _feature_thread.join();
+  _tracking_thread.join();
 }

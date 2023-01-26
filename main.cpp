@@ -36,8 +36,8 @@ int main(int argc, char **argv) {
     auto cost_time = std::chrono::duration_cast<std::chrono::milliseconds>(after_infer - before_infer).count();
     std::cout << "One Frame Processinh Time: " << cost_time << " ms." << std::endl;
   }
-  map_builder.SaveTrajectory(traj_path);
   map_builder.ShutDown();
+  map_builder.SaveTrajectory(traj_path);
   ros::shutdown();
 
   return 0;

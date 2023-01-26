@@ -41,7 +41,6 @@ public:
   void AddInput(InputDataPtr data);
   void ExtractFeatureThread();
   void TrackingThread();
-  void Process();
 
   void ExtractFeatrue(const cv::Mat& image, Eigen::Matrix<double, 259, Eigen::Dynamic>& points, std::vector<Eigen::Vector4d>& lines);
   void ExtractFeatureAndMatch(const cv::Mat& image, const Eigen::Matrix<double, 259, Eigen::Dynamic>& points0, 
