@@ -5,10 +5,10 @@ def MakeDir(nd):
     os.mkdir(nd)
 
 
-dataroot = "/data/xukuan/OIVIO/selected_seq"
-saving_root = "/home/xukuan/project/air_vo/experiments/resubmit/multi-thread1/oivio3"
+dataroot = "/data/xukuan/UMA/DynamicIll/selected_seq/indoor"
+saving_root = "/home/xukuan/project/air_vo/experiments/resubmit/multi-thread1/uma2"
 workspace = "/home/xukuan/project/air_vo/air_vo_ws"
-traj_gt_dir = "/home/xukuan/project/air_vo/experiments/traj_gt/oivio"
+traj_gt_dir = "/home/xukuan/project/air_vo/experiments/traj_gt/uma"
 
 MakeDir(saving_root)
 traj_saving_root = os.path.join(saving_root, "traj")
@@ -28,7 +28,7 @@ for sequence in sequences:
   if os.path.exists(seq_traj_path):
     continue
 
-  os.system("cd {} & roslaunch air_vo oivio.launch dataroot:={} traj_path:={}".format(workspace, seq_dataroot, seq_traj_path))
+  os.system("cd {} & roslaunch air_vo uma_bumblebee_indoor.launch dataroot:={} traj_path:={}".format(workspace, seq_dataroot, seq_traj_path))
   # os.system("rosnode kill ")
 
   gt_path = os.path.join(traj_gt_dir, seq_traj_file)

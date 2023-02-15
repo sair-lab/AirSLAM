@@ -1,6 +1,6 @@
 <launch>
     <arg name="config_path" default = "$(find air_vo)/configs/configs_oivio3.yaml" />
-    <arg name="dataroot" default = "/media/xukuan/something2/ubuntu_files/data/oivio/MN_050_HH_01/handheld0" />
+    <arg name="dataroot" default = "/data/xukuan/OIVIO/selected_seq/MN_100_GV_02" />
     <arg name="camera_config_path" default = "$(find air_vo)/configs/oivio.yaml" />
     <arg name="model_dir" default = "$(find air_vo)/output" />
     <arg name="saving_dir" default = "$(find air_vo)/debug" />
