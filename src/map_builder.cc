@@ -117,6 +117,7 @@ void MapBuilder::TrackingThread(){
       usleep(2000);
       continue;
     }
+
     TrackingDataPtr tracking_data;
     _tracking_mutex.lock();
     tracking_data = _tracking_data_buffer.front();

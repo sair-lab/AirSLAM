@@ -170,7 +170,7 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
 
   // solve 
   optimizer.initializeOptimization();
-  optimizer.optimize(5);
+  optimizer.optimize(10);
 
   // check inlier observations
   for(size_t i=0; i < mono_edges.size(); i++){
@@ -205,9 +205,9 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
     e->setRobustKernel(0);
   }
 
-  // optimize again without the outliers
-  optimizer.initializeOptimization(0);
-  optimizer.optimize(10);
+  // // optimize again without the outliers
+  // optimizer.initializeOptimization(0);
+  // optimizer.optimize(5);
 
 
   // check inlier observations     
@@ -326,8 +326,6 @@ int FrameOptimization(MapOfPoses& poses, MapOfPoints3d& points, std::vector<Came
   }
 
   // solve
-  const float chi2Mono[4]={5.991, 5.991, 5.991, 5.991};
-  const float chi2Stereo[4]={7.815, 7.815, 7.815, 7.815};
   const int its[4]={10, 10, 10, 10};  
 
   int num_outlier = 0;

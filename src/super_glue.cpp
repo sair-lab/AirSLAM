@@ -13,6 +13,7 @@ using namespace tensorrt_common;
 using namespace tensorrt_log;
 using namespace tensorrt_buffer;
 
+
 SuperGlue::SuperGlue(const SuperGlueConfig &superglue_config) : superglue_config_(superglue_config), engine_(nullptr) {
     setReportableSeverity(Logger::Severity::kINTERNAL_ERROR);
 }
