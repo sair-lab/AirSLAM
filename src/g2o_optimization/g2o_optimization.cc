@@ -130,7 +130,7 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
     e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex((mlc->id_line+max_point_id))));
     e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(mlc->id_pose)));
     e->setMeasurement(mlc->line_2d);
-    e->setInformation(Eigen::Matrix2d::Identity() * 0.5);
+    e->setInformation(Eigen::Matrix2d::Identity() * 0.01);
     g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
     e->setRobustKernel(rk);
     rk->setDelta(thHuberMonoLine);
@@ -151,7 +151,7 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
     e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex((slc->id_line+max_point_id))));
     e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(slc->id_pose)));
     e->setMeasurement(slc->line_2d);
-    e->setInformation(Eigen::Matrix4d::Identity() * 0.5);
+    e->setInformation(Eigen::Matrix4d::Identity() * 0.1);
     g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
     e->setRobustKernel(rk);
     rk->setDelta(thHuberStereoLine);
