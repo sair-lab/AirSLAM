@@ -152,6 +152,8 @@ void MapBuilder::TrackingThread(){
         num_match = track_last_frame();
       }
     }
+    PublishFrame(frame, image_left_rect);
+
     _last_frame_track_well = (num_match >= _configs.keyframe_config.min_num_match);
     if(!_last_frame_track_well) continue;
 
@@ -160,7 +162,7 @@ void MapBuilder::TrackingThread(){
     // for debug 
     // SaveTrackingResult(_last_keyimage, image_left, _last_keyframe, frame, matches, _configs.saving_dir);
 
-    PublishFrame(frame, image_left_rect);
+    // PublishFrame(frame, image_left_rect);
     _last_frame_track_well = true;
 
     if(AddKeyframe(ref_keyframe, frame, num_match) && ref_keyframe->GetFrameId() == _last_keyframe->GetFrameId()){
