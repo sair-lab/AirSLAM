@@ -341,7 +341,7 @@ bool Map::TriangulateMappoint(MappointPtr mappoint){
 bool Map::TriangulateMaplineByMappoints(MaplinePtr mapline){
   if(mapline->IsValid()) return true;
   const std::map<int, int>& obversers = mapline->GetAllObversers();
-  // if(obversers.size() < 2) return false;
+  if(obversers.size() < 2) return false;
   std::vector<cv::Point3f> points;
   for(const auto& kv : obversers){
     FramePtr frame = GetFramePtr(kv.first);

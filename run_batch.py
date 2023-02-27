@@ -6,12 +6,12 @@ def MakeDir(nd):
 
 
 # dataroot = "/data/xukuan/UMA/DynamicIll/selected_seq/indoor"
-# saving_root = "/home/xukuan/project/air_vo/experiments/resubmit/multi-thread1/uma3"
+# saving_root = "/home/xukuan/project/air_vo/experiments/resubmit/multi-thread1/uma5"
 # workspace = "/home/xukuan/project/air_vo/air_vo_ws"
 # traj_gt_dir = "/home/xukuan/project/air_vo/experiments/traj_gt/uma"
 
 dataroot = "/data/xukuan/OIVIO/selected_seq"
-saving_root = "/home/xukuan/project/air_vo/experiments/resubmit/multi-thread1/oivio3"
+saving_root = "/home/xukuan/project/air_vo/experiments/resubmit/multi-thread1/oivio4"
 workspace = "/home/xukuan/project/air_vo/air_vo_ws"
 traj_gt_dir = "/home/xukuan/project/air_vo/experiments/traj_gt/oivio"
 
@@ -26,7 +26,6 @@ eva_sum_root = os.path.join(saving_root, "sum")
 MakeDir(eva_sum_root)
 
 sequences = os.listdir(dataroot)
-print(sequences)
 for sequence in sequences:
   seq_dataroot = os.path.join(dataroot, sequence)
   seq_traj_file = sequence + ".txt"
@@ -36,7 +35,6 @@ for sequence in sequences:
 
   # os.system("cd {} & roslaunch air_vo uma_bumblebee_indoor.launch dataroot:={} traj_path:={}".format(workspace, seq_dataroot, seq_traj_path))
   os.system("cd {} & roslaunch air_vo oivio.launch dataroot:={} traj_path:={}".format(workspace, seq_dataroot, seq_traj_path))
-  # os.system("rosnode kill ")
 
   gt_path = os.path.join(traj_gt_dir, seq_traj_file)
   if not os.path.exists(gt_path):

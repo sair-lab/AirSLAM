@@ -101,7 +101,7 @@ void MapBuilder::ExtractFeatureThread(){
     tracking_data->matches = matches;
     tracking_data->input_data = input_data;
     
-    while(_tracking_data_buffer.size() >= 3){
+    while(_tracking_data_buffer.size() >= 2){
       usleep(2000);
     }
 
@@ -158,12 +158,10 @@ void MapBuilder::TrackingThread(){
     if(!_last_frame_track_well) continue;
 
     frame->SetPreviousFrame(ref_keyframe);
+    _last_frame_track_well = true;
 
     // for debug 
     // SaveTrackingResult(_last_keyimage, image_left, _last_keyframe, frame, matches, _configs.saving_dir);
-
-    // PublishFrame(frame, image_left_rect);
-    _last_frame_track_well = true;
 
     if(AddKeyframe(ref_keyframe, frame, num_match) && ref_keyframe->GetFrameId() == _last_keyframe->GetFrameId()){
       InsertKeyframe(frame, image_right_rect);

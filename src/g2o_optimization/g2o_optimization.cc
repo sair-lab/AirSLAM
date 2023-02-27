@@ -130,7 +130,7 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
     e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex((mlc->id_line+max_point_id))));
     e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(mlc->id_pose)));
     e->setMeasurement(mlc->line_2d);
-    e->setInformation(Eigen::Matrix2d::Identity() * 0.01);
+    e->setInformation(Eigen::Matrix2d::Identity() * 0.1);
     g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
     e->setRobustKernel(rk);
     rk->setDelta(thHuberMonoLine);
@@ -205,10 +205,9 @@ void LocalmapOptimization(MapOfPoses& poses, MapOfPoints3d& points, MapOfLine3d&
     e->setRobustKernel(0);
   }
 
-  // // optimize again without the outliers
-  // optimizer.initializeOptimization(0);
-  // optimizer.optimize(5);
-
+  // optimize again without the outliers
+  optimizer.initializeOptimization(0);
+  optimizer.optimize(5);
 
   // check inlier observations     
   for(size_t i = 0; i < mono_edges.size(); i++){
