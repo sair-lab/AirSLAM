@@ -59,7 +59,7 @@ bool Frame::PoseFixed(){
   return _pose_fixed;
 }
 
-void Frame::SetPose(Eigen::Matrix4d& pose){
+void Frame::SetPose(const Eigen::Matrix4d& pose){
   _pose = pose;
 }
 

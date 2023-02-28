@@ -25,7 +25,7 @@ public:
   double GetTimestamp();
   void SetPoseFixed(bool pose_fixed);
   bool PoseFixed();
-  void SetPose(Eigen::Matrix4d& pose);
+  void SetPose(const Eigen::Matrix4d& pose);
   Eigen::Matrix4d& GetPose();
 
   // point features

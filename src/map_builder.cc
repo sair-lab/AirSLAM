@@ -134,6 +134,7 @@ void MapBuilder::TrackingThread(){
     cv::Mat image_right_rect = input_data->image_right.clone();
 
     // track
+    frame->SetPose(_last_frame->GetPose());
     std::function<int()> track_last_frame = [&](){
       if(_num_since_last_keyframe < 1 || !_last_frame_track_well) return -1;
       InsertKeyframe(_last_frame, _last_right_image);

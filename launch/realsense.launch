@@ -1,6 +1,6 @@
 <launch>
     <arg name="config_path" default = "$(find air_vo)/configs/configs_realsense.yaml" />
-    <arg name="dataroot" default = "/media/xukuan/something2/ubuntu_files/data/AirSLAM/realsense_meeting_room/euroc_style" />
+    <arg name="dataroot" default = "/data/xukuan/cartin_meeting/euroc_style" />
     <arg name="camera_config_path" default = "$(find air_vo)/configs/realsense_848_480.yaml" />
     <arg name="model_dir" default = "$(find air_vo)/output" />
     <arg name="saving_dir" default = "$(find air_vo)/debug" />
