@@ -10,7 +10,7 @@ AirVO is an **illumination-robust** and accurate **stereo visual odometry (VO) s
 
 ## Related Papers
 
-**AirVO: An Illumination-Robust Point-Line Visual Odometry**, Kuan Xu, Yuefan Hao, Chen Wang and Lihua Xie, *arXiv preprint arXiv:2212.07595, 2022*. **[PDF](https://arxiv.org/abs/2212.07595)**.
+**AirVO: An Illumination-Robust Point-Line Visual Odometry**, Kuan Xu, Yuefan Hao, Shenghai Yuan, Chen Wang and Lihua Xie, *arXiv preprint arXiv:2212.07595, 2022*. **[PDF](https://arxiv.org/abs/2212.07595)**.
 
 If you use AirVO, please cite:
 
@@ -42,6 +42,11 @@ We also test AirVO on sequences collected by Realsense D435I in the environment 
 
 <img src="images/demo_realsense.gif" width = "539" height = "211" alt="realsense" />
 
+### Live demo in a dark environment.
+We collect the data in a factory.
+
+<img src="images/dark.gif" width = "600" alt="dark" />
+
 ### More
 [Video demo](https://www.youtube.com/watch?v=ZBggy5syysY)
 
@@ -49,7 +54,7 @@ We also test AirVO on sequences collected by Realsense D435I in the environment 
 ## Efficiency Comparison
 The evaluation is performed on the Nvidia Jetson AGX Xavier (2018), which is a low-power embedded platform with an 8-core ARM v8.2 64-bit CPU and a lowpower 512-core NVIDIA Volta GPU. The resolution of the input image sequence is 640 × 480. We extract 200 points and disabled the loop closure, relocalization and visualization part for all algorithms.
 
-<img src="images/time.jpg" width = "800" alt="efficiency" />
+<img src="images/time.jpg" width = "700" alt="efficiency" />
 
 
 ## Test Environment
