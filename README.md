@@ -46,6 +46,12 @@ We also test AirVO on sequences collected by Realsense D435I in the environment 
 [Video demo](https://www.youtube.com/watch?v=ZBggy5syysY)
 
 
+## Efficiency Comparison
+The evaluation is performed on the Nvidia Jetson AGX Xavier (2018), which is a low-power embedded platform with an 8-core ARM v8.2 64-bit CPU and a lowpower 512-core NVIDIA Volta GPU. The resolution of the input image sequence is 640 × 480. We extract 200 points and disabled the loop closure, relocalization and visualization part for all algorithms.
+
+<img src="images/time.pdf" width = "800" alt="efficiency" />
+
+
 ## Test Environment
 ### Dependencies
 * OpenCV 4.2
