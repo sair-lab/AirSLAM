@@ -52,7 +52,7 @@ We collect the data in a factory.
 
 
 ## Efficiency Comparison
-The evaluation is performed on the Nvidia Jetson AGX Xavier (2018), which is a low-power embedded platform with an 8-core ARM v8.2 64-bit CPU and a lowpower 512-core NVIDIA Volta GPU. The resolution of the input image sequence is 640 × 480. We extract 200 points and disabled the loop closure, relocalization and visualization part for all algorithms.
+The evaluation is performed on the Nvidia Jetson AGX Xavier (2018), a low-power embedded platform with an 8-core ARM v8.2 64-bit CPU and a lowpower 512-core NVIDIA Volta GPU. The resolution of the input image sequence is 640 × 480. We extract 200 points and disabled the loop closure, relocalization and visualization part for all algorithms.
 
 <img src="images/time.jpg" width = "700" alt="efficiency" />
 
