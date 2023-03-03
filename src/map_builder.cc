@@ -18,7 +18,7 @@
 #include "timer.h"
 #include "debug.h"
 
-MapBuilder::MapBuilder(Configs& configs): _init(false), _track_id(0), _line_track_id(0), 
+MapBuilder::MapBuilder(Configs& configs): _shutdown(false), _init(false), _track_id(0), _line_track_id(0), 
     _to_update_local_map(false), _configs(configs){
   _camera = std::shared_ptr<Camera>(new Camera(configs.camera_config_path));
   _superpoint = std::shared_ptr<SuperPoint>(new SuperPoint(configs.superpoint_config));
@@ -30,115 +30,228 @@ MapBuilder::MapBuilder(Configs& configs): _init(false), _track_id(0), _line_trac
   _line_detector = std::shared_ptr<LineDetector>(new LineDetector(configs.line_detector_config));
   _ros_publisher = std::shared_ptr<RosPublisher>(new RosPublisher(configs.ros_publisher_config));
   _map = std::shared_ptr<Map>(new Map(_configs.backend_optimization_config, _camera, _ros_publisher));
+
+  _feature_thread = std::thread(boost::bind(&MapBuilder::ExtractFeatureThread, this));
+  _tracking_thread = std::thread(boost::bind(&MapBuilder::TrackingThread, this));
 }
 
-void MapBuilder::AddInput(int frame_id, cv::Mat& image_left, cv::Mat& image_right, double timestamp){
-  // undistort image 
+void MapBuilder::AddInput(InputDataPtr data){
   cv::Mat image_left_rect, image_right_rect;
+  _camera->UndistortImage(data->image_left, data->image_right, image_left_rect, image_right_rect);
+  data->image_left = image_left_rect;
+  data->image_right = image_right_rect;
 
-  _camera->UndistortImage(image_left, image_right, image_left_rect, image_right_rect);
+  while(_data_buffer.size() >= 3 && !_shutdown){
+    usleep(2000);
+  }
 
+  _buffer_mutex.lock();
+  _data_buffer.push(data);
+  _buffer_mutex.unlock();
+}
+
+void MapBuilder::ExtractFeatureThread(){
+  while(!_shutdown){
+    if(_data_buffer.empty()){
+      usleep(2000);
+      continue;
+    }
+    InputDataPtr input_data;
+    _buffer_mutex.lock();
+    input_data = _data_buffer.front();
+    _data_buffer.pop();
+    _buffer_mutex.unlock();
+
+    int frame_id = input_data->index;
+    double timestamp = input_data->time;
+    cv::Mat image_left_rect = input_data->image_left.clone();
+    cv::Mat image_right_rect = input_data->image_right.clone();
+
+    // construct frame
+    FramePtr frame = std::shared_ptr<Frame>(new Frame(frame_id, false, _camera, timestamp));
+
+    // init
+    if(!_init){
+      _init = Init(frame, image_left_rect, image_right_rect);
+      _last_frame_track_well = _init;
+
+      if(_init){
+        _last_frame = frame;
+        _last_image = image_left_rect;
+        _last_right_image = image_right_rect;
+        _last_keyimage = image_left_rect;
+      }
+      PublishFrame(frame, image_left_rect);
+      continue;;
+    }
+
+    // extract features and track last keyframe
+    FramePtr last_keyframe = _last_keyframe;
+    const Eigen::Matrix<double, 259, Eigen::Dynamic> features_last_keyframe = last_keyframe->GetAllFeatures();
+
+    std::vector<cv::DMatch> matches;
+    Eigen::Matrix<double, 259, Eigen::Dynamic> features_left;
+    std::vector<Eigen::Vector4d> lines_left;
+    ExtractFeatureAndMatch(image_left_rect, features_last_keyframe, features_left, lines_left, matches);
+    frame->AddLeftFeatures(features_left, lines_left);
+
+    TrackingDataPtr tracking_data = std::shared_ptr<TrackingData>(new TrackingData());
+    tracking_data->frame = frame;
+    tracking_data->ref_keyframe = last_keyframe;
+    tracking_data->matches = matches;
+    tracking_data->input_data = input_data;
+    
+    while(_tracking_data_buffer.size() >= 2){
+      usleep(2000);
+    }
+
+    _tracking_mutex.lock();
+    _tracking_data_buffer.push(tracking_data);
+    _tracking_mutex.unlock();
+  }  
+}
+
+void MapBuilder::TrackingThread(){
+  while(!_shutdown){
+    if(_tracking_data_buffer.empty()){
+      usleep(2000);
+      continue;
+    }
+
+    TrackingDataPtr tracking_data;
+    _tracking_mutex.lock();
+    tracking_data = _tracking_data_buffer.front();
+    _tracking_data_buffer.pop();
+    _tracking_mutex.unlock();
+
+    FramePtr frame = tracking_data->frame;
+    FramePtr ref_keyframe = tracking_data->ref_keyframe;
+    InputDataPtr input_data = tracking_data->input_data;
+    std::vector<cv::DMatch> matches = tracking_data->matches;
+
+    double timestamp = input_data->time;
+    cv::Mat image_left_rect = input_data->image_left.clone();
+    cv::Mat image_right_rect = input_data->image_right.clone();
+
+    // track
+    frame->SetPose(_last_frame->GetPose());
+    std::function<int()> track_last_frame = [&](){
+      if(_num_since_last_keyframe < 1 || !_last_frame_track_well) return -1;
+      InsertKeyframe(_last_frame, _last_right_image);
+      _last_keyimage = _last_image;
+      matches.clear();
+      ref_keyframe = _last_frame;
+      return TrackFrame(_last_frame, frame, matches);
+    };
+
+    int num_match = matches.size();
+    if(num_match < _configs.keyframe_config.min_num_match){
+      num_match = track_last_frame();
+    }else{
+      num_match = TrackFrame(ref_keyframe, frame, matches);
+      if(num_match < _configs.keyframe_config.min_num_match){
+        num_match = track_last_frame();
+      }
+    }
+    PublishFrame(frame, image_left_rect);
+
+    _last_frame_track_well = (num_match >= _configs.keyframe_config.min_num_match);
+    if(!_last_frame_track_well) continue;
+
+    frame->SetPreviousFrame(ref_keyframe);
+    _last_frame_track_well = true;
+
+    // for debug 
+    // SaveTrackingResult(_last_keyimage, image_left, _last_keyframe, frame, matches, _configs.saving_dir);
+
+    if(AddKeyframe(ref_keyframe, frame, num_match) && ref_keyframe->GetFrameId() == _last_keyframe->GetFrameId()){
+      InsertKeyframe(frame, image_right_rect);
+      _last_keyimage = image_left_rect;
+    }
+
+    _last_frame = frame;
+    _last_image = image_left_rect;
+    _last_right_image = image_right_rect;
+  }  
+}
+
+void MapBuilder::ExtractFeatrue(const cv::Mat& image, Eigen::Matrix<double, 259, Eigen::Dynamic>& points, 
+    std::vector<Eigen::Vector4d>& lines){
+  std::function<void()> extract_point = [&](){
+    _gpu_mutex.lock();
+    bool good_infer = _superpoint->infer(image, points);
+    _gpu_mutex.unlock();
+    if(good_infer){
+      std::cout << "Failed when extracting point features !" << std::endl;
+      return;
+    }
+  };
+
+  std::function<void()> extract_line = [&](){
+    _line_detector->LineExtractor(image, lines);
+  };
+
+  std::thread point_ectraction_thread(extract_point);
+  std::thread line_ectraction_thread(extract_line);
+
+  point_ectraction_thread.join();
+  line_ectraction_thread.join();
+}
+
+void MapBuilder::ExtractFeatureAndMatch(const cv::Mat& image, const Eigen::Matrix<double, 259, Eigen::Dynamic>& points0, 
+    Eigen::Matrix<double, 259, Eigen::Dynamic>& points1, std::vector<Eigen::Vector4d>& lines, std::vector<cv::DMatch>& matches){
+  std::function<void()> extract_point_and_match = [&](){
+    auto point0 = std::chrono::steady_clock::now();
+     _gpu_mutex.lock();
+    if(!_superpoint->infer(image, points1)){
+      _gpu_mutex.unlock();
+      std::cout << "Failed when extracting point features !" << std::endl;
+      return;
+    }
+    auto point1 = std::chrono::steady_clock::now();
+
+    matches.clear();
+    _point_matching->MatchingPoints(points0, points1, matches);
+    _gpu_mutex.unlock();
+    auto point2 = std::chrono::steady_clock::now();
+    auto point_time = std::chrono::duration_cast<std::chrono::milliseconds>(point1 - point0).count();
+    auto point_match_time = std::chrono::duration_cast<std::chrono::milliseconds>(point2 - point1).count();
+    // std::cout << "One Frame point Time: " << point_time << " ms." << std::endl;
+    // std::cout << "One Frame point match Time: " << point_match_time << " ms." << std::endl;
+  };
+
+  std::function<void()> extract_line = [&](){
+    auto line1 = std::chrono::steady_clock::now();
+    _line_detector->LineExtractor(image, lines);
+    auto line2 = std::chrono::steady_clock::now();
+    auto line_time = std::chrono::duration_cast<std::chrono::milliseconds>(line2 - line1).count();
+    // std::cout << "One Frame line Time: " << line_time << " ms." << std::endl;
+  };
+
+  auto feature1 = std::chrono::steady_clock::now();
+  std::thread point_ectraction_thread(extract_point_and_match);
+  std::thread line_ectraction_thread(extract_line);
+
+  point_ectraction_thread.join();
+  line_ectraction_thread.join();
+
+  auto feature2 = std::chrono::steady_clock::now();
+  auto feature_time = std::chrono::duration_cast<std::chrono::milliseconds>(feature2 - feature1).count();
+  // std::cout << "One Frame featrue Time: " << feature_time << " ms." << std::endl;
+}
+
+bool MapBuilder::Init(FramePtr frame, cv::Mat& image_left, cv::Mat& image_right){
   // extract features
   Eigen::Matrix<double, 259, Eigen::Dynamic> features_left, features_right;
   std::vector<Eigen::Vector4d> lines_left, lines_right;
-  if(!_superpoint->infer(image_left_rect, features_left)){
-    std::cout << "Failed when extracting features of left image !" << std::endl;
-    return;
-  }
-  if(!_superpoint->infer(image_right_rect, features_right)){
-    std::cout << "Failed when extracting features of right image !" << std::endl;
-    return;
-  }
-  _line_detector->LineExtractor(image_left_rect, lines_left);
-  _line_detector->LineExtractor(image_right_rect, lines_right);
-
-  // stereo_match
   std::vector<cv::DMatch> stereo_matches;
-  StereoMatch(features_left, features_right, stereo_matches);
-
-  // construct frame
-  FramePtr frame = std::shared_ptr<Frame>(new Frame(frame_id, false, _camera, timestamp));
-  frame->AddFeatures(features_left, features_right, lines_left, lines_right, stereo_matches);
-  std::cout << "Detected feature point number = " << features_left.cols() << std::endl;
-
-  // init
-  if(!_init){
-    if(stereo_matches.size() < 100) return;
-    _init = Init(frame);
-    _last_frame_track_well = _init;
-
-    if(_init){
-      _last_frame = frame;
-      _last_image = image_left_rect;
-      _last_keyimage = image_left_rect;
-    }
-    PublishFrame(frame, image_left_rect);
-    return;
-  }
-
-  // first track with last keyframe
-  std::vector<cv::DMatch> matches;
-  int num_match = TrackFrame(_last_keyframe, frame, matches);
-  if(num_match < _configs.keyframe_config.min_num_match){
-    _last_frame_track_well = false;
-    if(_num_since_last_keyframe > 1 && _last_frame_track_well){
-      // if failed, track with last frame
-      InsertKeyframe(_last_frame);
-      _last_keyimage = _last_image;
-      matches.clear();
-      num_match = TrackFrame(_last_frame, frame, matches);
-      if(num_match < _configs.keyframe_config.min_num_match) return;
-    }else{
-      return;
-    }
-  }
-  frame->SetPreviousFrame(_last_keyframe);
-
-  // int track_local_map_num = TrackLocalMap(frame, num_match);
-  // UpdateReferenceFrame(frame);
-  // num_match = (track_local_map_num > 0) ? track_local_map_num : num_match;
-
-  // for debug 
-  // SaveTrackingResult(_last_keyimage, image_left, _last_keyframe, frame, matches, _configs.saving_dir);
-
-  PublishFrame(frame, image_left_rect);
-  _last_frame_track_well = true;
-
-  if(AddKeyframe(_last_keyframe, frame, num_match)){
-    InsertKeyframe(frame);
-    _last_keyimage = image_left_rect;
-  }
-
-  _last_frame = frame;
-  _last_image = image_left_rect;
-  return;
-}
-
- void MapBuilder::StereoMatch(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
-      Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<cv::DMatch>& matches){
-  std::vector<cv::DMatch> superglue_matches;
-  _point_matching->MatchingPoints(features_left, features_right, superglue_matches);
-
-  double min_x_diff = _camera->MinXDiff();
-  double max_x_diff = _camera->MaxXDiff();
-  const double max_y_diff = _camera->MaxYDiff();
-
-  for(cv::DMatch& match : superglue_matches){
-    int idx_left = match.queryIdx;
-    int idx_right = match.trainIdx;
-
-    double dx = std::abs(features_left(1, idx_left) - features_right(1, idx_right));
-    double dy = std::abs(features_left(2, idx_left) - features_right(2, idx_right));
-
-    if(dx > min_x_diff && dx < max_x_diff && dy <= max_y_diff){
-      matches.emplace_back(match);
-    }
-  }
-}
-
-bool MapBuilder::Init(FramePtr frame){
-  int feature_num = frame->FeatureNum();
+  ExtractFeatrue(image_left, features_left, lines_left);
+  int feature_num = features_left.cols();
   if(feature_num < 150) return false;
+  ExtractFeatureAndMatch(image_right, features_left, features_right, lines_right, stereo_matches);
+  frame->AddLeftFeatures(features_left, lines_left);
+  int stereo_point_num = frame->AddRightFeatures(features_right, lines_right, stereo_matches);
+  if(stereo_point_num < 100) return false;
 
   // Eigen::Matrix4d init_pose = Eigen::Matrix4d::Identity();
   Eigen::Matrix4d init_pose;
@@ -150,7 +263,6 @@ bool MapBuilder::Init(FramePtr frame){
   Eigen::Vector3d twc = init_pose.block<3, 1>(0, 3);
   // construct mappoints
   std::vector<int> track_ids(feature_num, -1);
-  int stereo_point_num = 0;
   int frame_id = frame->GetFrameId();
   Eigen::Vector3d tmp_position;
   std::vector<MappointPtr> new_mappoints;
@@ -167,8 +279,8 @@ bool MapBuilder::Init(FramePtr frame){
       new_mappoints.push_back(mappoint);
     }
   }
-  if(stereo_point_num < 100) return false;
   frame->SetTrackIds(track_ids);
+  if(stereo_point_num < 100) return false;
 
   // construct maplines
   size_t line_num = frame->LineNum();
@@ -199,20 +311,13 @@ bool MapBuilder::Init(FramePtr frame){
   }
   _ref_keyframe = frame;
   _last_frame = frame;
-
   return true;
 }
 
 int MapBuilder::TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMatch>& matches){
-  // point tracking
+  // line tracking
   Eigen::Matrix<double, 259, Eigen::Dynamic>& features0 = frame0->GetAllFeatures();
   Eigen::Matrix<double, 259, Eigen::Dynamic>& features1 = frame1->GetAllFeatures();
-  int num_match = _point_matching->MatchingPoints(features0, features1, matches);
-  if(num_match < _configs.keyframe_config.min_num_match){
-    return num_match;
-  }
-
-  // line tracking
   std::vector<std::map<int, double>> points_on_lines0 = frame0->GetPointsOnLines();
   std::vector<std::map<int, double>> points_on_lines1 = frame1->GetPointsOnLines();
   std::vector<int> line_matches;
@@ -385,7 +490,21 @@ bool MapBuilder::AddKeyframe(FramePtr last_keyframe, FramePtr current_frame, int
   return (not_enough_match || large_delta_angle || large_distance || enough_passed_frame);
 }
 
+void MapBuilder::InsertKeyframe(FramePtr frame, const cv::Mat& image_right){
+  _last_keyframe = frame;
+
+  Eigen::Matrix<double, 259, Eigen::Dynamic> features_right;
+  std::vector<Eigen::Vector4d> lines_right;
+  std::vector<cv::DMatch> stereo_matches;
+
+  ExtractFeatureAndMatch(image_right, frame->GetAllFeatures(), features_right, lines_right, stereo_matches);
+  frame->AddRightFeatures(features_right, lines_right, stereo_matches);
+  InsertKeyframe(frame);
+}
+
 void MapBuilder::InsertKeyframe(FramePtr frame){
+  _last_keyframe = frame;
+
   // create new track id
   std::vector<int>& track_ids = frame->GetAllTrackIds();
   for(size_t i = 0; i < track_ids.size(); i++){
@@ -406,7 +525,6 @@ void MapBuilder::InsertKeyframe(FramePtr frame){
   _map->InsertKeyframe(frame);
 
   // update last keyframe
-  _last_keyframe = frame;
   _num_since_last_keyframe = 1;
   _ref_keyframe = frame;
   _to_update_local_map = true;
@@ -544,4 +662,10 @@ void MapBuilder::SaveTrajectory(std::string file_path){
 
 void MapBuilder::SaveMap(const std::string& map_root){
   _map->SaveMap(map_root);
+}
+
+void MapBuilder::ShutDown(){
+  _shutdown = true;
+  _feature_thread.join();
+  _tracking_thread.join();
 }

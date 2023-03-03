@@ -5,10 +5,15 @@ def MakeDir(nd):
     os.mkdir(nd)
 
 
-dataroot = "/data/xukuan/euroc/seq"
-saving_root = "/home/xukuan/project/air_vo/experiments/resubmit"
+# dataroot = "/data/xukuan/UMA/DynamicIll/selected_seq/indoor"
+# saving_root = "/home/xukuan/project/air_vo/experiments/resubmit/multi-thread1/uma5"
+# workspace = "/home/xukuan/project/air_vo/air_vo_ws"
+# traj_gt_dir = "/home/xukuan/project/air_vo/experiments/traj_gt/uma"
+
+dataroot = "/data/xukuan/OIVIO/selected_seq"
+saving_root = "/home/xukuan/project/air_vo/experiments/resubmit/multi-thread1/oivio4"
 workspace = "/home/xukuan/project/air_vo/air_vo_ws"
-traj_gt_dir = "/home/xukuan/project/air_vo/experiments/traj_gt/euroc"
+traj_gt_dir = "/home/xukuan/project/air_vo/experiments/traj_gt/oivio"
 
 MakeDir(saving_root)
 traj_saving_root = os.path.join(saving_root, "traj")
@@ -28,7 +33,8 @@ for sequence in sequences:
   if os.path.exists(seq_traj_path):
     continue
 
-  os.system("cd {} & roslaunch air_vo euroc.launch dataroot:={} traj_path:={}".format(workspace, seq_dataroot, seq_traj_path))
+  # os.system("cd {} & roslaunch air_vo uma_bumblebee_indoor.launch dataroot:={} traj_path:={}".format(workspace, seq_dataroot, seq_traj_path))
+  os.system("cd {} & roslaunch air_vo oivio.launch dataroot:={} traj_path:={}".format(workspace, seq_dataroot, seq_traj_path))
 
   gt_path = os.path.join(traj_gt_dir, seq_traj_file)
   if not os.path.exists(gt_path):

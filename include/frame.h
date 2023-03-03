@@ -25,7 +25,7 @@ public:
   double GetTimestamp();
   void SetPoseFixed(bool pose_fixed);
   bool PoseFixed();
-  void SetPose(Eigen::Matrix4d& pose);
+  void SetPose(const Eigen::Matrix4d& pose);
   Eigen::Matrix4d& GetPose();
 
   // point features
@@ -33,6 +33,9 @@ public:
   void AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
       Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<Eigen::Vector4d>& lines_left, 
       std::vector<Eigen::Vector4d>& lines_right, std::vector<cv::DMatch>& stereo_matches);
+  void AddLeftFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, std::vector<Eigen::Vector4d>& lines_left);
+  int AddRightFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<Eigen::Vector4d>& lines_right, std::vector<cv::DMatch>& stereo_matches);
+
   Eigen::Matrix<double, 259, Eigen::Dynamic>& GetAllFeatures();
 
   size_t FeatureNum();

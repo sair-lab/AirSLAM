@@ -49,7 +49,7 @@ bool Point2DTo3D(const Eigen::Vector3d& anchor_point1, const Eigen::Vector3d& an
 class LineDetector{
 public:
 	LineDetector(const LineDetectorConfig &line_detector_config);
-	void LineExtractor(cv::Mat& image, std::vector<Eigen::Vector4d>& lines);
+	void LineExtractor(const cv::Mat& image, std::vector<Eigen::Vector4d>& lines);
   void MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::vector<Eigen::Vector4f>& dst_lines,
       float angle_threshold, float distance_threshold, float endpoint_threshold);
 

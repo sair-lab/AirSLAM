@@ -3,14 +3,14 @@
 
  <img src="images/pipeline.jpg" width = "800" alt="pipeline" />
 
-AirVO is an **illumination-robust** and accurate **stereo visual odometry system** based on **point and line features**. To be robust to illumination variation, we introduce the **learning-based feature extraction ([SuperPoint](https://github.com/magicleap/SuperPointPretrainedNetwork)) and matching ([SuperGlue](https://github.com/magicleap/SuperGluePretrainedNetwork)) method** and design a novel VO pipeline, including feature tracking, triangulation, key-frame selection, and graph optimization etc. We also employ long line features in the environment to improve the accuracy of the system. Different from the traditional line processing pipelines in visual odometry systems, we propose **an illumination-robust line tracking method**, where point feature tracking and distribution of point and line features are utilized to match lines. By accelerating the feature extraction and matching network using Nvidia TensorRT Toolkit, AirVO can run in **real time** on GPU.
+AirVO is an **illumination-robust** and accurate **stereo visual odometry (VO) system** based on **point and line features**. It is a hybrid VO system that combines the efficiency of traditional optimization techniques with the robustness of learning-based methods. To be robust to illumination variation, we introduce both the **learning-based feature extraction ([SuperPoint](https://github.com/magicleap/SuperPointPretrainedNetwork))** and **matching ([SuperGlue](https://github.com/magicleap/SuperGluePretrainedNetwork)) method** to the system. Moreover, We propose a new line processing pipeline for VO that **associates 2D lines with learning-based 2D points** on the image, leading to more robust feature matching and triangulation. This novel method enhances the accuracy and reliability of VO, especially in illumination-challenging environments. By accelerating CNN and GNN parts using Nvidia TensorRT Toolkit, our point feature detection and matching achieve more than **5× faster** than the original codes. The system can run at a rate of about **15Hz** on the Nvidia Jetson AGX Xavier (a low-power embedded device) and **40Hz** on a notebook PC.
 
-**Authors:** [Kuan Xu](https://github.com/xukuanHIT), [Yuefan Hao](https://github.com/yuefanhao), [Chen Wang](https://chenwang.site/), and [Lihua Xie](https://personal.ntu.edu.sg/elhxie/)
+**Authors:** [Kuan Xu](https://github.com/xukuanHIT), [Yuefan Hao](https://github.com/yuefanhao), [Shenghai Yuan](https://scholar.google.com/citations?user=XcV_sesAAAAJ&hl=en), [Chen Wang](https://chenwang.site/), and [Lihua Xie](https://personal.ntu.edu.sg/elhxie/)
 
 
 ## Related Papers
 
-**AirVO: An Illumination-Robust Point-Line Visual Odometry**, Kuan Xu, Yuefan Hao, Chen Wang and Lihua Xie, *arXiv preprint arXiv:2212.07595, 2022*. **[PDF](https://arxiv.org/abs/2212.07595)**.
+**AirVO: An Illumination-Robust Point-Line Visual Odometry**, Kuan Xu, Yuefan Hao, Shenghai Yuan, Chen Wang and Lihua Xie, *arXiv preprint arXiv:2212.07595, 2022*. **[PDF](https://arxiv.org/abs/2212.07595)**.
 
 If you use AirVO, please cite:
 
@@ -42,8 +42,19 @@ We also test AirVO on sequences collected by Realsense D435I in the environment 
 
 <img src="images/demo_realsense.gif" width = "539" height = "211" alt="realsense" />
 
+### Live demo in a dark environment.
+We collect the data in a factory.
+
+<img src="images/dark.gif" width = "600" alt="dark" />
+
 ### More
 [Video demo](https://www.youtube.com/watch?v=ZBggy5syysY)
+
+
+## Efficiency Comparison
+The evaluation is performed on the Nvidia Jetson AGX Xavier (2018), a low-power embedded platform with an 8-core ARM v8.2 64-bit CPU and a lowpower 512-core NVIDIA Volta GPU. The resolution of the input image sequence is 640 × 480. We extract 200 points and disabled the loop closure, relocalization and visualization part for all algorithms.
+
+<img src="images/time.jpg" width = "600" alt="efficiency" />
 
 
 ## Test Environment

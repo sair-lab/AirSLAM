@@ -1,5 +1,5 @@
 superpoint:
-  max_keypoints: 700
+  max_keypoints: 500
   keypoint_threshold: 0.004
   remove_borders: 4 
   input_tensor_names: 
@@ -41,7 +41,7 @@ line_detector:
 
 keyframe:
   min_num_match: 10
-  max_num_match: 80
+  max_num_match: 100
   max_distance: 0.5
   max_angle: 0.52
   max_num_passed_frame: 300

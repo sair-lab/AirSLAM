@@ -59,7 +59,7 @@ bool Frame::PoseFixed(){
   return _pose_fixed;
 }
 
-void Frame::SetPose(Eigen::Matrix4d& pose){
+void Frame::SetPose(const Eigen::Matrix4d& pose){
   _pose = pose;
 }
 
@@ -80,6 +80,12 @@ bool Frame::FindGrid(double& x, double& y, int& grid_x, int& grid_y){
 void Frame::AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
     Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<Eigen::Vector4d>& lines_left, 
     std::vector<Eigen::Vector4d>& lines_right, std::vector<cv::DMatch>& stereo_matches){
+  AddLeftFeatures(features_left, lines_left);
+  AddRightFeatures(features_right, lines_right, stereo_matches);
+}
+
+void Frame::AddLeftFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
+    std::vector<Eigen::Vector4d>& lines_left){
   _features = features_left;
 
   // fill in keypoints and assign features to grids
@@ -94,19 +100,11 @@ void Frame::AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_lef
     bool found = FindGrid(x, y, grid_x, grid_y);
     assert(found);
     _feature_grid[grid_x][grid_y].push_back(i);
-  }
+  } 
 
-  // Trianguate stereo points
+  // initialize u_right and depth
   _u_right = std::vector<double>(features_left_size, -1);
   _depth = std::vector<double>(features_left_size, -1);
-  for(cv::DMatch& match : stereo_matches){
-    int idx_left = match.queryIdx;
-    int idx_right = match.trainIdx;
-
-    assert(idx_left < _u_right.size());
-    _u_right[idx_left] = features_right(1, idx_right);
-    _depth[idx_left] = _camera->BF() / (features_left(1, idx_left) - features_right(1, idx_right));
-  }
 
   // initialize track_ids and mappoints
   std::vector<int> track_ids(features_left_size, -1);
@@ -116,17 +114,61 @@ void Frame::AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_lef
 
   // assign points to lines
   _lines = lines_left;
-  std::vector<std::map<int, double>> points_on_line_left, points_on_line_right;
+  std::vector<std::map<int, double>> points_on_line_left;
   std::vector<int> line_matches;
   AssignPointsToLines(lines_left, features_left, points_on_line_left);
   _points_on_lines = points_on_line_left;
+
+  // initialize line track ids and maplines
+  size_t line_num = lines_left.size();
+  std::vector<int> line_track_ids(line_num, -1);
+  _line_track_ids = line_track_ids;
+  std::vector<MaplinePtr> maplines(line_num, nullptr);
+  _maplines = maplines;
+
+  // for debug
+  relation_left = points_on_line_left;
+}
+
+int Frame::AddRightFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, 
+    std::vector<Eigen::Vector4d>& lines_right, std::vector<cv::DMatch>& stereo_matches){
+  // filter matches from superglue
+  std::vector<cv::DMatch> matches;
+  double min_x_diff = _camera->MinXDiff();
+  double max_x_diff = _camera->MaxXDiff();
+  const double max_y_diff = _camera->MaxYDiff();
+  for(cv::DMatch& match : stereo_matches){
+    int idx_left = match.queryIdx;
+    int idx_right = match.trainIdx;
+
+    double dx = std::abs(_features(1, idx_left) - features_right(1, idx_right));
+    double dy = std::abs(_features(2, idx_left) - features_right(2, idx_right));
+
+    if(dx > min_x_diff && dx < max_x_diff && dy <= max_y_diff){
+      matches.emplace_back(match);
+    }
+  }
+
+  // trianguate stereo points
+  for(cv::DMatch& match : matches){
+    int idx_left = match.queryIdx;
+    int idx_right = match.trainIdx;
+
+    assert(idx_left < _u_right.size());
+    _u_right[idx_left] = features_right(1, idx_right);
+    _depth[idx_left] = _camera->BF() / (_features(1, idx_left) - features_right(1, idx_right));
+  }
+
+  // assign points to lines
+  std::vector<std::map<int, double>> points_on_line_right;
   AssignPointsToLines(lines_right, features_right, points_on_line_right);
 
   // match stereo lines
+  std::vector<int> line_matches;
   size_t line_num = _lines.size();
   _lines_right.resize(line_num);
   _lines_right_valid.resize(line_num);
-  MatchLines(points_on_line_left, points_on_line_right, stereo_matches, features_left.cols(), features_right.cols(), line_matches);
+  MatchLines(_points_on_lines, points_on_line_right, matches, _features.cols(), features_right.cols(), line_matches);
   for(size_t i = 0; i < line_num; i++){
     if(line_matches[i] > 0){
       _lines_right[i] = lines_right[line_matches[i]];
@@ -136,17 +178,11 @@ void Frame::AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_lef
     }
   }
 
-  // initialize line track ids and maplines
-  std::vector<int> line_track_ids(line_num, -1);
-  _line_track_ids = line_track_ids;
-  std::vector<MaplinePtr> maplines(line_num, nullptr);
-  _maplines = maplines;
-
-
   // for debug
   line_left_to_right_match = line_matches;
-  relation_left = points_on_line_left;
   relation_right = points_on_line_right;
+
+  return matches.size();
 }
 
 Eigen::Matrix<double, 259, Eigen::Dynamic>& Frame::GetAllFeatures(){
