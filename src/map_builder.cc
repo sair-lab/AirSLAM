@@ -216,8 +216,8 @@ void MapBuilder::ExtractFeatureAndMatch(const cv::Mat& image, const Eigen::Matri
     auto point2 = std::chrono::steady_clock::now();
     auto point_time = std::chrono::duration_cast<std::chrono::milliseconds>(point1 - point0).count();
     auto point_match_time = std::chrono::duration_cast<std::chrono::milliseconds>(point2 - point1).count();
-    std::cout << "One Frame point Time: " << point_time << " ms." << std::endl;
-    std::cout << "One Frame point match Time: " << point_match_time << " ms." << std::endl;
+    // std::cout << "One Frame point Time: " << point_time << " ms." << std::endl;
+    // std::cout << "One Frame point match Time: " << point_match_time << " ms." << std::endl;
   };
 
   std::function<void()> extract_line = [&](){
@@ -225,7 +225,7 @@ void MapBuilder::ExtractFeatureAndMatch(const cv::Mat& image, const Eigen::Matri
     _line_detector->LineExtractor(image, lines);
     auto line2 = std::chrono::steady_clock::now();
     auto line_time = std::chrono::duration_cast<std::chrono::milliseconds>(line2 - line1).count();
-    std::cout << "One Frame line Time: " << line_time << " ms." << std::endl;
+    // std::cout << "One Frame line Time: " << line_time << " ms." << std::endl;
   };
 
   auto feature1 = std::chrono::steady_clock::now();
@@ -237,7 +237,7 @@ void MapBuilder::ExtractFeatureAndMatch(const cv::Mat& image, const Eigen::Matri
 
   auto feature2 = std::chrono::steady_clock::now();
   auto feature_time = std::chrono::duration_cast<std::chrono::milliseconds>(feature2 - feature1).count();
-  std::cout << "One Frame featrue Time: " << feature_time << " ms." << std::endl;
+  // std::cout << "One Frame featrue Time: " << feature_time << " ms." << std::endl;
 }
 
 bool MapBuilder::Init(FramePtr frame, cv::Mat& image_left, cv::Mat& image_right){
