@@ -10,16 +10,16 @@ AirVO is an **illumination-robust** and accurate **stereo visual odometry (VO) s
 
 ## Related Papers
 
-**AirVO: An Illumination-Robust Point-Line Visual Odometry**, Kuan Xu, Yuefan Hao, Shenghai Yuan, Chen Wang and Lihua Xie, *arXiv preprint arXiv:2212.07595, 2022*. **[PDF](https://arxiv.org/abs/2212.07595)**.
+**AirVO: An Illumination-Robust Point-Line Visual Odometry**, Kuan Xu, Yuefan Hao, Shenghai Yuan, Chen Wang and Lihua Xie, *IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)*, 2023. **[PDF](https://arxiv.org/abs/2212.07595)**.
 
 If you use AirVO, please cite:
 
 ```bibtex
-@article{xu2022airvo,
+@inproceedings{xu2023airvo,
   title={AirVO: An Illumination-Robust Point-Line Visual Odometry},
-  author={Xu, Kuan and Hao, Yuefan and Wang, Chen and Xie, Lihua},
-  journal={arXiv preprint arXiv:2212.07595},
-  year={2022}
+  author={Xu, Kuan and Hao, Yuefan and Yuan, Shenghai and Wang, Chen and Xie, Lihua},
+  booktitle={IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
+  year={2023}
 }
 ```
 
