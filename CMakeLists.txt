@@ -87,3 +87,6 @@ target_link_libraries(${PROJECT_NAME}_lib
 
 add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_lib ${catkin_LIBRARIES})
+
+add_executable(${PROJECT_NAME}_ros ros_main.cpp)
+target_link_libraries(${PROJECT_NAME}_ros ${PROJECT_NAME}_lib ${catkin_LIBRARIES})
