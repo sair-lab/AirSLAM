@@ -61,8 +61,8 @@ The evaluation is performed on the Nvidia Jetson AGX Xavier (2018), a low-power 
 ### Dependencies
 * OpenCV 4.2
 * Eigen 3
+* Ceres 2.0.0 
 * G2O (tag:20230223_git)
-* Ceres 2.0.0
 * TensorRT 8.4 
 * CUDA 11.6
 * python
@@ -71,7 +71,7 @@ The evaluation is performed on the Nvidia Jetson AGX Xavier (2018), a low-power 
 * Boost
 * Glog
 
-For Nvidia GeForce RTX 40 series, please use TensorRT 8.5 and CUDA 11.8 instead.
+For **Nvidia GeForce RTX 40 series**, please use TensorRT 8.5 and CUDA 11.8 instead.
 
 ### Docker (Recommend)
 ```bash
@@ -79,7 +79,7 @@ docker pull xukuanhit/air_slam:v1
 docker run -it --env DISPLAY=$DISPLAY --volume /tmp/.X11-unix:/tmp/.X11-unix --privileged --runtime nvidia --gpus all --volume ${PWD}:/workspace --workdir /workspace --name air_slam xukuanhit/air_slam:v1 /bin/bash
 ```
 
-For Nvidia GeForce RTX 40 series:
+For **Nvidia GeForce RTX 40 series**:
 ```bash
 docker pull xukuanhit/air_slam:v3
 docker run -it --env DISPLAY=$DISPLAY --volume /tmp/.X11-unix:/tmp/.X11-unix --privileged --runtime nvidia --gpus all --volume ${PWD}:/workspace --workdir /workspace --name air_slam xukuanhit/air_slam:v3 /bin/bash
