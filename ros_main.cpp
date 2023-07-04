@@ -23,17 +23,14 @@ MapBuilder* p_map_builder;
 // Functions
 //////////////////////////////////////////////////
 
-void GrabStereo(const sensor_msgs::ImageConstPtr& imgLeft, const sensor_msgs::ImageConstPtr& imgRight)
-{
+void GrabStereo(const sensor_msgs::ImageConstPtr& imgLeft, const sensor_msgs::ImageConstPtr& imgRight){
     // Copy the ros image messages to cvMat
     cv_bridge::CvImageConstPtr cv_ptrLeft, cv_ptrRight;
-    try
-    {
+    try{
         cv_ptrLeft = cv_bridge::toCvShare(imgLeft);
         cv_ptrRight = cv_bridge::toCvShare(imgRight);
     }
-    catch (cv_bridge::Exception& e)
-    {
+    catch (cv_bridge::Exception& e){
         ROS_ERROR("cv_bridge exception: %s", e.what());
         return;
     }
@@ -57,20 +54,21 @@ void GrabStereo(const sensor_msgs::ImageConstPtr& imgLeft, const sensor_msgs::Im
     std::cout << "i ===== " << frame_id++ << " Processing Time: " << cost_time << " ms." << std::endl;
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv){
     ros::init(argc, argv, "air_vo_ros");
 
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
-    if (argc > 1)
-    {
+    if (argc > 1){
         ROS_WARN ("Arguments supplied via command line are ignored.");
     }
 
     // ROS
+    std::string left_topic, right_topic;
+    ros::param::get("~left_topic", left_topic);
+    ros::param::get("~right_topic", right_topic);
     ros::NodeHandle node_handler;
-    message_filters::Subscriber<sensor_msgs::Image> sub_img_left(node_handler, "/cam0/image_raw", 1);
-    message_filters::Subscriber<sensor_msgs::Image> sub_img_right(node_handler, "/cam1/image_raw", 1);
+    message_filters::Subscriber<sensor_msgs::Image> sub_img_left(node_handler, left_topic, 1);
+    message_filters::Subscriber<sensor_msgs::Image> sub_img_right(node_handler, right_topic, 1);
 
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_pol;
     message_filters::Synchronizer<sync_pol> sync(sync_pol(10), sub_img_left, sub_img_right);
@@ -81,7 +79,6 @@ int main(int argc, char **argv)
     ros::param::get("~config_path", config_path);
     ros::param::get("~model_dir", model_dir);
     Configs configs(config_path, model_dir);
-    ros::param::get("~dataroot", configs.dataroot); // unused for real-time operation
     ros::param::get("~camera_config_path", configs.camera_config_path);
     ros::param::get("~saving_dir", configs.saving_dir);
     std::string traj_path;
