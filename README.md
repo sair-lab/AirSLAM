@@ -115,7 +115,7 @@ dataroot
 
 ## Run 
 
-**Note: The first run needs some time to generate ".engine" files.**
+**Note: Generating ".engine" files needs some time on the first run.**
 
 ### [OIVIO Dataset](https://arpg.github.io/oivio/)
 ```
