@@ -115,6 +115,8 @@ dataroot
 
 ## Run 
 
+**Note: Generating ".engine" files needs some time on the first run.**
+
 ### [OIVIO Dataset](https://arpg.github.io/oivio/)
 ```
 roslaunch air_vo oivio.launch 
