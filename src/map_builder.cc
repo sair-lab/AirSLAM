@@ -181,7 +181,7 @@ void MapBuilder::ExtractFeatrue(const cv::Mat& image, Eigen::Matrix<double, 259,
     _gpu_mutex.lock();
     bool good_infer = _superpoint->infer(image, points);
     _gpu_mutex.unlock();
-    if(good_infer){
+    if(!good_infer){
       std::cout << "Failed when extracting point features !" << std::endl;
       return;
     }
