@@ -10,10 +10,10 @@ def MakeDir(nd):
 # workspace = "/home/xukuan/project/air_vo/air_vo_ws"
 # traj_gt_dir = "/home/xukuan/project/air_vo/experiments/traj_gt/uma"
 
-dataroot = "/data/xukuan/OIVIO/selected_seq"
-saving_root = "/home/xukuan/project/air_vo/experiments/resubmit/multi-thread1/oivio4"
-workspace = "/home/xukuan/project/air_vo/air_vo_ws"
-traj_gt_dir = "/home/xukuan/project/air_vo/experiments/traj_gt/oivio"
+dataroot = "/media/data/datasets/oivio/selected_seq"
+saving_root = "/media/code/ubuntu_files/airvo/experiments/vo_results/iros/oivio/"
+workspace = "/media/code/ubuntu_files/airvo/catkin_ws"
+traj_gt_dir = "/media/code/ubuntu_files/airvo/experiments/traj_gt/oivio"
 
 MakeDir(saving_root)
 traj_saving_root = os.path.join(saving_root, "traj")
@@ -47,5 +47,5 @@ for sequence in sequences:
   eva_seq_path = os.path.join(eva_seq_root, eva_seq_file)
   os.system("evo_ape tum {} {} -a --save_results {}".format(gt_path, seq_traj_path, eva_seq_path))
 
-table_file = os.path.join(eva_sum_root, "sum.csv")
-os.system("evo_res {}/*.zip -p --save_table {}".format(eva_seq_root, table_file))
+# table_file = os.path.join(eva_sum_root, "sum.csv")
+# os.system("evo_res {}/*.zip -p --save_table {}".format(eva_seq_root, table_file))
