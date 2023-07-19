@@ -7,7 +7,7 @@ image_width: 1280
 bf: 32.3252131124
 
 depth_lower_thr: 0.1
-depth_upper_thr: 10.0
+depth_upper_thr: 4.0
 max_y_diff: 2
 
 # radial-tangential: 0, equidistant/fisheye: 1
