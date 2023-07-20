@@ -349,8 +349,12 @@ bool SuperPoint::deserialize_engine() {
         file.read(model_stream, size);
         file.close();
         IRuntime *runtime = createInferRuntime(gLogger);
-        if (runtime == nullptr) return false;
+        if (runtime == nullptr) {
+            delete[] model_stream;
+            return false;
+        }
         engine_ = std::shared_ptr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(model_stream, size));
+        delete[] model_stream;
         if (engine_ == nullptr) return false;
         return true;
     }
