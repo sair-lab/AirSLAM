@@ -446,8 +446,9 @@ bool SuperGlue::process_output(const BufferManager &buffers,
     auto *output_score = static_cast<float *>(buffers.getHostBuffer(superglue_config_.output_tensor_names[0]));
     int scores_map_h = output_scores_dims_.d[1];
     int scores_map_w = output_scores_dims_.d[2];
-    auto *scores = new float[(scores_map_h + 1) * (scores_map_w + 1)];
+    //auto *scores = new float[(scores_map_h + 1) * (scores_map_w + 1)];
     //log_optimal_transport(output_score, scores, scores_map_h, scores_map_w);
+    //delete []scores;
     //scores_map_h = scores_map_h + 1;
     //scores_map_w = scores_map_w + 1;
     decode(output_score, scores_map_h, scores_map_w, indices0_, indices1_, mscores0_, mscores1_);
@@ -490,8 +491,12 @@ bool SuperGlue::deserialize_engine() {
         file.read(model_stream, size);
         file.close();
         IRuntime *runtime = createInferRuntime(gLogger);
-        if (runtime == nullptr) return false;
+        if (runtime == nullptr) {
+            delete[] model_stream;
+            return false;
+        }
         engine_ = std::shared_ptr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(model_stream, size));
+        delete[] model_stream;
         if (engine_ == nullptr) return false;
         return true;
     }
