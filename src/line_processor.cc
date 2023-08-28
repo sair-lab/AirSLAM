@@ -288,7 +288,7 @@ void SortPointsOnLine(std::vector<Eigen::Vector2d>& points, std::vector<size_t>&
   }                                
 }
 
-bool TrianguateByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& line_right, 
+bool TriangulateByStereo(const Eigen::Vector4d& line_left, const Eigen::Vector4d& line_right, 
     const Eigen::Matrix4d& Twc, const CameraPtr& camera, Vector6d& line_3d){
   double x11 = line_left(0);
   double y11 = line_left(1);
@@ -379,7 +379,7 @@ bool ComputeLineFramePlanes(const Eigen::Vector4d& plane1, const Eigen::Vector4d
   return true;
 }
 
-bool TrianguateByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d& pose1, 
+bool TriangulateByTwoFrames(const Eigen::Vector4d& line_2d1, const Eigen::Matrix4d& pose1, 
     const Eigen::Vector4d& line_2d2, const Eigen::Matrix4d& pose2, const CameraPtr& camera, Line3DPtr line_3d){
   Eigen::Matrix3d Rw1 = pose1.block<3, 3>(0, 0);
   Eigen::Vector3d tw1 = pose1.block<3, 1>(0, 3);

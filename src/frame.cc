@@ -149,7 +149,7 @@ int Frame::AddRightFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features
     }
   }
 
-  // trianguate stereo points
+  // triangulate stereo points
   for(cv::DMatch& match : matches){
     int idx_left = match.queryIdx;
     int idx_right = match.trainIdx;
@@ -403,10 +403,10 @@ const std::vector<std::map<int, double>>& Frame::GetPointsOnLines(){
   return _points_on_lines;
 }
 
-bool Frame::TrianguateStereoLine(size_t idx, Vector6d& endpoints){
+bool Frame::TriangulateStereoLine(size_t idx, Vector6d& endpoints){
   return false;
   if(idx >= _lines.size() || !_lines_right_valid[idx]) return false;
-  return TrianguateByStereo(_lines[idx], _lines_right[idx], _pose, _camera, endpoints);
+  return TriangulateByStereo(_lines[idx], _lines_right[idx], _pose, _camera, endpoints);
 }
 
 void Frame::RemoveMapline(MaplinePtr mapline){

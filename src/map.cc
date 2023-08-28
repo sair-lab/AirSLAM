@@ -78,7 +78,7 @@ void Map::InsertKeyframe(FramePtr frame){
       mpl = std::shared_ptr<Mapline>(new Mapline(line_track_ids[i]));
       if(lines_right_valid[i]){
         Vector6d endpoints;
-        if(frame->TrianguateStereoLine(i, endpoints)){
+        if(frame->TriangulateStereoLine(i, endpoints)){
           mpl->SetEndpoints(endpoints);
           mpl->SetObverserEndpointStatus(frame_id, 1);
         }
