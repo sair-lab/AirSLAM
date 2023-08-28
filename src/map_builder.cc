@@ -250,8 +250,8 @@ bool MapBuilder::Init(FramePtr frame, cv::Mat& image_left, cv::Mat& image_right)
   if(feature_num < 150) return false;
   ExtractFeatureAndMatch(image_right, features_left, features_right, lines_right, stereo_matches);
   frame->AddLeftFeatures(features_left, lines_left);
-  int stereo_point_num = frame->AddRightFeatures(features_right, lines_right, stereo_matches);
-  if(stereo_point_num < 100) return false;
+  int stereo_point_match = frame->AddRightFeatures(features_right, lines_right, stereo_matches);
+  if(stereo_point_match < 100) return false;
 
   // Eigen::Matrix4d init_pose = Eigen::Matrix4d::Identity();
   Eigen::Matrix4d init_pose;
@@ -262,6 +262,7 @@ bool MapBuilder::Init(FramePtr frame, cv::Mat& image_left, cv::Mat& image_right)
   Eigen::Matrix3d Rwc = init_pose.block<3, 3>(0, 0);
   Eigen::Vector3d twc = init_pose.block<3, 1>(0, 3);
   // construct mappoints
+  int stereo_point_num = 0;
   std::vector<int> track_ids(feature_num, -1);
   int frame_id = frame->GetFrameId();
   Eigen::Vector3d tmp_position;
@@ -289,7 +290,7 @@ bool MapBuilder::Init(FramePtr frame, cv::Mat& image_left, cv::Mat& image_right)
     frame->SetLineTrackId(i, _line_track_id);
     MaplinePtr mapline = std::shared_ptr<Mapline>(new Mapline(_line_track_id));
     Vector6d endpoints;
-    if(frame->TrianguateStereoLine(i, endpoints)){
+    if(frame->TriangulateStereoLine(i, endpoints)){
       mapline->SetEndpoints(endpoints);
       mapline->SetObverserEndpointStatus(frame_id, 1);
     }else{

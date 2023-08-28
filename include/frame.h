@@ -84,7 +84,7 @@ public:
   const std::vector<MaplinePtr>& GetConstAllMaplines();
   std::map<int, double> GetPointsOnLine(size_t idx);
   const std::vector<std::map<int, double>>& GetPointsOnLines();
-  bool TrianguateStereoLine(size_t idx, Vector6d& endpoints);
+  bool TriangulateStereoLine(size_t idx, Vector6d& endpoints);
   void RemoveMapline(MaplinePtr mapline);
   void RemoveMapline(int idx);
 
