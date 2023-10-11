@@ -638,6 +638,7 @@ void MapBuilder::PublishFrame(FramePtr frame, cv::Mat& image){
   FeatureMessgaePtr feature_message = std::shared_ptr<FeatureMessgae>(new FeatureMessgae);
   FramePoseMessagePtr frame_pose_message = std::shared_ptr<FramePoseMessage>(new FramePoseMessage);
 
+  feature_message->time = frame->GetTimestamp();
   feature_message->image = image;
   feature_message->keypoints = frame->GetAllKeypoints();;
   feature_message->lines = frame->GatAllLines();
@@ -645,6 +646,7 @@ void MapBuilder::PublishFrame(FramePtr frame, cv::Mat& image){
   std::vector<bool> inliers_feature_message;
   frame->GetInlierFlag(inliers_feature_message);
   feature_message->inliers = inliers_feature_message;
+  frame_pose_message->time = frame->GetTimestamp();
   frame_pose_message->pose = frame->GetPose();
   feature_message->line_track_ids = frame->GetAllLineTrackId();
 

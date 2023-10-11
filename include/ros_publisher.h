@@ -41,7 +41,7 @@ typedef std::shared_ptr<const FramePoseMessage> FramePoseMessageConstPtr;
 struct KeyframeMessage{
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  double time;
+  std::vector<double> times;
   std::vector<int> ids;
   std::vector<Eigen::Matrix4d> poses;
 };
