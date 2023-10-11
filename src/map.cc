@@ -773,6 +773,7 @@ void Map::LocalMapOptimization(FramePtr new_frame){
     pose_eigen.block<3, 1>(0, 3) = pose.p;
     _keyframes[frame_id]->SetPose(pose_eigen);
 
+    keyframe_message->times.push_back(_keyframes[frame_id]->GetTimestamp());
     keyframe_message->ids.push_back(frame_id);
     keyframe_message->poses.push_back(pose_eigen);
   }

@@ -17,6 +17,7 @@ RosPublisher::RosPublisher(const RosPublisherConfig& ros_publisher_config): _con
           feature_message->inliers, feature_message->lines, feature_message->line_track_ids, 
           feature_message->points_on_lines);
       sensor_msgs::ImagePtr ros_feature_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", drawed_image).toImageMsg();
+      ros_feature_msg->header.stamp = ros::Time().fromSec(feature_message->time);
       _ros_feature_pub.publish(ros_feature_msg);
     };
     _feature_publisher.Register(publish_feature_function);
@@ -28,7 +29,7 @@ RosPublisher::RosPublisher(const RosPublisherConfig& ros_publisher_config): _con
     std::function<void(const FramePoseMessageConstPtr&)> publish_frame_pose_function = 
         [&](const FramePoseMessageConstPtr& frame_pose_message){
       geometry_msgs::PoseStamped pose_stamped;
-      pose_stamped.header.stamp = ros::Time::now();
+      pose_stamped.header.stamp = ros::Time().fromSec(frame_pose_message->time);
       pose_stamped.header.frame_id = "map";
       pose_stamped.pose.position.x = frame_pose_message->pose(0, 3);
       pose_stamped.pose.position.y = frame_pose_message->pose(1, 3);
@@ -70,7 +71,7 @@ RosPublisher::RosPublisher(const RosPublisherConfig& ros_publisher_config): _con
         pose.orientation.w = q.w();
 
         geometry_msgs::PoseStamped pose_stamped;
-        pose_stamped.header.stamp = ros::Time::now();
+        pose_stamped.header.stamp = ros::Time().fromSec(keyframe_message->times[i]);;
         pose_stamped.pose = pose;
         
         it = _keyframe_id_to_index.find(keyframe_id);
