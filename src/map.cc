@@ -66,7 +66,7 @@ void Map::InsertKeyframe(FramePtr frame){
 
   // update mapline
   std::vector<MaplinePtr> new_maplines;
-  const std::vector<int>& line_track_ids = frame->GetAllTrackIds();
+  const std::vector<int>& line_track_ids = frame->GetAllLineTrackId();
   const std::vector<Eigen::Vector4d>& lines = frame->GatAllLines();
   const std::vector<Eigen::Vector4d>& lines_right = frame->GatAllRightLines();
   const std::vector<bool>& lines_right_valid = frame->GetAllRightLineStatus();
