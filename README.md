@@ -42,11 +42,6 @@ We also test AirVO on sequences collected by Realsense D435I in the environment 
 
 <img src="images/demo_realsense.gif" width = "539" height = "211" alt="realsense" />
 
-### Live demo in a dark environment.
-We collect the data in a factory.
-
-<img src="images/dark.gif" width = "600" alt="dark" />
-
 ### More
 [Video demo](https://www.youtube.com/watch?v=ZBggy5syysY)
 
