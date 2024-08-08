@@ -1,0 +1,33 @@
+language: cpp
+os:
+    - linux
+    - osx
+    - windows
+dist:
+    - bionic
+osx_image:
+    - xcode11.3
+env:
+    - OPENCV_BRANCH=master
+    - OPENCV_BRANCH=3.4
+cache:
+    directories:
+        - ${TRAVIS_BUILD_DIR}/opencv
+before_script:
+    - rmdir opencv || true
+    - if [ ! -d opencv ]; then git clone --single-branch --branch ${OPENCV_BRANCH} https://github.com/opencv/opencv.git; fi
+    - pushd opencv
+    - mkdir -p build
+    - cd build
+    - cmake .. -DBUILD_LIST=core,imgproc,imgcodecs,calib3d,highgui -DBUILD_EXAMPLES=OFF -DCMAKE_INSTALL_PREFIX=../install
+    - cmake --build . --parallel 8 --target install --config Release
+    - popd
+script:
+    - mkdir -p build
+    - cd build
+    - export OPENCV_CONFIG=$(dirname $(find ${TRAVIS_BUILD_DIR}/opencv/install -name OpenCVConfig.cmake | head -n1))
+    - cmake .. -DOpenCV_DIR=${OPENCV_CONFIG}
+    - cmake --build . --config Release
+    - export DEMO=$(find . -type f \( -name demo.exe -o -name demo \) | head -n1)
+    - export PATH="$PATH:${TRAVIS_BUILD_DIR}/opencv/install/x86/vc15/bin"
+    - echo | $DEMO

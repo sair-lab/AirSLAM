@@ -1,0 +1,25 @@
+<launch>
+    <arg name="config_path" default = "$(find air_slam)/configs/relocalization/reloc_tartanair.yaml" />
+    <arg name="dataroot" default = "/media/bssd/datasets/tartanair/mapping_relocalization/relocalization/abandonedfactory/sequences/P000" />
+    <arg name="camera_config_path" default = "$(find air_slam)/configs/camera/tartanair.yaml" />
+    <arg name="model_dir" default = "$(find air_slam)/output" />
+    <arg name="traj_path" default = "/media/bssd/datasets/tartanair/mapping_relocalization/results/tmp/relo_results/P000.txt" />
+    <arg name="voc_path" default = "$(find air_slam)/voc/point_voc_L4.bin" />
+    <arg name="map_root" default = "/media/code/ubuntu_files/airvio/experiments/results/tartanair/abandonedfactory/maps/P000" />
+
+    <node name="relocalization" pkg="air_slam" type="relocalization" output="screen">
+      <param name="config_path" type="string" value="$(arg config_path)" />
+      <param name="dataroot" type="string" value="$(arg dataroot)" />
+      <param name="camera_config_path" type="string" value="$(arg camera_config_path)" />
+      <param name="model_dir" type="string" value="$(arg model_dir)" />
+      <param name="traj_path" type="string" value="$(arg traj_path)" />
+      <param name="map_root" type="string" value="$(arg map_root)" />
+      <param name="voc_path" type="string" value="$(arg voc_path)" />
+    </node>
+
+  <arg name="visualization" default="true" />
+  <group if="$(arg visualization)">
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find air_slam)/rviz/relocalization.rviz" output="screen" />
+  </group>
+
+</launch>		

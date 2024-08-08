@@ -12,7 +12,7 @@
 
 class VertexLine3D : public g2o::BaseVertex<4, g2o::Line3D> {
  public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   VertexLine3D();
   virtual bool read(std::istream& is);

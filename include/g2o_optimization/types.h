@@ -14,19 +14,22 @@
 #include <g2o/types/slam3d_addons/types_slam3d_addons.h>
 
 #include "utils.h"
+#include "imu.h"
 
 struct Pose3d {
   bool fixed;
+  int id_camera;
   Eigen::Vector3d p;
-  Eigen::Quaterniond q;
+  Eigen::Matrix3d R;
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   Pose3d() {}
   Pose3d& operator =(Pose3d& other){
 		fixed = other.fixed;
+		id_camera = other.id_camera;
 		p = other.p;
-		q = other.q;
+		R = other.R;
 		return *this;
 	}
 };
@@ -171,5 +174,87 @@ struct StereoLineConstraint {
 typedef std::shared_ptr<StereoLineConstraint> StereoLineConstraintPtr;
 typedef std::vector<StereoLineConstraintPtr> VectorOfStereoLineConstraints;
 
+
+// for imu
+struct Velocity{
+  bool fixed;
+  Eigen::Vector3d velocity;
+
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  Velocity() {}
+  Velocity& operator =(Velocity& other){
+		fixed = other.fixed;
+		velocity = other.velocity;
+		return *this;
+	}
+};
+typedef std::map<int, Velocity, std::less<int>, Eigen::aligned_allocator<std::pair<const int, Velocity>>> MapOfVelocity;
+
+
+struct Bias{
+  bool fixed;
+  Eigen::Vector3d gyr_bias;
+  Eigen::Vector3d acc_bias;
+
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  Bias() {}
+  Bias& operator =(Bias& other){
+		fixed = other.fixed;
+		gyr_bias = other.gyr_bias;
+		acc_bias = other.acc_bias;
+		return *this;
+	}
+};
+typedef std::map<int, Bias, std::less<int>, Eigen::aligned_allocator<std::pair<const int, Bias>>> MapOfBias;
+
+
+struct ImuConstraint{
+  int id_pose1;
+  int id_pose2;
+  int id_camera1;
+  int id_camera2;
+  PreinterationPtr preinteration;
+  
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  ImuConstraint() {}
+  ImuConstraint& operator =(ImuConstraint& other){
+		id_pose1 = other.id_pose1;
+		id_pose2 = other.id_pose2;
+		id_camera1 = other.id_camera1;
+		id_camera2 = other.id_camera2;
+		preinteration = other.preinteration;
+		return *this;
+	}
+};
+typedef std::shared_ptr<ImuConstraint> IMUConstraintPtr;
+typedef std::vector<IMUConstraintPtr> VectorOfIMUConstraints;
+
+struct RelativePoseConstraint{
+  int id_pose1;
+  int id_pose2;
+  int id_camera1;
+  int id_camera2;
+
+  Eigen::Matrix3d Rc1c2;
+  Eigen::Vector3d tc1c2;
+
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  RelativePoseConstraint() {}
+  RelativePoseConstraint& operator =(RelativePoseConstraint& other){
+		id_pose1 = other.id_pose1;
+		id_pose2 = other.id_pose2;
+		id_camera1 = other.id_camera1;
+		id_camera2 = other.id_camera2;
+		Rc1c2 = other.Rc1c2;
+		tc1c2 = other.tc1c2;
+		return *this;
+	}
+};
+typedef std::shared_ptr<RelativePoseConstraint> RelativePoseConstraintPtr;
+typedef std::vector<RelativePoseConstraintPtr> VectorOfRelativePoseConstraints;
 
 #endif  // OPTIMIZATION_3D_TYPES_H_

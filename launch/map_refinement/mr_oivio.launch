@@ -1,0 +1,20 @@
+<launch>
+  <arg name="config_path" default = "$(find air_slam)/configs/map_refinement/mr_oivio.yaml" />
+  <arg name="map_root" default = "/media/data/datasets/oivio/results/air_slam/maps/TN_100_GV_01" />
+  <arg name="model_dir" default = "$(find air_slam)/output" />
+  <arg name="voc_path" default = "$(find air_slam)/voc/point_voc_L4.bin" />
+  <arg name="breakpoint" default="0"/>
+
+  <node name="map_refinement" pkg="air_slam" type="map_refinement" output="screen">
+    <param name="config_path" type="string" value="$(arg config_path)" />
+    <param name="map_root" type="string" value="$(arg map_root)" />
+    <param name="model_dir" type="string" value="$(arg model_dir)" />
+    <param name="voc_path" type="string" value="$(arg voc_path)" />
+    <param name="breakpoint" type="int" value="$(arg breakpoint)" />
+  </node>
+
+  <arg name="visualization" default="true" />
+  <group if="$(arg visualization)">
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find air_slam)/rviz/map_optimization.rviz" output="screen" />
+  </group>    
+</launch>		

@@ -12,10 +12,10 @@
 #include <NvOnnxParser.h>
 #include <opencv2/opencv.hpp>
 
-#include "Thirdparty/TensorRTBuffer/include/buffers.h"
+#include "3rdparty/tensorrtbuffer/include/buffers.h"
 #include "read_configs.h"
 
-using tensorrt_common::TensorRTUniquePtr;
+using tensorrt_buffer::TensorRTUniquePtr;
 
 class SuperPoint {
 public:
@@ -23,15 +23,20 @@ public:
 
     bool build();
 
-    bool infer(const cv::Mat &image, Eigen::Matrix<double, 259, Eigen::Dynamic> &features);
-
-    void visualization(const std::string &image_name, const cv::Mat &image);
+    bool infer(const cv::Mat &image, Eigen::Matrix<float, 259, Eigen::Dynamic> &features);
 
     void save_engine();
 
     bool deserialize_engine();
 
 private:
+    int input_width;
+    int input_height;
+    int resized_width;
+    int resized_height;
+    float w_scale;
+    float h_scale; 
+
     SuperPointConfig super_point_config_;
     nvinfer1::Dims input_dims_{};
     nvinfer1::Dims semi_dims_{};
@@ -39,7 +44,7 @@ private:
     std::shared_ptr<nvinfer1::ICudaEngine> engine_;
     std::shared_ptr<nvinfer1::IExecutionContext> context_;
     std::vector<std::vector<int>> keypoints_;
-    std::vector<std::vector<double>> descriptors_;
+    std::vector<std::vector<float>> descriptors_;
 
     bool construct_network(TensorRTUniquePtr<nvinfer1::IBuilder> &builder,
                            TensorRTUniquePtr<nvinfer1::INetworkDefinition> &network,
@@ -48,21 +53,15 @@ private:
 
     bool process_input(const tensorrt_buffer::BufferManager &buffers, const cv::Mat &image);
 
-    bool
-    process_output(const tensorrt_buffer::BufferManager &buffers, Eigen::Matrix<double, 259, Eigen::Dynamic> &features);
+    bool process_output(const tensorrt_buffer::BufferManager &buffers, Eigen::Matrix<float, 259, Eigen::Dynamic> &features);
 
-    void remove_borders(std::vector<std::vector<int>> &keypoints, std::vector<float> &scores, int border, int height,
-                        int width);
+    bool keypoints_decoder(const float* scores, const float* descriptors, Eigen::Matrix<float, 259, Eigen::Dynamic> &features);
 
     std::vector<size_t> sort_indexes(std::vector<float> &data);
+    int clip(int val, int max);
 
-    void top_k_keypoints(std::vector<std::vector<int>> &keypoints, std::vector<float> &scores, int k);
-
-    void find_high_score_index(std::vector<float> &scores, std::vector<std::vector<int>> &keypoints, int h, int w,
-                               double threshold);
-
-    void sample_descriptors(std::vector<std::vector<int>> &keypoints, float *descriptors,
-                            std::vector<std::vector<double>> &dest_descriptors, int dim, int h, int w, int s = 8);
+    void detect_point(const float* heat_map, Eigen::Matrix<float, 259, Eigen::Dynamic>& features, int h, int w, float threshold, int border, int top_k);
+    void extract_descriptors(const float *descriptors, Eigen::Matrix<float, 259, Eigen::Dynamic> &features, int h, int w, int s);
 };
 
 typedef std::shared_ptr<SuperPoint> SuperPointPtr;

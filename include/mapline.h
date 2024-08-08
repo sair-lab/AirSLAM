@@ -13,6 +13,11 @@
 #include <g2o/types/slam3d/types_slam3d.h>
 #include <g2o/types/slam3d_addons/types_slam3d_addons.h>
 
+#include <boost/serialization/serialization.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/serialization/map.hpp>
+
 #include "utils.h"
 
 
@@ -28,7 +33,7 @@ public:
   Mapline(int mappoint_id);
   void SetId(int id);
   int GetId();
-  void SetType(Type& type);
+  void SetType(const Type& type);
   Type GetType();
   void SetBad();
   bool IsBad();
@@ -41,8 +46,8 @@ public:
   bool EndpointsValid();
   void SetEndpointsUpdateStatus(bool status);
   bool ToUpdateEndpoints();
-  void SetLine3D(g2o::Line3D& line_3d);
-  void SetLine3DPtr(Line3DPtr& line_3d);
+  void SetLine3D(const g2o::Line3D& line_3d);
+  void SetLine3DPtr(const Line3DPtr& line_3d);
   ConstLine3DPtr GetLine3DPtr();
   g2o::Line3D GetLine3D();
 
@@ -58,6 +63,20 @@ public:
 
 public:
   int local_map_optimization_frame_id;
+
+private:
+  friend class boost::serialization::access;
+  template<class Archive>
+  void serialize(Archive & ar, const unsigned int version){
+    ar & _id;
+    ar & _type;
+    ar & _to_update_endpoints;
+    ar & _endpoints_valid;
+    ar & boost::serialization::make_array(_endpoints.data(), _endpoints.size());
+    SerializeLine3D(ar, _line_3d, version);
+    ar & _obversers;
+    ar & _included_endpoints;
+  }
 
 private:
   int _id;

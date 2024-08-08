@@ -15,6 +15,7 @@ class ThreadPublisher{
 public:
   ThreadPublisher(){ 
     shutdown_requested = false;
+    stopped = false;
   }
 
   ~ThreadPublisher() {}
@@ -27,6 +28,20 @@ public:
     publish_thread = std::thread(boost::bind(&ThreadPublisher::Process, this));
   }
 
+  void RequestShutdown(){
+    std::unique_lock<std::mutex> locker(shutdown_mutex);
+    shutdown_requested = true;
+    locker.unlock(); 
+  }
+
+  bool ShutdownRequested(){
+    bool is_requested;
+    std::unique_lock<std::mutex> locker(shutdown_mutex);
+    is_requested = shutdown_requested;
+    locker.unlock(); 
+    return is_requested;
+  }
+
   void Publish(const std::shared_ptr<const T> msg){
     std::unique_lock<std::mutex> locker(msg_mutex);
     msgs.push(msg);
@@ -35,19 +50,19 @@ public:
   }
 
   void Process(){
-    while(!shutdown_requested){
+    while(!ShutdownRequested()){
       std::shared_ptr<const T> msg;
       std::unique_lock<std::mutex> locker(msg_mutex);
       while(msgs.empty()){
-        if(shutdown_requested){
+        if(ShutdownRequested()){
           locker.unlock();
           break;
         }else{
           msg_cond.wait(locker);
         }
       }
-      
-      if(shutdown_requested){
+
+      if(ShutdownRequested()){
         break;
       }else{
         if(0){
@@ -61,16 +76,22 @@ public:
         }
       }
       locker.unlock();
-
       for(auto callback : callbacks){
         callback(msg);
       }
     }
+    stopped = true;
   }
 
   void ShutDown(){
-    shutdown_requested = true;
-    msg_cond.notify_one();
+    // shutdown_requested = true;
+    // msg_cond.notify_one();
+    while(!stopped){
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      RequestShutdown();
+      msg_cond.notify_one();
+    }
+
     if(publish_thread.joinable()){
       publish_thread.join();
     }
@@ -78,6 +99,7 @@ public:
 
 private:
   std::mutex msg_mutex;
+  std::mutex shutdown_mutex;
   std::condition_variable msg_cond;
   std::queue<std::shared_ptr<const T> > msgs;
 
@@ -85,6 +107,7 @@ private:
   std::vector<std::function<void(const std::shared_ptr<const T>&)>> callbacks;
 
   bool shutdown_requested;
+  bool stopped;
 };
 
 #endif  // THREAD_PUBLISHER_H_

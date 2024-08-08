@@ -20,7 +20,7 @@ int Mapline::GetId(){
   return _id;
 }
 
-void Mapline::SetType(Type& type){
+void Mapline::SetType(const Type& type){
   _type = type;
 }
 
@@ -102,7 +102,7 @@ bool Mapline::ToUpdateEndpoints(){
   return _to_update_endpoints;
 }
 
-void Mapline::SetLine3D(g2o::Line3D& line_3d){
+void Mapline::SetLine3D(const g2o::Line3D& line_3d){
   _line_3d->setW(line_3d.w());
   _line_3d->setD(line_3d.d());
   _to_update_endpoints = true;
@@ -111,7 +111,7 @@ void Mapline::SetLine3D(g2o::Line3D& line_3d){
   }
 }
 
-void Mapline::SetLine3DPtr(Line3DPtr& line_3d){
+void Mapline::SetLine3DPtr(const Line3DPtr& line_3d){
   _line_3d->setW(line_3d->w());
   _line_3d->setD(line_3d->d());
   _to_update_endpoints = true;
