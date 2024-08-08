@@ -1,0 +1,33 @@
+point_matcher:
+  matcher: 0   # 0 for lightglue, 1 for superglue
+  image_width: 752
+  image_height: 480
+  onnx_file: "superpoint_lightglue.onnx"
+  engine_file: "superpoint_lightglue.engine"
+
+
+optimization:
+  mono_point: 50
+  stereo_point: 75
+  mono_line: 50
+  stereo_line: 75
+  rate: 0.5
+
+ros_publisher:
+  feature: 0
+  feature_topic: "/AirSLAM/feature"
+  frame_pose: 0
+  frame_pose_topic: "/AirSLAM/frame_pose"
+  frame_odometry_topic: "/AirSLAM/LatestOdometry"
+  keyframe: 1
+  keyframe_topic: "/AirSLAM/keyframe"
+  path_topic: "/AirSLAM/odometry"
+  map: 1
+  map_topic: "/AirSLAM/map"
+  mapline: 1
+  mapline_topic: "/AirSLAM/mapline"
+  reloc: 0
+  reloc_topic: "/AirSLAM/reloc"
+
+
+ 

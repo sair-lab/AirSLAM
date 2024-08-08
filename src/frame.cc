@@ -8,36 +8,40 @@ Frame::Frame(){
 
 Frame::Frame(int frame_id, bool pose_fixed, CameraPtr camera, double timestamp):
     tracking_frame_id(-1), local_map_optimization_frame_id(-1), local_map_optimization_fix_frame_id(-1),
-    _frame_id(frame_id), _pose_fixed(pose_fixed), _camera(camera), _timestamp(timestamp){
+    _frame_id(frame_id), _pose_fixed(pose_fixed), _camera(camera), _timestamp(timestamp), _init_v(false){
   _grid_width_inv = static_cast<double>(FRAME_GRID_COLS)/static_cast<double>(_camera->ImageWidth());
   _grid_height_inv = static_cast<double>(FRAME_GRID_ROWS)/static_cast<double>(_camera->ImageHeight());
 }
 
-Frame& Frame::operator=(const Frame& other){
-  tracking_frame_id = other.tracking_frame_id;
-  local_map_optimization_frame_id = other.local_map_optimization_frame_id;
-  local_map_optimization_fix_frame_id = other.local_map_optimization_fix_frame_id;
-  _frame_id = other._frame_id;
-  _timestamp = other._timestamp;
-  _pose_fixed = other._pose_fixed;
-  _pose = other._pose;
+// Frame& Frame::operator=(const Frame& other){
+//   tracking_frame_id = other.tracking_frame_id;
+//   local_map_optimization_frame_id = other.local_map_optimization_frame_id;
+//   local_map_optimization_fix_frame_id = other.local_map_optimization_fix_frame_id;
+//   _frame_id = other._frame_id;
+//   _timestamp = other._timestamp;
+//   _pose_fixed = other._pose_fixed;
+//   _pose = other._pose;
 
-  _features = other._features;
-  _keypoints = other._keypoints;
-  for(int i=0;i<FRAME_GRID_COLS;i++){
-    for(int j=0; j<FRAME_GRID_ROWS; j++){
-      _feature_grid[i][j] = other._feature_grid[i][j];
-    }
-  }
-  _grid_width_inv = other._grid_width_inv;
-  _grid_height_inv = other._grid_height_inv;
-  _u_right = other._u_right;
-  _depth = other._depth;
-  _track_ids = other._track_ids;
-  _mappoints = other._mappoints;
-  _camera = other._camera;
-  return *this;
-}
+//   _features = other._features;
+//   _keypoints = other._keypoints;
+//   for(int i=0;i<FRAME_GRID_COLS;i++){
+//     for(int j=0; j<FRAME_GRID_ROWS; j++){
+//       _feature_grid[i][j] = other._feature_grid[i][j];
+//     }
+//   }
+//   _grid_width_inv = other._grid_width_inv;
+//   _grid_height_inv = other._grid_height_inv;
+//   _u_right = other._u_right;
+//   _depth = other._depth;
+//   _track_ids = other._track_ids;
+//   _mappoints = other._mappoints;
+//   _camera = other._camera;
+
+//   _imu_pose = other._imu_pose;
+//   _preinteration = other._preinteration;
+//   _previous_frame = other._previous_frame;
+//   return *this;
+// }
 
 void Frame::SetFrameId(int frame_id){
   _frame_id = frame_id;
@@ -61,13 +65,15 @@ bool Frame::PoseFixed(){
 
 void Frame::SetPose(const Eigen::Matrix4d& pose){
   _pose = pose;
+  Eigen::Matrix4d Tcb = _camera->BodyToCamera();
+  _imu_pose = pose * Tcb;
 }
 
 Eigen::Matrix4d& Frame::GetPose(){
   return _pose;
 }
 
-bool Frame::FindGrid(double& x, double& y, int& grid_x, int& grid_y){
+bool Frame::FindGrid(float& x, float& y, int& grid_x, int& grid_y){
   grid_x = std::round(x * _grid_width_inv);
   grid_y = std::round(y * _grid_height_inv);
 
@@ -77,23 +83,23 @@ bool Frame::FindGrid(double& x, double& y, int& grid_x, int& grid_y){
   return !(grid_x < 0 || grid_x >= FRAME_GRID_COLS || grid_y < 0 || grid_y >= FRAME_GRID_ROWS);
 }
 
-void Frame::AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
-    Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<Eigen::Vector4d>& lines_left, 
+void Frame::AddFeatures(Eigen::Matrix<float, 259, Eigen::Dynamic>& features_left, 
+    Eigen::Matrix<float, 259, Eigen::Dynamic>& features_right, std::vector<Eigen::Vector4d>& lines_left, 
     std::vector<Eigen::Vector4d>& lines_right, std::vector<cv::DMatch>& stereo_matches){
   AddLeftFeatures(features_left, lines_left);
   AddRightFeatures(features_right, lines_right, stereo_matches);
 }
 
-void Frame::AddLeftFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
+void Frame::AddLeftFeatures(Eigen::Matrix<float, 259, Eigen::Dynamic>& features_left, 
     std::vector<Eigen::Vector4d>& lines_left){
   _features = features_left;
 
   // fill in keypoints and assign features to grids
   size_t features_left_size = _features.cols();
   for(size_t i = 0; i < features_left_size; ++i){
-    double score = _features(0, i);
-    double x = _features(1, i);
-    double y = _features(2, i);
+    float score = _features(0, i);
+    float x = _features(1, i);
+    float y = _features(2, i);
     _keypoints.emplace_back(x, y, 8, -1, score);
 
     int grid_x, grid_y;
@@ -130,8 +136,9 @@ void Frame::AddLeftFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features
   relation_left = points_on_line_left;
 }
 
-int Frame::AddRightFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, 
+int Frame::AddRightFeatures(Eigen::Matrix<float, 259, Eigen::Dynamic>& features_right, 
     std::vector<Eigen::Vector4d>& lines_right, std::vector<cv::DMatch>& stereo_matches){
+
   // filter matches from superglue
   std::vector<cv::DMatch> matches;
   double min_x_diff = _camera->MinXDiff();
@@ -149,14 +156,20 @@ int Frame::AddRightFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features
     }
   }
 
-  // triangulate stereo points
+  // Triangulate stereo points
+  int good_stereo_point = 0;
   for(cv::DMatch& match : matches){
     int idx_left = match.queryIdx;
     int idx_right = match.trainIdx;
 
     assert(idx_left < _u_right.size());
-    _u_right[idx_left] = features_right(1, idx_right);
-    _depth[idx_left] = _camera->BF() / (_features(1, idx_left) - features_right(1, idx_right));
+    double parallax = _features(1, idx_left) - features_right(1, idx_right);
+
+    if(parallax < _camera->MaxXDiff() && parallax > _camera->MinXDiff()){
+      _u_right[idx_left] = features_right(1, idx_right);
+      _depth[idx_left] = _camera->BF() / parallax;
+      good_stereo_point++;
+    }
   }
 
   // assign points to lines
@@ -182,10 +195,10 @@ int Frame::AddRightFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features
   line_left_to_right_match = line_matches;
   relation_right = points_on_line_right;
 
-  return matches.size();
+  return good_stereo_point;
 }
 
-Eigen::Matrix<double, 259, Eigen::Dynamic>& Frame::GetAllFeatures(){
+Eigen::Matrix<float, 259, Eigen::Dynamic>& Frame::GetAllFeatures(){
   return _features;
 }
 
@@ -195,7 +208,7 @@ size_t Frame::FeatureNum(){
 
 bool Frame::GetKeypointPosition(size_t idx, Eigen::Vector3d& keypoint_pos){
   if(idx > _features.cols()) return false;
-  keypoint_pos.head(2) = _features.block<2, 1>(1, idx);
+  keypoint_pos.head(2) = _features.block<2, 1>(1, idx).cast<double>();
   keypoint_pos(2) = _u_right[idx];
   return true;
 }
@@ -232,7 +245,7 @@ std::vector<double>& Frame::GetAllRightPosition(){
   return _u_right;
 } 
 
-bool Frame::GetDescriptor(size_t idx, Eigen::Matrix<double, 256, 1>& descriptor) const{
+bool Frame::GetDescriptor(size_t idx, Eigen::Matrix<float, 256, 1>& descriptor) const{
   if(idx > _features.cols()) return false;
   descriptor = _features.block<256, 1>(3, idx);
   return true;
@@ -404,7 +417,6 @@ const std::vector<std::map<int, double>>& Frame::GetPointsOnLines(){
 }
 
 bool Frame::TriangulateStereoLine(size_t idx, Vector6d& endpoints){
-  return false;
   if(idx >= _lines.size() || !_lines_right_valid[idx]) return false;
   return TriangulateByStereo(_lines[idx], _lines_right[idx], _pose, _camera, endpoints);
 }
@@ -419,49 +431,16 @@ void Frame::RemoveMapline(int idx){
   }
 }
 
-void Frame::AddConnection(std::shared_ptr<Frame> frame, int weight){
-  std::map<std::shared_ptr<Frame>, int>::iterator it = _connections.find(frame);
-  bool add_connection = (it == _connections.end());
-  bool change_connection = (!add_connection && _connections[frame] != weight);
-  if(add_connection || change_connection){
-    if(change_connection){
-      _ordered_connections.erase(std::pair<int, std::shared_ptr<Frame>>(it->second, frame));
-    }
-    _connections[frame] = weight;
-    _ordered_connections.insert(std::pair<int, std::shared_ptr<Frame>>(weight, frame));
-  }
+void Frame::AddJunctions(Eigen::Matrix<float, 259, Eigen::Dynamic>& junctions){
+  _junctions = junctions;
 }
 
-void Frame::AddConnection(std::set<std::pair<int, std::shared_ptr<Frame>>> connections){
-  _ordered_connections = connections;
-  _connections.clear();
-  for(auto& kv : connections){
-    _connections[kv.second] = kv.first;
-  }
+Eigen::Matrix<float, 259, Eigen::Dynamic>& Frame::GetJunctions(){
+  return _junctions;
 }
 
-void Frame::SetParent(std::shared_ptr<Frame> parent){
-  _parent = parent;
-}
-
-std::shared_ptr<Frame> Frame::GetParent(){
-  return _parent;
-}
-
-void Frame::SetChild(std::shared_ptr<Frame> child){
-  _child = child;
-}
-
-std::shared_ptr<Frame> Frame::GetChild(){
-  return _child;
-}
-
-void Frame::RemoveConnection(std::shared_ptr<Frame> frame){
-  std::map<std::shared_ptr<Frame>, int>::iterator it = _connections.find(frame);
-  if(it != _connections.end()){
-    _ordered_connections.erase(std::pair<int, std::shared_ptr<Frame>>(it->second, it->first));
-    _connections.erase(it);
-  }
+int Frame::JunctionNum(){
+  return _junctions.cols();
 }
 
 void Frame::RemoveMappoint(MappointPtr mappoint){
@@ -474,24 +453,36 @@ void Frame::RemoveMappoint(int idx){
   }
 }
 
-void Frame::DecreaseWeight(std::shared_ptr<Frame> frame, int weight){
-  std::map<std::shared_ptr<Frame>, int>::iterator it = _connections.find(frame);
-  if(it != _connections.end()){
-    _ordered_connections.erase(std::pair<int, std::shared_ptr<Frame>>(it->second, it->first));
-    int original_weight = it->second;
-    bool to_remove = (original_weight < (weight+5) && _connections.size() >= 2) || (original_weight <= weight);
-    if(to_remove){
-      _connections.erase(it);
-    }else{
-      it->second = original_weight - weight;
-      _ordered_connections.insert(std::pair<int, std::shared_ptr<Frame>>(it->second, it->first));
-    }
-  }
+Eigen::Matrix4d Frame::IMUPose(){
+  return _imu_pose;
 }
 
-std::vector<std::pair<int, std::shared_ptr<Frame>>> Frame::GetOrderedConnections(int number){
-  int n = (number > 0 && number < _ordered_connections.size()) ? number : _ordered_connections.size();
-  return std::vector<std::pair<int, std::shared_ptr<Frame>>>(_ordered_connections.begin(), std::next(_ordered_connections.begin(), n));
+void Frame::SetIMUPose(const Eigen::Matrix4d& pose){
+  _imu_pose = pose;
+  Eigen::Matrix4d Tbc = _camera->CameraToBody();
+  _pose = _imu_pose * Tbc;
+}
+
+void Frame::SetIMUPreinteration(const Preinteration& preinteration){
+  Preinteration frame_preinteration = preinteration;
+  _preinteration = std::make_shared<Preinteration>(frame_preinteration);
+}
+
+PreinterationPtr Frame::GetIMUPreinteration(){
+  return _preinteration;
+}
+
+bool Frame::VelocityIsInitialized(){
+  return _init_v;
+}
+
+void Frame::SetVelocaity(const Eigen::Vector3d& velocity){
+  _velocity = velocity;
+  _init_v = true;
+}
+
+Eigen::Vector3d Frame::GetVelocity(){
+  return _velocity;
 }
 
 void Frame::SetPreviousFrame(std::shared_ptr<Frame> previous_frame){
@@ -501,3 +492,142 @@ void Frame::SetPreviousFrame(std::shared_ptr<Frame> previous_frame){
 std::shared_ptr<Frame> Frame::PreviousFrame(){
   return _previous_frame;
 }
+
+void Frame::SetBias(const Eigen::Vector3d& gyr_bias, const Eigen::Vector3d& acc_bias, bool to_repropagate){
+  _preinteration->SetBias(gyr_bias, acc_bias, to_repropagate);
+}
+
+void Frame::UpdateBias(const Eigen::Vector3d& gyr_bias, const Eigen::Vector3d& acc_bias){
+  _preinteration->UpdateBias(gyr_bias, acc_bias);
+}
+
+void Frame::GetBias(Eigen::Vector3d& gyr_bias, Eigen::Vector3d& acc_bias){
+  _preinteration->GetUpdatedBias(gyr_bias, acc_bias);
+}
+
+void Frame::Repropagate(){
+  _preinteration->Repropagate();
+}
+
+void Frame::DetectSentences(std::vector<DBoW2::WordId>& word_of_features){
+  assert((int)word_of_features.size() == _features.cols());
+  _sentences.clear();
+  _sentences.resize(_points_on_lines.size());
+  for(int i = 0; i < _points_on_lines.size(); i++){
+    if(_points_on_lines[i].size() < 2) continue;
+
+    for(auto& kv : _points_on_lines[i]){
+      int kpt_idx = kv.first;
+      DBoW2::WordId word_id = word_of_features[kpt_idx];
+      if(word_id < UINT_MAX){
+        _sentence_ids_of_word[word_id].push_back(i);
+        _sentences[i].push_back(word_id);
+      }
+    }
+  }
+}
+
+
+void Frame::FindSameSentences(const std::vector<std::vector<DBoW2::WordId>>& other_sentenses, 
+    std::vector<int>& word_num_of_same_sentence){
+  
+  for(const std::vector<DBoW2::WordId>& other_sentense : other_sentenses){
+    if(other_sentense.size() < 2) continue;
+
+    std::map<int, int> sentense_id_to_word_num;
+    std::map<DBoW2::WordId, std::vector<int>>::iterator it;
+    for(DBoW2::WordId word_id : other_sentense){
+      it = _sentence_ids_of_word.find(word_id);
+      if(it == _sentence_ids_of_word.end()) continue;
+
+      for(int sentence_id : it->second){
+        if(sentense_id_to_word_num.count(sentence_id) > 0){
+          sentense_id_to_word_num[sentence_id] += 1;
+        }else{
+          sentense_id_to_word_num[sentence_id] = 1;
+        }
+      }
+    }
+
+    int max_word_num = 0;
+    for(auto& kv : sentense_id_to_word_num){
+      max_word_num = std::max(max_word_num, kv.second);
+    }
+
+    if(max_word_num >= 2){
+      word_num_of_same_sentence.push_back(max_word_num);
+    }
+  }
+}
+
+int Frame::ComputeSentenseSimilarity(const std::vector<DBoW2::WordId>& other_word_of_features){
+  int word_num = 0;
+  for(const DBoW2::WordId& word_id : other_word_of_features){
+    if(word_id < UINT_MAX && _sentence_ids_of_word.find(word_id) != _sentence_ids_of_word.end()){
+      word_num++;
+    }
+  }
+  return word_num;
+}
+
+const std::map<DBoW2::WordId, std::vector<int>>& Frame::GetSentenseIdsOfWord(){
+  return _sentence_ids_of_word;
+}
+
+const std::vector<std::vector<DBoW2::WordId>>& Frame::GetSentenses(){
+  return _sentences;
+}
+
+void Frame::FindJunctionConnections(){
+  _connected_junctions.resize(_junctions.cols());
+
+  const int W = _camera->ImageWidth();
+  const int H = _camera->ImageHeight();
+  std::vector<std::vector<int>> junction_map(H, std::vector<int>(W, -1));
+  for(int i = 0; i < _junctions.cols(); ++i){
+    int x = (int)(_junctions(1, i)+0.5);
+    int y = (int)(_junctions(2, i)+0.5);
+    junction_map[y][x] = i;
+  }
+
+  const int WS = 2; // window size
+  std::function<int(double, double)> match_junction = [&](double x, double y){
+    int junction_id = -1;
+    int d_min = 2 * WS + 1;
+
+    int xi = int(x+0.5);
+    int yi = int(y+0.5);
+    for(int i = std::max(yi - WS, 0); i <= std::min(yi + WS, H-1); i++){
+      for(int j = std::max(xi - WS, 0); j <= std::min(xi + WS, W-1); j++){
+        if(junction_map[i][j] >= 0){
+          int d = std::abs(yi - i) + std::abs(xi - j);
+          if(d < d_min){
+            junction_id = junction_map[i][j];
+            d_min = d;
+
+            if(d_min == 0){
+              return junction_id;
+            }
+          }
+        }
+      }
+    }
+
+    return junction_id;
+  };
+
+  for(const Eigen::Vector4d& line : _lines){
+    int junction_id1 = match_junction(line(0), line(1));
+    if(junction_id1 < 0) continue;
+
+    int junction_id2 = match_junction(line(2), line(3));
+    if(junction_id2 < 0) continue;
+
+    _connected_junctions[junction_id1].insert(junction_id2);
+    _connected_junctions[junction_id2].insert(junction_id1);
+  }
+}
+
+const std::vector<std::set<int>>& Frame::GetJunctionConnections(){
+  return _connected_junctions;
+} 

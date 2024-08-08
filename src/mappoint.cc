@@ -1,3 +1,5 @@
+#include <iostream> 
+
 #include "mappoint.h"
 
 Mappoint::Mappoint(): tracking_frame_id(-1), last_frame_seen(-1), local_map_optimization_frame_id(-1),
@@ -13,7 +15,7 @@ Mappoint::Mappoint(int& mappoint_id, Eigen::Vector3d& p): tracking_frame_id(-1),
     local_map_optimization_frame_id(-1), _id(mappoint_id), _type(Type::Good), _position(p){
 }
 
-Mappoint::Mappoint(int& mappoint_id, Eigen::Vector3d& p, Eigen::Matrix<double, 256, 1>& d):
+Mappoint::Mappoint(int& mappoint_id, Eigen::Vector3d& p, Eigen::Matrix<float, 256, 1>& d):
     tracking_frame_id(-1), last_frame_seen(-1), local_map_optimization_frame_id(-1), 
     _id(mappoint_id), _type(Type::Good), _position(p), _descriptor(d){
 
@@ -27,7 +29,7 @@ int Mappoint::GetId(){
   return _id;
 }
 
-void Mappoint::SetType(Type& type){
+void Mappoint::SetType(const Type& type){
   _type = type;
 }
 
@@ -73,22 +75,22 @@ int Mappoint::ObverserNum(){
   return obverser_num;
 }
 
-void Mappoint::SetPosition(Eigen::Vector3d& p){
+void Mappoint::SetPosition(const Eigen::Vector3d& p){
   _position = p;
   if(_type == Type::UnTriangulated){
     _type = Type::Good;
   }
 }
 
-Eigen::Vector3d& Mappoint::GetPosition(){
+Eigen::Vector3d Mappoint::GetPosition(){
   return _position;
 }
 
-void Mappoint::SetDescriptor(const Eigen::Matrix<double, 256, 1>& descriptor){
+void Mappoint::SetDescriptor(const Eigen::Matrix<float, 256, 1>& descriptor){
   _descriptor = descriptor;
 }
 
-Eigen::Matrix<double, 256, 1>& Mappoint::GetDescriptor(){
+Eigen::Matrix<float, 256, 1>& Mappoint::GetDescriptor(){
   return _descriptor;
 }
 

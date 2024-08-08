@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
-  <name>air_vo</name>
+  <name>air_slam</name>
   <version>0.0.0</version>
-  <description>The AirVO package</description>
+  <description>The AirSLAM package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag --> 
   <!-- Example:  -->

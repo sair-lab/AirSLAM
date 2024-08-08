@@ -6,10 +6,20 @@
 #include <Eigen/SparseCore>
 #include <opencv2/opencv.hpp>
 
+#include <boost/serialization/serialization.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/serialization/map.hpp>
+#include <boost/serialization/set.hpp>
+#include <boost/serialization/vector.hpp>
+#include <boost/serialization/shared_ptr.hpp>
+
 #include "utils.h"
 #include "mappoint.h"
 #include "mapline.h"
 #include "camera.h"
+#include "imu.h"
+#include "3rdparty/DBoW2/include/DBoW2/TemplatedVocabulary.h"
 
 #define FRAME_GRID_ROWS 48
 #define FRAME_GRID_COLS 64
@@ -18,7 +28,7 @@ class Frame{
 public:
   Frame();
   Frame(int frame_id, bool pose_fixed, CameraPtr camera, double timestamp);
-  Frame& operator=(const Frame& other);
+  // Frame& operator=(const Frame& other);
 
   void SetFrameId(int frame_id);
   int GetFrameId();
@@ -29,14 +39,14 @@ public:
   Eigen::Matrix4d& GetPose();
 
   // point features
-  bool FindGrid(double& x, double& y, int& grid_x, int& grid_y);
-  void AddFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, 
-      Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<Eigen::Vector4d>& lines_left, 
+  bool FindGrid(float& x, float& y, int& grid_x, int& grid_y);
+  void AddFeatures(Eigen::Matrix<float, 259, Eigen::Dynamic>& features_left, 
+      Eigen::Matrix<float, 259, Eigen::Dynamic>& features_right, std::vector<Eigen::Vector4d>& lines_left, 
       std::vector<Eigen::Vector4d>& lines_right, std::vector<cv::DMatch>& stereo_matches);
-  void AddLeftFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_left, std::vector<Eigen::Vector4d>& lines_left);
-  int AddRightFeatures(Eigen::Matrix<double, 259, Eigen::Dynamic>& features_right, std::vector<Eigen::Vector4d>& lines_right, std::vector<cv::DMatch>& stereo_matches);
+  void AddLeftFeatures(Eigen::Matrix<float, 259, Eigen::Dynamic>& features_left, std::vector<Eigen::Vector4d>& lines_left);
+  int AddRightFeatures(Eigen::Matrix<float, 259, Eigen::Dynamic>& features_right, std::vector<Eigen::Vector4d>& lines_right, std::vector<cv::DMatch>& stereo_matches);
 
-  Eigen::Matrix<double, 259, Eigen::Dynamic>& GetAllFeatures();
+  Eigen::Matrix<float, 259, Eigen::Dynamic>& GetAllFeatures();
 
   size_t FeatureNum();
 
@@ -48,7 +58,7 @@ public:
   double GetRightPosition(size_t idx);
   std::vector<double>& GetAllRightPosition(); 
 
-  bool GetDescriptor(size_t idx, Eigen::Matrix<double, 256, 1>& descriptor) const;
+  bool GetDescriptor(size_t idx, Eigen::Matrix<float, 256, 1>& descriptor) const;
 
   double GetDepth(size_t idx);
   std::vector<double>& GetAllDepth();
@@ -88,23 +98,40 @@ public:
   void RemoveMapline(MaplinePtr mapline);
   void RemoveMapline(int idx);
 
-  // covisibility graph
-  void AddConnection(std::shared_ptr<Frame> frame, int weight);
-  void AddConnection(std::set<std::pair<int, std::shared_ptr<Frame>>> connections);
-  void SetParent(std::shared_ptr<Frame> parent);
-  std::shared_ptr<Frame> GetParent();
-  void SetChild(std::shared_ptr<Frame> child);
-  std::shared_ptr<Frame> GetChild();
+  void AddJunctions(Eigen::Matrix<float, 259, Eigen::Dynamic>& junctions);
+  Eigen::Matrix<float, 259, Eigen::Dynamic>& GetJunctions();
+  int JunctionNum();
 
-  void RemoveConnection(std::shared_ptr<Frame> frame);
   void RemoveMappoint(MappointPtr mappoint);
   void RemoveMappoint(int idx);
-  void DecreaseWeight(std::shared_ptr<Frame> frame, int weight);
 
-  std::vector<std::pair<int, std::shared_ptr<Frame>>> GetOrderedConnections(int number);
-
+  // for IMU
+  Eigen::Matrix4d IMUPose();
+  void SetIMUPose(const Eigen::Matrix4d& pose);
+  void SetIMUPreinteration(const Preinteration& preinteration);
+  PreinterationPtr GetIMUPreinteration();
+  bool VelocityIsInitialized();
+  void SetVelocaity(const Eigen::Vector3d& velocity);
+  Eigen::Vector3d GetVelocity();
   void SetPreviousFrame(const std::shared_ptr<Frame> previous_frame);
   std::shared_ptr<Frame> PreviousFrame();
+  void SetBias(const Eigen::Vector3d& gyr_bias, const Eigen::Vector3d& acc_bias, bool to_repropagate = true);
+  void UpdateBias(const Eigen::Vector3d& gyr_bias, const Eigen::Vector3d& acc_bias);
+  void GetBias(Eigen::Vector3d& gyr_bias, Eigen::Vector3d& acc_bias);
+  void Repropagate();
+
+  // for loop detection and re-localization
+  void DetectSentences(std::vector<DBoW2::WordId>& word_of_features);
+  void FindSameSentences(const std::vector<std::vector<DBoW2::WordId>>& other_sentenses, 
+      std::vector<int>& word_num_of_same_sentence);
+  int ComputeSentenseSimilarity(const std::vector<DBoW2::WordId>& other_word_of_features);
+
+  const std::map<DBoW2::WordId, std::vector<int>>& GetSentenseIdsOfWord();
+  const std::vector<std::vector<DBoW2::WordId>>& GetSentenses();
+
+  void FindJunctionConnections();
+  const std::vector<std::set<int>>& GetJunctionConnections();
+
   
 public:
   int tracking_frame_id;
@@ -117,13 +144,53 @@ public:
   std::vector<std::map<int, double>> relation_right;
 
 private:
+  friend class boost::serialization::access;
+  template<class Archive>
+  void serialize(Archive & ar, const unsigned int version){
+    ar & _frame_id;
+    ar & _timestamp;
+    ar & _pose_fixed;
+    ar & boost::serialization::make_array(_pose.data(), _pose.size());
+
+    SerializeFeatures(ar, _features, version);
+    SerializeKeypoints(ar, _keypoints, version);
+    ar & _feature_grid;
+    ar & _grid_width_inv;
+    ar & _grid_height_inv;
+    ar & _u_right;
+    ar & _depth;
+    ar & _track_ids;
+    ar & _mappoints;
+
+    SerializeEigenVector4dList(ar, _lines, version);
+    SerializeEigenVector4dList(ar, _lines_right, version);
+    ar & _lines_right_valid;
+    ar & _points_on_lines;
+    ar & _line_track_ids;
+    ar & _maplines;
+
+    SerializeFeatures(ar, _junctions, version);
+    ar & _connected_junctions;
+
+    ar & _camera;
+
+    ar & boost::serialization::make_array(_imu_pose.data(), _imu_pose.size());
+    ar & _init_v;
+    ar & boost::serialization::make_array(_velocity.data(), _velocity.size());
+    ar & _preinteration;
+
+    ar & _sentence_ids_of_word;
+    ar & _sentences;
+  }
+
+private:
   int _frame_id;
   double _timestamp;
   bool _pose_fixed;
   Eigen::Matrix4d _pose;
 
   // point features
-  Eigen::Matrix<double, 259, Eigen::Dynamic> _features;
+  Eigen::Matrix<float, 259, Eigen::Dynamic> _features;
   std::vector<cv::KeyPoint> _keypoints;
   std::vector<int> _feature_grid[FRAME_GRID_COLS][FRAME_GRID_ROWS];
   double _grid_width_inv;
@@ -141,14 +208,23 @@ private:
   std::vector<int> _line_track_ids;
   std::vector<MaplinePtr> _maplines;
 
+  // junctions
+  Eigen::Matrix<float, 259, Eigen::Dynamic> _junctions;
+  std::vector<std::set<int>> _connected_junctions;
+
+  // camera
   CameraPtr _camera;
 
-  // covisibility graph
-  std::map<std::shared_ptr<Frame>, int> _connections;
-  std::set<std::pair<int, std::shared_ptr<Frame>>> _ordered_connections;
-  std::shared_ptr<Frame> _parent;
-  std::shared_ptr<Frame> _child;
+  // for imu
+  Eigen::Matrix4d _imu_pose;
+  bool _init_v;   
+  Eigen::Vector3d _velocity;
+  PreinterationPtr _preinteration;
   std::shared_ptr<Frame> _previous_frame;
+
+  // for re-localization, word id <-> sentecnse indeces
+  std::map<DBoW2::WordId, std::vector<int>> _sentence_ids_of_word;
+  std::vector<std::vector<DBoW2::WordId>> _sentences;
 };
 
 typedef std::shared_ptr<Frame> FramePtr;

@@ -6,20 +6,46 @@
 #include <opencv2/opencv.hpp>
 #include <Eigen/Core>
 
-#include "super_point.h"
 #include "super_glue.h"
 #include "read_configs.h"
+#include "imu.h"
 #include "dataset.h"
 #include "camera.h"
 #include "frame.h"
-#include "point_matching.h"
+#include "point_matcher.h"
 #include "line_processor.h"
+#include "feature_detector.h"
 #include "map.h"
 #include "ros_publisher.h"
 #include "g2o_optimization/types.h"
 
+struct InputData{
+  size_t index;
+  double time;
+  cv::Mat image_left;
+  cv::Mat image_right;
+  ImuDataList batch_imu_data;
+
+  InputData() {}
+  InputData& operator =(InputData& other){
+		index = other.index;
+		time = other.time;
+		image_left = other.image_left.clone();
+		image_right = other.image_right.clone();
+		return *this;
+	}
+};
+typedef std::shared_ptr<InputData> InputDataPtr;
+
+enum FrameType {
+  NormalFrame = 0,
+  KeyFrame = 1,
+  InitializationFrame = 2,
+};
+
 struct TrackingData{
   FramePtr frame;
+  FrameType frame_type;
   FramePtr ref_keyframe;
   std::vector<cv::DMatch> matches;
   InputDataPtr input_data;
@@ -37,37 +63,27 @@ typedef std::shared_ptr<TrackingData> TrackingDataPtr;
 
 class MapBuilder{
 public:
-  MapBuilder(Configs& configs);
+  MapBuilder(VisualOdometryConfigs& configs, ros::NodeHandle nh);
+  bool UseIMU();
   void AddInput(InputDataPtr data);
   void ExtractFeatureThread();
   void TrackingThread();
 
-  void ExtractFeatrue(const cv::Mat& image, Eigen::Matrix<double, 259, Eigen::Dynamic>& points, std::vector<Eigen::Vector4d>& lines);
-  void ExtractFeatureAndMatch(const cv::Mat& image, const Eigen::Matrix<double, 259, Eigen::Dynamic>& points0, 
-      Eigen::Matrix<double, 259, Eigen::Dynamic>& points1, std::vector<Eigen::Vector4d>& lines, std::vector<cv::DMatch>& matches);
-  bool Init(FramePtr frame, cv::Mat& image_left, cv::Mat& image_right);
-  int TrackFrame(FramePtr frame0, FramePtr frame1, std::vector<cv::DMatch>& matches);
+  int TrackFrame(FramePtr ref_frame, FramePtr current_frame, std::vector<cv::DMatch>& matches, Preinteration& _preinteration);
 
-  // pose_init = 0 : opencv pnp, pose_init = 1 : last frame pose, pose_init = 2 : original pose
-  int FramePoseOptimization(FramePtr frame, std::vector<MappointPtr>& mappoints, std::vector<int>& inliers, int pose_init = 0);
-  bool AddKeyframe(FramePtr last_keyframe, FramePtr current_frame, int num_match);
-  void InsertKeyframe(FramePtr frame, const cv::Mat& image_right);
+  int FramePoseOptimization(FramePtr frame0, FramePtr frame, std::vector<MappointPtr>& mappoints, std::vector<int>& inliers, 
+      Preinteration& preinteration);
+  int AddKeyframeCheck(FramePtr ref_keyframe, FramePtr current_frame, const std::vector<cv::DMatch>&);
   void InsertKeyframe(FramePtr frame);
 
-  // for tracking local map
-  void UpdateReferenceFrame(FramePtr frame);
-  void UpdateLocalKeyframes(FramePtr frame);
-  void UpdateLocalMappoints(FramePtr frame);
-  void SearchLocalPoints(FramePtr frame, std::vector<std::pair<int, MappointPtr>>& good_projections);
-  int TrackLocalMap(FramePtr frame, int num_inlier_thr);
-
-  void PublishFrame(FramePtr frame, cv::Mat& image);
-
+  void PublishFrame(FramePtr frame, cv::Mat& image, FrameType frame_type, std::vector<cv::DMatch>& matches);
   void SaveTrajectory();
   void SaveTrajectory(std::string file_path);
   void SaveMap(const std::string& map_root);
 
-  void ShutDown();
+  void Stop();
+  bool IsStopped();
+
 
 private:
   // left feature extraction and tracking thread
@@ -80,38 +96,34 @@ private:
   std::queue<TrackingDataPtr> _tracking_data_buffer;
   std::thread _tracking_thread;
 
-  // gpu mutex
-  std::mutex _gpu_mutex;
-
+  std::mutex _stop_mutex;
   bool _shutdown;
+  bool _feature_thread_stop;
+  bool _tracking_trhead_stop;
 
   // tmp 
   bool _init;
+  bool _insert_next_keyframe;
   int _track_id;
   int _line_track_id;
-  FramePtr _last_frame;
-  FramePtr _last_keyframe;
-  int _num_since_last_keyframe;
-  bool _last_frame_track_well;
-
-  cv::Mat _last_image;
-  cv::Mat _last_right_image;
+  FramePtr _last_keyframe_feature;
+  FramePtr _last_keyframe_tracking;
+  FramePtr _last_tracked_frame;
   cv::Mat _last_keyimage;
 
-  Pose3d _last_pose; 
+  cv::Mat key_image_pub;
+  int key_image_id_pub;
+  std::vector<cv::KeyPoint> keyframe_keypoints_pub;
 
-  // for tracking local map
-  bool _to_update_local_map;
-  FramePtr _ref_keyframe;
-  std::vector<MappointPtr> _local_mappoints;
-  std::vector<FramePtr> _local_keyframes;
+  // for imu
+  Preinteration _preinteration_keyframe;
 
+private:
   // class
-  Configs _configs;
+  VisualOdometryConfigs _configs;
   CameraPtr _camera;
-  SuperPointPtr _superpoint;
-  PointMatchingPtr _point_matching;
-  LineDetectorPtr _line_detector;
+  PointMatcherPtr _point_matcher;
+  FeatureDetectorPtr _feature_detector;
   RosPublisherPtr _ros_publisher;
   MapPtr _map;
 };

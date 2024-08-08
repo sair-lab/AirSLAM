@@ -12,19 +12,21 @@
 #include <NvOnnxParser.h>
 #include <opencv2/opencv.hpp>
 
-#include "Thirdparty/TensorRTBuffer/include/buffers.h"
+#include "3rdparty/tensorrtbuffer/include/buffers.h"
 #include "read_configs.h"
 
-using tensorrt_common::TensorRTUniquePtr;
+using tensorrt_buffer::TensorRTUniquePtr;
 
 class SuperGlue {
 public:
-    explicit SuperGlue(const SuperGlueConfig &superglue_config);
+    SuperGlue() {};
+    
+    explicit SuperGlue(const PointMatcherConfig &superglue_config);
 
     bool build();
 
-    bool infer(const Eigen::Matrix<double, 259, Eigen::Dynamic> &features0,
-               const Eigen::Matrix<double, 259, Eigen::Dynamic> &features1,
+    bool infer(const Eigen::Matrix<float, 259, Eigen::Dynamic> &features0,
+               const Eigen::Matrix<float, 259, Eigen::Dynamic> &features1,
                Eigen::VectorXi &indices0,
                Eigen::VectorXi &indices1,
                Eigen::VectorXd &mscores0,
@@ -35,11 +37,11 @@ public:
     bool deserialize_engine();
 
 private:
-    SuperGlueConfig superglue_config_;
+    PointMatcherConfig superglue_config_;
     std::vector<int> indices0_;
     std::vector<int> indices1_;
-    std::vector<double> mscores0_;
-    std::vector<double> mscores1_;
+    std::vector<float> mscores0_;
+    std::vector<float> mscores1_;
 
     nvinfer1::Dims keypoints_0_dims_{};
     nvinfer1::Dims scores_0_dims_{};
@@ -58,8 +60,8 @@ private:
                            TensorRTUniquePtr<nvonnxparser::IParser> &parser) const;
 
     bool process_input(const tensorrt_buffer::BufferManager &buffers,
-                       const Eigen::Matrix<double, 259, Eigen::Dynamic> &features0,
-                       const Eigen::Matrix<double, 259, Eigen::Dynamic> &features1);
+                       const Eigen::Matrix<float, 259, Eigen::Dynamic> &features0,
+                       const Eigen::Matrix<float, 259, Eigen::Dynamic> &features1);
 
     bool process_output(const tensorrt_buffer::BufferManager &buffers,
                         Eigen::VectorXi &indices0,

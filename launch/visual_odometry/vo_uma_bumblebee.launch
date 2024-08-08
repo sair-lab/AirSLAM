@@ -1,0 +1,20 @@
+<launch>
+  <arg name="config_path" default = "$(find air_slam)/configs/visual_odometry/vo_uma_bumblebee.yaml" />
+  <arg name="dataroot" default = "/media/data/datasets/uma/selected_seq/indoor/third-floor-csc1_2019-03-04-20-06-37_IllChange" />
+  <arg name="camera_config_path" default = "$(find air_slam)/configs/camera/uma_bumblebee.yaml" />
+  <arg name="model_dir" default = "$(find air_slam)/output" />
+  <arg name="saving_dir" default = "$(find air_slam)/debug" />
+
+  <node name="visual_odometry" pkg="air_slam" type="visual_odometry" output="screen">
+    <param name="config_path" type="string" value="$(arg config_path)" />
+    <param name="dataroot" type="string" value="$(arg dataroot)" />
+    <param name="camera_config_path" type="string" value="$(arg camera_config_path)" />
+    <param name="model_dir" type="string" value="$(arg model_dir)" />
+    <param name="saving_dir" type="string" value="$(arg saving_dir)" />
+  </node>
+
+  <arg name="visualization" default="true" />
+  <group if="$(arg visualization)">
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find air_slam)/rviz/vo.rviz" output="screen" />
+  </group>      
+</launch>		

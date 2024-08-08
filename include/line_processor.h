@@ -17,14 +17,11 @@
 #include "read_configs.h"
 #include "camera.h"
 
-void FilterShortLines(std::vector<Eigen::Vector4f>& lines, float length_thr);
-void FilterShortLines(std::vector<Eigen::Vector4d>& lines, float length_thr);
 float PointLineDistance(Eigen::Vector4f line, Eigen::Vector2f point);
 double CVPointLineDistance3D(const std::vector<cv::Point3f> points, const cv::Vec6f& line, std::vector<float>& dist);
 void EigenPointLineDistance3D(const std::vector<Eigen::Vector3d>& points, const Vector6d& line, std::vector<double>& dist);
 float AngleDiff(float& angle1, float& angle2);
-Eigen::Vector4f MergeTwoLines(const Eigen::Vector4f& line1, const Eigen::Vector4f& line2);
-void AssignPointsToLines(std::vector<Eigen::Vector4d>& lines, Eigen::Matrix<double, 259, Eigen::Dynamic>& points, 
+void AssignPointsToLines(std::vector<Eigen::Vector4d>& lines, Eigen::Matrix<float, 259, Eigen::Dynamic>& points, 
     std::vector<std::map<int, double>>& relation);
 void MatchLines(const std::vector<std::map<int, double>>& points_on_line0, 
     const std::vector<std::map<int, double>>& points_on_line1, const std::vector<cv::DMatch>& point_matches, 
@@ -45,20 +42,5 @@ bool ComputeLine3DFromEndpoints(const Vector6d& endpoints, Line3DPtr line_3d);
 bool Point2DTo3D(const Eigen::Vector3d& anchor_point1, const Eigen::Vector3d& anchor_point2, 
   	const Eigen::Vector2d& anchor_point_2d1, const Eigen::Vector2d& anchor_point_2d2, 
   	const Eigen::Vector2d& p2D, Eigen::Vector3d& p3D);
-
-class LineDetector{
-public:
-	LineDetector(const LineDetectorConfig &line_detector_config);
-	void LineExtractor(const cv::Mat& image, std::vector<Eigen::Vector4d>& lines);
-  void MergeLines(std::vector<Eigen::Vector4f>& source_lines, std::vector<Eigen::Vector4f>& dst_lines,
-      float angle_threshold, float distance_threshold, float endpoint_threshold);
-
-private:
-	LineDetectorConfig _line_detector_config;
-	std::shared_ptr<cv::ximgproc::FastLineDetector> fld;
-};
-typedef std::shared_ptr<LineDetector> LineDetectorPtr;
-
-
 
 #endif  // LINE_PROCESSOR_H_

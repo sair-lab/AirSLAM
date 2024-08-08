@@ -1,87 +1,64 @@
-# AirVO
-## An Illumination-Robust Point-Line Visual Odometry
+<h1 align="center">AirSLAM: An Efficient and Illumination-Robust Point-Line Visual SLAM System</h1>
 
- <img src="images/pipeline.jpg" width = "800" alt="pipeline" />
+<p align="center"><strong>
+    <a href = "https://scholar.google.com/citations?user=-p7HvCMAAAAJ&hl=zh-CN">Kuan Xu</a><sup>1</sup>,
+    <a href = "https://github.com/yuefanhao">Yuefan Hao</a><sup>2</sup>,
+    <a href = "https://scholar.google.com/citations?user=XcV_sesAAAAJ&hl=en">Shenghai Yuan</a><sup>1</sup>,
+    <a href = "https://sairlab.org/team/chenw/">Chen Wang</a><sup>2</sup>,
+    <a href = "https://scholar.google.com.sg/citations?user=Fmrv3J8AAAAJ&hl=en">Lihua Xie</a><sup>1</sup>
+</strong></p>
 
-AirVO is an **illumination-robust** and accurate **stereo visual odometry (VO) system** based on **point and line features**. It is a hybrid VO system that combines the efficiency of traditional optimization techniques with the robustness of learning-based methods. To be robust to illumination variation, we introduce both the **learning-based feature extraction ([SuperPoint](https://github.com/magicleap/SuperPointPretrainedNetwork))** and **matching ([SuperGlue](https://github.com/magicleap/SuperGluePretrainedNetwork)) method** to the system. Moreover, We propose a new line processing pipeline for VO that **associates 2D lines with learning-based 2D points** on the image, leading to more robust feature matching and triangulation. This novel method enhances the accuracy and reliability of VO, especially in illumination-challenging environments. By accelerating CNN and GNN parts using Nvidia TensorRT Toolkit, our point feature detection and matching achieve more than **5× faster** than the original codes. The system can run at a rate of about **15Hz** on the Nvidia Jetson AGX Xavier (a low-power embedded device) and **40Hz** on a notebook PC.
+<p align="center"><strong>
+    <a href = "https://www.ntu.edu.sg/cartin">1: Centre for Advanced Robotics Technology Innovation (CARTIN), Nanyang Technological University</a><br>
+    <a href = "https://sairlab.org/">2: Spatial AI & Robotics Lab (SAIR Lab), Department of Computer Science and Engineering, University at Buffal</a><br>
+</strong></p>
 
-**Authors:** [Kuan Xu](https://github.com/xukuanHIT), [Yuefan Hao](https://github.com/yuefanhao), [Shenghai Yuan](https://scholar.google.com/citations?user=XcV_sesAAAAJ&hl=en), [Chen Wang](https://chenwang.site/), and [Lihua Xie](https://personal.ntu.edu.sg/elhxie/)
+<p align="center"><strong> 
+    <a href = "https://arxiv.org/pdf/2408.03520">&#128196; [Arxiv]</a> | 
+    <a href = "https://xukuanhit.github.io/airslam/">&#128190; [Project Site]</a> |
+    <!-- &#128214; [OpenAccess] -->
+</strong></p>
 
+## :scroll: About AirSLAM
 
-## Related Papers
+<p align="middle">
+  <img src="figures/system_arch.jpg" width="600" />
+</p>
 
-**AirVO: An Illumination-Robust Point-Line Visual Odometry**, Kuan Xu, Yuefan Hao, Shenghai Yuan, Chen Wang and Lihua Xie, *IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)*, 2023. **[PDF](https://arxiv.org/abs/2212.07595)**.
+**AirSLAM** is an efficient visual SLAM system designed to tackle both short-term and long-term illumination
+challenges. Our system adopts a hybrid approach that combines deep learning techniques for feature detection and matching with traditional backend optimization methods. Specifically, we proposea unified convolutional neural network (CNN) that simultaneously extracts keypoints and structural lines. These features are then associated, matched, triangulated, and optimized in a coupled manner. Additionally, we introduce a lightweight relocalization pipeline that reuses the built map, where keypoints, lines, anda structure graph are used to match the query frame with themap. To enhance the applicability of the proposed system to real-world robots, we deploy and accelerate the feature detection and matching networks using C++ and NVIDIA TensorRT. Extensive experiments conducted on various datasets demonstrate that our system outperforms other state-of-the-art visual SLAM systems in illumination-challenging environments. Efficiency evaluations show that our system can run at a rate of 73Hz on a PC and 40Hz on an embedded platform.
 
-If you use AirVO, please cite:
-
-```bibtex
-@inproceedings{xu2023airvo,
-  title={AirVO: An Illumination-Robust Point-Line Visual Odometry},
-  author={Xu, Kuan and Hao, Yuefan and Yuan, Shenghai and Wang, Chen and Xie, Lihua},
-  booktitle={IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
-  year={2023}
-}
-```
-
-
-## Demos
-
-### UMA-VI dataset
-[UMA-VI dataset](http://mapir.isa.uma.es/mapirwebsite/?p=2108) contains many sequences where images may suddenly darken as a result of turning off the lights. Here are demos on two sequences.
-
-<img src="images/demo_uma.gif" height = "200" alt="uma" border="10" /><img src="images/uma_traj.png" height = "220" alt="uma_traj" align="top" border="10" />
-
-### OIVIO dataset
-[OIVIO dataset](https://arpg.github.io/oivio/) collects data in mines and tunnels with onboard illumination.
-
-<img src="images/demo_oivio.gif" height = "200" alt="oivio" /> <img src="images/oivio_traj.png" height = "100" alt="oivio_traj" />
+<p align="middle">
+<a href="https://youtu.be/5OcR5KeO5nc" target="_blank"><img src="figures/title.JPG" width="600" border="10"/></a>
+</p>
 
 
-### Live demo with realsense camera
-We also test AirVO on sequences collected by Realsense D435I in the environment with continuous changing illumination. 
-
-<img src="images/demo_realsense.gif" width = "539" height = "211" alt="realsense" />
-
-### More
-[Video demo](https://www.youtube.com/watch?v=ZBggy5syysY)
+## :eyes: Updates
+* [2024.08] We release the code and paper for AirSLAM.
+* [2023.01] AriVO is accepted by IROS 2023.
+* [2022.10] We release the code and paper for AirVO.
 
 
-## Efficiency Comparison
-The evaluation is performed on the Nvidia Jetson AGX Xavier (2018), a low-power embedded platform with an 8-core ARM v8.2 64-bit CPU and a lowpower 512-core NVIDIA Volta GPU. The resolution of the input image sequence is 640 × 480. We extract 200 points and disabled the loop closure, relocalization and visualization part for all algorithms.
-
-<img src="images/time.jpg" width = "600" alt="efficiency" />
-
-
-## Test Environment
+## :checkered_flag: Test Environment
 ### Dependencies
 * OpenCV 4.2
 * Eigen 3
-* Ceres 2.0.0 
+* Ceres 2.0.0
 * G2O (tag:20230223_git)
-* TensorRT 8.4 
-* CUDA 11.6
+* TensorRT 8.6
+* CUDA 12
 * python
-* onnx
 * ROS noetic
 * Boost
-* Glog
-
-For **Nvidia GeForce RTX 40 series**, please use TensorRT 8.5 and CUDA 11.8 instead.
 
 ### Docker (Recommend)
 ```bash
-docker pull xukuanhit/air_slam:v1
-docker run -it --env DISPLAY=$DISPLAY --volume /tmp/.X11-unix:/tmp/.X11-unix --privileged --runtime nvidia --gpus all --volume ${PWD}:/workspace --workdir /workspace --name air_slam xukuanhit/air_slam:v1 /bin/bash
+docker pull xukuanhit/air_slam:v4
+docker run -it --env DISPLAY=$DISPLAY --volume /tmp/.X11-unix:/tmp/.X11-unix --privileged --runtime nvidia --gpus all --volume ${PWD}:/workspace --workdir /workspace --name air_slam xukuanhit/air_slam:v4 /bin/bash
 ```
 
-For **Nvidia GeForce RTX 40 series**:
-```bash
-docker pull xukuanhit/air_slam:v3
-docker run -it --env DISPLAY=$DISPLAY --volume /tmp/.X11-unix:/tmp/.X11-unix --privileged --runtime nvidia --gpus all --volume ${PWD}:/workspace --workdir /workspace --name air_slam xukuanhit/air_slam:v3 /bin/bash
-```
-
-## Data
-The data should be organized using the Automous Systems Lab (ASL) dataset format just like the following:
+## :book: Data
+The data for mapping should be organized in the following Automous Systems Lab (ASL) dataset format:
 
 ```
 dataroot
@@ -91,41 +68,84 @@ dataroot
 │       ├── 00002.jpg
 │       ├── 00003.jpg
 │       └── ......
-└── cam1
-    └── data
-        ├── 00001.jpg
-        ├── 00002.jpg
-        ├── 00003.jpg
-        └── ......
-```
+├── cam1
+│   └── data
+│       ├── 00001.jpg
+│       ├── 00002.jpg
+│       ├── 00003.jpg
+│       └── ......
+└── imu0
+    └── data.csv
 
-## Build
+```
+After the map is built, the relocalization requires only moocular images. Therefore, you only need to place the query images in a folder.
+
+
+## :computer: Build
 ```
     cd ~/catkin_ws/src
-    git clone https://github.com/xukuanHIT/AirVO.git
+    git clone https://github.com/xukuanHIT/AirSLAM.git
     cd ../
     catkin_make
     source ~/catkin_ws/devel/setup.bash
 ```
 
-## Run 
+## :running: Run 
 
-**Note: Generating ".engine" files needs some time on the first run.**
+The launch files for VO/VIO, map optimization and relocalization are placed in [VO folder](launch/visual_odometry), [MR folder](launch/map_refinement), and [Reloc folder](launch/relocalization), respectively. Before running them, you need to modify the corresponding configurations according to you data path and the desired map saving path. The following is an example of mapping, optimization, and relocalization with the EuRoC dataset.  
 
-### [OIVIO Dataset](https://arpg.github.io/oivio/)
-```
-roslaunch air_vo oivio.launch 
-```
 
-### [UMA-VI Dataset](http://mapir.isa.uma.es/mapirwebsite/?p=2108)
-```
-roslaunch air_vo uma_bumblebee_indoor.launch 
-```
+### Mapping
+**1**: Change "dataroot" in [VO launch file](launch/visual_odometry/vo_euroc.launch) to your own data path. For the EuRoC dataset, "mav0" needs to be included in the path.
 
-### [Euroc Dataset](https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets)
+**2**: Change "saving_dir" in the same file to the path where you want to save the map and trajectory. It must be an existing folder.
+
+**3**: Run the launch file:
+
 ```
-roslaunch air_vo euroc.launch 
+roslaunch air_slam vo_euroc.launch 
 ```
 
-## Acknowledgements
-We would like to thank [SuperPoint](https://github.com/magicleap/SuperPointPretrainedNetwork) and [SuperGlue](https://github.com/magicleap/SuperGluePretrainedNetwork) for making their project public.
+### Map Optimization
+**1**: Change "map_root" in [MR launch file](launch/map_refinement/mr_euroc.launch) to your own map path.
+
+**2**: Run the launch file:
+
+```
+roslaunch air_slam mr_euroc.launch 
+```
+
+### Relocalization
+**1**: Change "dataroot" in [Reloc launch file](launch/relocalization/reloc_euroc.launch) to your own query data path.
+
+**2**: Change "map_root" in the same file to your own map path.
+
+**3**: Run the launch file:
+
+```
+roslaunch air_slam reloc_euroc.launch 
+```
+
+### Other datasets
+[Launch folder](launch) and [config folder](configs) respectively provide the lauch files and configuration files for other datatsetsin the paper. If you want to run AirSLAM with your own dataset, you need to create your own camera file, configuration file, and launch file. 
+
+
+## :writing_hand: TODO List
+
+- [x] Initial release. :rocket:
+- [ ] Support SuperGlue as feature matecher
+- [ ] Optimize the TensorRT acceleration of PLNet
+
+
+## :pencil: Citation
+```
+@misc{xu2024airslamefficientilluminationrobustpointline,
+    title={AirSLAM: An Efficient and Illumination-Robust Point-Line Visual SLAM System}, 
+    author={Kuan Xu and Yuefan Hao and Shenghai Yuan and Chen Wang and Lihua Xie},
+    year={2024},
+    eprint={2408.03520},
+    archivePrefix={arXiv},
+    primaryClass={cs.RO},
+    url={https://arxiv.org/abs/2408.03520}, 
+}
+```

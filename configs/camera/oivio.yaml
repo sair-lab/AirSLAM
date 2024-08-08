@@ -1,0 +1,30 @@
+%YAML:1.0
+
+image_height: 720
+image_width: 1280
+use_imu: 0 # There is some issues with the transform between IMU and camera of OIVIO, so it is better to use visual only.  
+
+depth_lower_thr: 0.1
+depth_upper_thr: 2.0
+max_y_diff: 5
+
+# Calibration
+distortion_type: 1  # 0 for undistorted inputs, 1 for radial-tangential: [k1, k2, p1, p2, k3], 2 for equidistant/fisheye:  [k1, k2, k3, k4, 0].
+cam0:
+  intrinsics: [639.2645, 639.5627, 635.7686, 355.1494] # fx, fy, cx, cy
+  distortion_coeffs: [-0.04087948, 0.03006104, 0, 0, 0]
+  T_type: 0           # 0 for Euroc format, the following T is Tbc. 1 for Kalibr format, the following T is Tcb
+  T: 
+  - [0.9998664, -0.0004085695, -0.0163398, -0.010594]
+  - [-0.01634012, -0.0007861392, -0.9998662, -0.06035109]
+  - [0.0003956694, 0.9999996, -0.0007927102, -0.008747597]
+  - [0.0, 0.0, 0.0, 1.0]
+cam1:
+  intrinsics: [639.7958, 639.9821, 641.171, 354.8851] 
+  distortion_coeffs: [-0.04023259, 0.02970617, 0, 0, 0]
+  T_type: 0           
+  T: 
+  - [0.9999221, 0.0006674261, -0.01246673, 0.03954445]
+  - [-0.01246507, -0.00243322, -0.9999193, -0.06110263]
+  - [-0.0006977066, 0.9999968, -0.002424711, -0.008894352]
+  - [0.0, 0.0, 0.0, 1.0]

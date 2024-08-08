@@ -1,0 +1,30 @@
+%YAML:1.0
+
+image_height: 480
+image_width: 848
+use_imu: 0
+
+depth_lower_thr: 0.1
+depth_upper_thr: 10.0
+max_y_diff: 2
+
+# Calibration
+distortion_type: 0  # 0 for undistorted inputs, 1 for radial-tangential: [k1, k2, p1, p2, k3], 2 for equidistant/fisheye:  [k1, k2, k3, k4, 0].
+cam0:
+  intrinsics: [420.1159362792969, 420.1159362792969, 423.2421569824219, 241.36537170410156] # fx, fy, cx, cy
+  distortion_coeffs: [0.0, 0.0, 0.0, 0.0, 0]
+  T_type: 0           # 0 for Euroc format, the following T is Tbc. 1 for Kalibr format, the following T is Tcb
+  T: 
+  - [1.0, 0.0, 0.0, 0.0]
+  - [0.0, 1.0, 0.0, 0.0]
+  - [0.0, 0.0, 1.0, 0.0]
+  - [0.0, 0.0, 0.0, 1.0]
+cam1:
+  intrinsics: [420.1159362792969, 420.1159362792969, 423.2421569824219, 241.36537170410156] # fx, fy, cx, cy
+  distortion_coeffs: [0.0, 0.0, 0.0, 0.0, 0]
+  T_type: 0           
+  T: 
+  - [1.0, 0.0, 0.0, 0.05]
+  - [0.0, 1.0, 0.0, 0.0]
+  - [0.0, 0.0, 1.0, 0.0]
+  - [0.0, 0.0, 0.0, 1.0]

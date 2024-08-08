@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="2">
+  <name>dbow2</name>
+  <version>1.1.0</version>
+  <description>
+    Enhanced hierarchical bag-of-word library for C++
+  </description>
+  <maintainer email="dorian3d@users.noreply.github.com">Dorian Gálvez-López</maintainer>
+  <license>BSD + notification</license>
+
+  <buildtool_depend>cmake</buildtool_depend>
+  
+  <build_depend>libopencv-dev</build_depend>
+
+  <export>
+    <build_type>cmake</build_type>
+  </export>
+</package>

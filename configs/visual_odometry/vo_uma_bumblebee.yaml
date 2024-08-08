@@ -1,0 +1,52 @@
+plnet:
+  use_superpoint: 1
+  max_keypoints: 350
+  keypoint_threshold: 0.0035
+  remove_borders: 4 
+  line_threshold: 0.8
+  line_length_threshold: 50
+
+point_matcher:
+  matcher: 0   # 0 for lightglue, 1 for superglue
+  image_width: 1024
+  image_height: 768
+  onnx_file: "superpoint_lightglue.onnx"
+  engine_file: "superpoint_lightglue.engine"
+
+keyframe:
+  min_init_stereo_feature: 90
+  lost_num_match: 10
+  min_num_match: 10
+  max_num_match: 80
+  tracking_point_rate: 0.6
+  tracking_parallax_rate: 0.1
+
+optimization:
+  tracking:
+    mono_point: 25
+    stereo_point: 37
+    mono_line: 25
+    stereo_line: 37
+    rate: 0.5
+  backend:
+    mono_point: 25
+    stereo_point: 37
+    mono_line: 25
+    stereo_line: 37
+    rate: 0.5
+
+ros_publisher:
+  feature: 1
+  feature_topic: "/AirSLAM/feature"
+  frame_pose: 1
+  frame_pose_topic: "/AirSLAM/frame_pose"
+  frame_odometry_topic: "/AirSLAM/LatestOdometry"
+  keyframe: 1
+  keyframe_topic: "/AirSLAM/keyframe"
+  path_topic: "/AirSLAM/odometry"
+  map: 1
+  map_topic: "/AirSLAM/map"
+  mapline: 1
+  mapline_topic: "/AirSLAM/mapline"
+  reloc: 0
+  reloc_topic: "/AirSLAM/reloc"
