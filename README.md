@@ -138,14 +138,13 @@ roslaunch air_slam reloc_euroc.launch
 
 
 ## :pencil: Citation
-```
-@misc{xu2024airslamefficientilluminationrobustpointline,
-    title={AirSLAM: An Efficient and Illumination-Robust Point-Line Visual SLAM System}, 
-    author={Kuan Xu and Yuefan Hao and Shenghai Yuan and Chen Wang and Lihua Xie},
-    year={2024},
-    eprint={2408.03520},
-    archivePrefix={arXiv},
-    primaryClass={cs.RO},
-    url={https://arxiv.org/abs/2408.03520}, 
+```bibtex
+@article{xu2023airslam,
+  title = {{AirSLAM}: An Efficient and Illumination-Robust Point-Line Visual SLAM System},
+  author = {Xu, Kuan and Hao, Yuefan and Yuan, Shenghai and Wang, Chen and Xie, Lihua},
+  journal = {arXiv preprint arXiv:2408.03520},
+  year = {2024},
+  url = {https://arxiv.org/abs/2408.03520},
+  code = {https://github.com/sair-lab/AirSLAM},
 }
 ```
