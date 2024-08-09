@@ -35,8 +35,8 @@ challenges. Our system adopts a hybrid approach that combines deep learning tech
 
 ## :eyes: Updates
 * [2024.08] We release the code and paper for AirSLAM.
-* [2023.01] AriVO is accepted by IROS 2023.
-* [2022.10] We release the code and paper for AirVO.
+* [2023.07] AriVO is accepted by IROS 2023.
+* [2022.10] We release the code and paper for AirVO. The code for AirVO can now be found [here](https://github.com/sair-lab/AirSLAM/tree/airvo_iros).
 
 
 ## :checkered_flag: Test Environment
@@ -84,7 +84,7 @@ After the map is built, the relocalization requires only moocular images. Theref
 ## :computer: Build
 ```
     cd ~/catkin_ws/src
-    git clone https://github.com/xukuanHIT/AirSLAM.git
+    git clone https://github.com/sair-lab/AirSLAM.git
     cd ../
     catkin_make
     source ~/catkin_ws/devel/setup.bash
@@ -146,5 +146,16 @@ roslaunch air_slam reloc_euroc.launch
   year = {2024},
   url = {https://arxiv.org/abs/2408.03520},
   code = {https://github.com/sair-lab/AirSLAM},
+}
+
+@inproceedings{xu2023airvo,
+  title = {{AirVO}: An Illumination-Robust Point-Line Visual Odometry},
+  author = {Xu, Kuan and Hao, Yuefan and Yuan, Shenghai and Wang, Chen and Xie, Lihua},
+  booktitle = {IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
+  year = {2023},
+  url = {https://arxiv.org/abs/2212.07595},
+  code = {https://github.com/sair-lab/AirVO},
+  video = {https://youtu.be/YfOCLll_PfU},
+  addendum = {SAIR Lab Recommended}
 }
 ```
