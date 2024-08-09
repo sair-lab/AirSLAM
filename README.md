@@ -139,7 +139,7 @@ roslaunch air_slam reloc_euroc.launch
 
 ## :pencil: Citation
 ```bibtex
-@article{xu2023airslam,
+@article{xu2024airslam,
   title = {{AirSLAM}: An Efficient and Illumination-Robust Point-Line Visual SLAM System},
   author = {Xu, Kuan and Hao, Yuefan and Yuan, Shenghai and Wang, Chen and Xie, Lihua},
   journal = {arXiv preprint arXiv:2408.03520},
