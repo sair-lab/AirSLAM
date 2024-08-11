@@ -26,7 +26,7 @@
 </p>
 
 **AirSLAM** is an efficient visual SLAM system designed to tackle both short-term and long-term illumination
-challenges. Our system adopts a hybrid approach that combines deep learning techniques for feature detection and matching with traditional backend optimization methods. Specifically, we proposea unified convolutional neural network (CNN) that simultaneously extracts keypoints and structural lines. These features are then associated, matched, triangulated, and optimized in a coupled manner. Additionally, we introduce a lightweight relocalization pipeline that reuses the built map, where keypoints, lines, anda structure graph are used to match the query frame with themap. To enhance the applicability of the proposed system to real-world robots, we deploy and accelerate the feature detection and matching networks using C++ and NVIDIA TensorRT. Extensive experiments conducted on various datasets demonstrate that our system outperforms other state-of-the-art visual SLAM systems in illumination-challenging environments. Efficiency evaluations show that our system can run at a rate of 73Hz on a PC and 40Hz on an embedded platform.
+challenges. Our system adopts a hybrid approach that combines deep learning techniques for feature detection and matching with traditional backend optimization methods. Specifically, we propose a unified convolutional neural network (CNN) that simultaneously extracts keypoints and structural lines. These features are then associated, matched, triangulated, and optimized in a coupled manner. Additionally, we introduce a lightweight relocalization pipeline that reuses the built map, where keypoints, lines, and a structure graph are used to match the query frame with the map. To enhance the applicability of the proposed system to real-world robots, we deploy and accelerate the feature detection and matching networks using C++ and NVIDIA TensorRT. Extensive experiments conducted on various datasets demonstrate that our system outperforms other state-of-the-art visual SLAM systems in illumination-challenging environments. Efficiency evaluations show that our system can run at a rate of 73Hz on a PC and 40Hz on an embedded platform.
 
 <p align="middle">
 <a href="https://youtu.be/5OcR5KeO5nc" target="_blank"><img src="figures/title.JPG" width="600" border="10"/></a>
@@ -58,27 +58,27 @@ docker run -it --env DISPLAY=$DISPLAY --volume /tmp/.X11-unix:/tmp/.X11-unix --p
 ```
 
 ## :book: Data
-The data for mapping should be organized in the following Automous Systems Lab (ASL) dataset format:
+The data for mapping should be organized in the following Autonomous Systems Lab (ASL) dataset format (imu data is optional):
 
 ```
 dataroot
 ├── cam0
 │   └── data
-│       ├── 00001.jpg
-│       ├── 00002.jpg
-│       ├── 00003.jpg
+│       ├── t0.jpg
+│       ├── t1.jpg
+│       ├── t2.jpg
 │       └── ......
 ├── cam1
 │   └── data
-│       ├── 00001.jpg
-│       ├── 00002.jpg
-│       ├── 00003.jpg
+│       ├── t0.jpg
+│       ├── t1.jpg
+│       ├── t2.jpg
 │       └── ......
 └── imu0
     └── data.csv
 
 ```
-After the map is built, the relocalization requires only moocular images. Therefore, you only need to place the query images in a folder.
+After the map is built, the relocalization requires only monocular images. Therefore, you only need to place the query images in a folder.
 
 
 ## :computer: Build
@@ -92,7 +92,7 @@ After the map is built, the relocalization requires only moocular images. Theref
 
 ## :running: Run 
 
-The launch files for VO/VIO, map optimization and relocalization are placed in [VO folder](launch/visual_odometry), [MR folder](launch/map_refinement), and [Reloc folder](launch/relocalization), respectively. Before running them, you need to modify the corresponding configurations according to you data path and the desired map saving path. The following is an example of mapping, optimization, and relocalization with the EuRoC dataset.  
+The launch files for VO/VIO, map optimization, and relocalization are placed in [VO folder](launch/visual_odometry), [MR folder](launch/map_refinement), and [Reloc folder](launch/relocalization), respectively. Before running them, you need to modify the corresponding configurations according to your data path and the desired map-saving path. The following is an example of mapping, optimization, and relocalization with the EuRoC dataset.  
 
 
 ### Mapping
