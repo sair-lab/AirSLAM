@@ -17,7 +17,7 @@
     <a href = "https://arxiv.org/pdf/2408.03520">&#128196; [Arxiv]</a> | 
     <a href = "https://xukuanhit.github.io/airslam/">&#128190; [Project Site]</a> |
     <a href = "https://youtu.be/5OcR5KeO5nc">&#127909; [Youtube]</a> |
-    <a href = "https://www.bilibili.com/video/BV1rJY7efE9x">&#127909; [Bilibili]</a> |
+    <a href = "https://www.bilibili.com/video/BV1rJY7efE9x">&#127909; [Bilibili]</a>
     <!-- &#128214; [OpenAccess] -->
 </strong></p>
 
