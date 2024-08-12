@@ -13,4 +13,3 @@ weights/*
 debug/*
 *.so
 */__pycache__/*
-voc/*
