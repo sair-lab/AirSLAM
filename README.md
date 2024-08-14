@@ -48,8 +48,8 @@ challenges. Our system adopts a hybrid approach that combines deep learning tech
 * Eigen 3
 * Ceres 2.0.0
 * G2O (tag:20230223_git)
-* TensorRT 8.6
-* CUDA 12
+* TensorRT 8.6.1.6
+* CUDA 12.1
 * python
 * ROS noetic
 * Boost
