@@ -35,8 +35,8 @@ void EdgeSE3ProjectLine::computeError() {
 Eigen::Vector3d EdgeSE3ProjectLine::cam_project(const g2o::Line3D& line) const {
   Eigen::Vector3d w = line.w();
   Eigen::Vector3d line_2d;
-  line_2d(0) = fy * w(0);
-  line_2d(1) = fx * w(1);
+  line_2d(0) = fx * w(0);
+  line_2d(1) = fy * w(1);
   line_2d(2) = Kv.transpose() * w;
   return line_2d;
 }
