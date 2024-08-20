@@ -130,13 +130,13 @@ roslaunch air_slam reloc_euroc.launch
 ```
 
 ### Other datasets
-[Launch folder](launch) and [config folder](configs) respectively provide the lauch files and configuration files for other datatsetsin the paper. If you want to run AirSLAM with your own dataset, you need to create your own camera file, configuration file, and launch file. 
+[Launch folder](launch) and [config folder](configs) respectively provide the lauch files and configuration files for other datasets in the paper. If you want to run AirSLAM with your own dataset, you need to create your own camera file, configuration file, and launch file. 
 
 
 ## :writing_hand: TODO List
 
 - [x] Initial release. :rocket:
-- [ ] Support SuperGlue as feature matecher
+- [ ] Support SuperGlue as feature matcher
 - [ ] Optimize the TensorRT acceleration of PLNet
 
 
