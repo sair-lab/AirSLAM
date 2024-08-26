@@ -55,16 +55,24 @@ Camera::Camera(const std::string& camera_file){
     cv::eigen2cv(R10_eigen, R10);
     cv::eigen2cv(t10_eigen, t10);
 
-    cv::Size image_size(_image_width, _image_height);
-    cv::stereoRectify(K0, D0, K1, D1, image_size, R10, t10, R0, R1, P0, P1, Q,
-    cv::CALIB_ZERO_DISPARITY, 0, image_size);
-
     if(distortion_type == 1){
+      cv::Size image_size(_image_width, _image_height);
+      cv::stereoRectify(K0, D0, K1, D1, image_size, R10, t10, R0, R1, P0, P1, Q,
+                        cv::CALIB_ZERO_DISPARITY, 0, image_size);
+
       cv::initUndistortRectifyMap(K0, D0, R0, P0.rowRange(0,3).colRange(0,3), 
           cv::Size(_image_width, _image_height), CV_32F, _mapl1, _mapl2);
       cv::initUndistortRectifyMap(K1, D1, R1, P1.rowRange(0,3).colRange(0,3),
           cv::Size(_image_width, _image_height), CV_32F, _mapr1, _mapr2);
     }else{
+      cv::Size image_size(_image_width, _image_height);
+      cv::Mat D0_ = D0.rowRange(0, D0.rows - 1);
+      D0 = D0_;
+      cv::Mat D1_ = D1.rowRange(0, D1.rows - 1);
+      D1 = D1_;
+      cv::fisheye::stereoRectify(K0, D0, K1, D1, image_size, R10, t10, R0, R1, P0, P1, Q,
+                                 cv::CALIB_ZERO_DISPARITY, image_size);
+
       cv::fisheye::initUndistortRectifyMap(K0, D0.rowRange(0,4), R0, P0.rowRange(0,3).colRange(0,3), 
           cv::Size(_image_width, _image_height), CV_32F, _mapl1, _mapl2);
       cv::fisheye::initUndistortRectifyMap(K1, D1.rowRange(0,4), R1, P1.rowRange(0,3).colRange(0,3),
