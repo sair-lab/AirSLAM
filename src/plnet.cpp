@@ -16,7 +16,7 @@ using namespace tensorrt_buffer;
 
 PLNet::PLNet(PLNetConfig& plnet_config) : plnet_config_(plnet_config), engine0_(nullptr), 
     engine1_(nullptr), resized_width(512), resized_height(512){
-  setReportableSeverity(Logger::Severity::kVERBOSE);
+  setReportableSeverity(Logger::Severity::kINTERNAL_ERROR);
   feature_width = resized_width / 4;
   feature_height = resized_height / 4;
 }

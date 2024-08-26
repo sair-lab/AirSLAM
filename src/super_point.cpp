@@ -11,7 +11,7 @@ using namespace tensorrt_buffer;
 
 SuperPoint::SuperPoint(const SuperPointConfig &super_point_config): resized_width(512), 
         resized_height(512), super_point_config_(super_point_config), engine_(nullptr) {
-    setReportableSeverity(Logger::Severity::kINFO);
+    setReportableSeverity(Logger::Severity::kINTERNAL_ERROR);
     // setReportableSeverity(Logger::Severity::kINTERNAL_ERROR);
 }
 
