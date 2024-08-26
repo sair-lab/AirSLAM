@@ -42,7 +42,7 @@ saving_root = "/media/data/datasets/euroc/results/airvio/test"
 
 
 
-version = 1
+version = 0
 
 MakeDir(saving_root)
 
