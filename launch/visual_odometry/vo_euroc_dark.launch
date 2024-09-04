@@ -3,7 +3,7 @@
   <arg name="dataroot" default = "/media/data/datasets/euroc/dark_euroc/sequences/09" />
   <arg name="camera_config_path" default = "$(find air_slam)/configs/camera/dark_euroc.yaml" />
   <arg name="model_dir" default = "$(find air_slam)/output" />
-  <arg name="saving_dir" default = "$(find air_slam)/debug/test" />
+  <arg name="saving_dir" default = "$(find air_slam)/debug" />
 
   <node name="visual_odometry" pkg="air_slam" type="visual_odometry" output="screen">
     <param name="config_path" type="string" value="$(arg config_path)" />
