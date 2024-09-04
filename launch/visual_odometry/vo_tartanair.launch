@@ -3,7 +3,7 @@
   <arg name="dataroot" default = "/media/bssd/datasets/tartanair/euroc_style/with_time/abandonedfactory/P009" />
   <arg name="camera_config_path" default = "$(find air_slam)/configs/camera/tartanair.yaml" />
   <arg name="model_dir" default = "$(find air_slam)/output" />
-  <arg name="saving_dir" default = "$(find air_slam)/debug/test" />
+  <arg name="saving_dir" default = "$(find air_slam)/debug" />
 
   <node name="visual_odometry" pkg="air_slam" type="visual_odometry" output="screen">
     <param name="config_path" type="string" value="$(arg config_path)" />
