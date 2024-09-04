@@ -101,7 +101,7 @@ The launch files for VO/VIO, map optimization, and relocalization are placed in 
 ### Mapping
 **1**: Change "dataroot" in [VO launch file](launch/visual_odometry/vo_euroc.launch) to your own data path. For the EuRoC dataset, "mav0" needs to be included in the path.
 
-**2**: Change "saving_dir" in the same file to the path where you want to save the map and trajectory. It must be an existing folder.
+**2**: Change "saving_dir" in the same file to the path where you want to save the map and trajectory. **It must be an existing folder.**
 
 **3**: Run the launch file:
 
