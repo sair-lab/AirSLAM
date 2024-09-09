@@ -21,7 +21,7 @@
     <!-- &#128214; [OpenAccess] -->
 </strong></p>
 
-## :scroll: About AirSLAM
+## :scroll: About AirSLAM (AirVO is [here](https://github.com/sair-lab/AirSLAM/releases/tag/1.0))
 
 <p align="middle">
   <img src="figures/system_arch.jpg" width="600" />
