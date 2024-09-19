@@ -21,7 +21,7 @@
     <!-- &#128214; [OpenAccess] -->
 </strong></p>
 
-## :scroll: AirSLAM has dual modes (VSLAM & VISLAM), upgraded from [AirVO (IROS23)](https://github.com/sair-lab/AirSLAM/releases/tag/1.0)
+### :scroll: AirSLAM has dual modes (VSLAM & VISLAM), upgraded from [AirVO (IROS23)](https://github.com/sair-lab/AirSLAM/releases/tag/1.0)
 
 <p align="middle">
   <img src="figures/system_arch.jpg" width="600" />
