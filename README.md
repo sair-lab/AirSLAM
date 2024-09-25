@@ -136,7 +136,8 @@ roslaunch air_slam reloc_euroc.launch
 ## :writing_hand: TODO List
 
 - [x] Initial release. :rocket:
-- [ ] Support SuperGlue as feature matcher
+- [ ] Support more GPUs and development environments
+- [ ] Support SuperGlue as the feature matcher
 - [ ] Optimize the TensorRT acceleration of PLNet
 
 
