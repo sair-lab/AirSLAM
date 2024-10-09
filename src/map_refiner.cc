@@ -176,7 +176,7 @@ void MapRefiner::LoopDetection(FramePtr frame, DBoW2::WordIdToFeatures& word_fea
   // filtration of group by geometric verification
   Eigen::Vector3d current_position = frame->GetPose().block<3, 1>(0, 3);
   Eigen::Vector3d loop_position;
-  int loop_distance_thr = odometry_length * 0.03;
+  double loop_distance_thr = odometry_length * 0.03;
   loop_group_iter = group_candidates.begin();
   for(; loop_group_iter != group_candidates.end();){
     FramePtr fsw = loop_group_iter->first;
