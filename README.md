@@ -10,7 +10,7 @@
 
 <p align="center"><strong>
     <a href = "https://www.ntu.edu.sg/cartin">1: Centre for Advanced Robotics Technology Innovation (CARTIN), Nanyang Technological University</a><br>
-    <a href = "https://sairlab.org/">2: Spatial AI & Robotics Lab (SAIR Lab), Department of Computer Science and Engineering, University at Buffal</a><br>
+    <a href = "https://sairlab.org/">2: Spatial AI & Robotics (SAIR) Lab, Computer Science and Engineering, University at Buffalo</a><br>
 </strong></p>
 
 <p align="center"><strong> 
