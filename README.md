@@ -160,6 +160,5 @@ roslaunch air_slam reloc_euroc.launch
   url = {https://arxiv.org/abs/2212.07595},
   code = {https://github.com/sair-lab/AirVO},
   video = {https://youtu.be/YfOCLll_PfU},
-  addendum = {SAIR Lab Recommended}
 }
 ```
