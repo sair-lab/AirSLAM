@@ -37,6 +37,7 @@ challenges. Our system adopts a hybrid approach that combines deep learning tech
 
 
 ## :eyes: Updates
+* [2025.01] We release the training code for PLNet. The Python code for PLNet can now be found [here](https://github.com/sair-lab/PLNet).
 * [2024.08] We release the code and paper for AirSLAM.
 * [2023.07] AriVO is accepted by IROS 2023.
 * [2022.10] We release the code and paper for AirVO. The code for AirVO can now be found [here](https://github.com/sair-lab/AirSLAM/tree/airvo_iros).
