@@ -21,7 +21,9 @@
     <!-- &#128214; [OpenAccess] -->
 </strong></p>
 
-### :scroll: AirSLAM [(TRO'25)](https://arxiv.org/pdf/2408.03520) has dual-mode (V-SLAM, VI-SLAM), upgraded from [AirVO (IROS'23)](https://github.com/sair-lab/AirSLAM/releases/tag/1.0)
+### Accepted to IEEE Transactions on Robotics (TRO), 2025
+
+### :scroll: AirSLAM has dual-mode (V-SLAM, VI-SLAM), upgraded from [AirVO (IROS'23)](https://github.com/sair-lab/AirSLAM/releases/tag/1.0)
 
 <p align="middle">
   <img src="figures/system_arch.jpg" width="600" />
