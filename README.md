@@ -14,14 +14,14 @@
 </strong></p>
 
 <p align="center"><strong> 
-    <a href = "https://arxiv.org/pdf/2408.03520">&#128196; [Arxiv]</a> | 
+    <a href = "https://arxiv.org/pdf/2408.03520">&#128196; [PDF]</a> | 
     <a href = "https://xukuanhit.github.io/airslam/">&#128190; [Project Site]</a> |
     <a href = "https://youtu.be/5OcR5KeO5nc">&#127909; [Youtube]</a> |
     <a href = "https://www.bilibili.com/video/BV1rJY7efE9x">&#127909; [Bilibili]</a>
     <!-- &#128214; [OpenAccess] -->
 </strong></p>
 
-### :scroll: AirSLAM has dual modes (V-SLAM & VI-SLAM), upgraded from [AirVO (IROS23)](https://github.com/sair-lab/AirSLAM/releases/tag/1.0)
+### :scroll: AirSLAM [(TRO 2025)](https://arxiv.org/pdf/2408.03520) has dual modes (V-SLAM & VI-SLAM), upgraded from [AirVO (IROS'23)](https://github.com/sair-lab/AirSLAM/releases/tag/1.0)
 
 <p align="middle">
   <img src="figures/system_arch.jpg" width="600" />
@@ -37,6 +37,7 @@ challenges. Our system adopts a hybrid approach that combines deep learning tech
 
 
 ## :eyes: Updates
+* [2025.01] The paper [AirSLAM](https://arxiv.org/pdf/2408.03520) was officially accepted to IEEE Transactions on Robotics (TRO).
 * [2025.01] We release the training code for PLNet. The Python code for PLNet can now be found [here](https://github.com/sair-lab/PLNet).
 * [2024.08] We release the code and paper for AirSLAM.
 * [2023.07] AriVO is accepted by IROS 2023.
@@ -147,7 +148,7 @@ roslaunch air_slam reloc_euroc.launch
 @article{xu2024airslam,
   title = {{AirSLAM}: An Efficient and Illumination-Robust Point-Line Visual SLAM System},
   author = {Xu, Kuan and Hao, Yuefan and Yuan, Shenghai and Wang, Chen and Xie, Lihua},
-  journal = {arXiv preprint arXiv:2408.03520},
+  journal = {IEEE Transactions on Robotics (TRO)},
   year = {2024},
   url = {https://arxiv.org/abs/2408.03520},
   code = {https://github.com/sair-lab/AirSLAM},
