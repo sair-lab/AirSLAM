@@ -143,6 +143,7 @@ roslaunch air_slam reloc_euroc.launch
 - [ ] Support more GPUs and development environments
 - [ ] Support SuperGlue as the feature matcher
 - [ ] Optimize the TensorRT acceleration of PLNet
+- [ ] Optimize the evaluation using [PyPose](https://pypose.org/docs/main/metric/)
 
 
 ## :pencil: Citation
